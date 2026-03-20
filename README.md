@@ -2,6 +2,8 @@
 
 Follow-through labs aligned with the **Technical Use Cases** test plan. Each folder is one use case: open `lab.md`, run steps in order, paste outputs into `RESULTS.md` when done.
 
+**Infrastructure prereqs (Proxmox + Terraform + Ansible):** see [`prereqs/README.md`](prereqs/README.md). Quick VM lifecycle from repo root: `make tf-up` / `make tf-down` — set `PROXMOX_VE_*` in the shell or in `prereqs/terraform/.env` (see `.env.example`).
+
 ## High-level flow
 
 ```mermaid

@@ -1,0 +1,55 @@
+# Step 1 — Proxmox VM (Terraform)
+
+## Before you run
+
+1. **Resource pool** — Terraform creates **`rhem-eap-prereq`** and assigns only this VM. It does **not** add/remove members of the **habitvillage** pool or edit habitvillage VMs.
+2. **Network & storage** — Defaults mirror a habitvillage k3s node ( **`vmbr0`**, **`192.168.4.0/22`**, gateway **`192.168.4.1`**, DNS **`192.168.4.220`** + forwarders). See [network-habitvillage-parity.md](network-habitvillage-parity.md). Pick an **unused** `ipv4_cidr`.
+3. **Cloud image** — **RHEL 9 KVM guest** qcow2 as **`local:import/rhel9-guest-image.qcow2`** (see [rhel-guest-image-proxmox.md](rhel-guest-image-proxmox.md)). User **`cloud-user`**. Disk on **`local-zfs`**.
+4. **Auth** — `PROXMOX_VE_API_TOKEN` **or** `PROXMOX_VE_USERNAME` + `PROXMOX_VE_PASSWORD` (passwords with `%` need URL-encoding when testing with curl).
+5. **SSH public key** — In `terraform.tfvars`.
+
+Provider: [bpg/proxmox](https://registry.terraform.io/providers/bpg/proxmox/latest/docs).
+
+## Steps
+
+From the **repo root** (after `cp prereqs/terraform/terraform.tfvars.example prereqs/terraform/terraform.tfvars` and editing it):
+
+**Credentials** (the provider error *“must provide either username and password, an API token, or a ticket”* means none of these were set):
+
+- **Option A — shell:** `export PROXMOX_VE_API_TOKEN='user@pam!id=secret'` *or* `export PROXMOX_VE_USERNAME='root@pam'` and `export PROXMOX_VE_PASSWORD='...'`
+- **Option B — file:** `cp prereqs/terraform/.env.example prereqs/terraform/.env` and edit (`.env` is gitignored). `make tf-up` runs [`tf.sh`](../terraform/tf.sh), which sources `.env` automatically.
+
+Also set `export PROXMOX_VE_INSECURE=true` when using the default self-signed PVE cert (or put it in `.env`).
+
+```bash
+make tf-up    # init + apply (creates pool + RHEL VM)
+# make tf-plan   # optional preview
+# make tf-down   # destroy (same credentials)
+```
+
+Or manually:
+
+```bash
+cd prereqs/terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+## After apply
+
+- SSH: `ssh <ci_user>@<ipv4_cidr address>` (static) or check Proxmox **Summary** if using DHCP.
+- Install **qemu-guest-agent** in the guest if the provider warns about the agent.
+
+## Sizing
+
+Defaults **2 vCPU / 8 GB RAM / 50 GB** — enough for a subscribed RHEL 9 guest and light use. If this VM will host **Red Hat Edge Manager**, raise cores, RAM, and disk before `apply` (see [04-rhem-1-on-rhel.md](04-rhem-1-on-rhel.md)).
+
+## Troubleshooting
+
+| Issue | Action |
+|--------|--------|
+| Disk import fails | Confirm `cloud_image_import_id` exists under **node → local → import**. |
+| `failed to stat '/var/lib/vz/import/....qcow2'` | The qcow2 is not on the node at that path. Upload the [RHEL KVM guest image](rhel-guest-image-proxmox.md), **or** set `cloud_image_import_id` in `terraform.tfvars` to the exact **volid** from **Storage → local → Content** (filename must match what you uploaded). |
+| Wrong NIC / no IP | Confirm `network_bridge = "vmbr0"` matches the node. |
+| Static IP clash | Change `ipv4_cidr` to a free address in `/22`. |

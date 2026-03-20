@@ -1,0 +1,8 @@
+---
+all:
+  children:
+    aap_controllers:
+      hosts:
+        aap-demo:
+          ansible_host: 192.168.4.CHANGEME
+          ansible_user: cloud-user

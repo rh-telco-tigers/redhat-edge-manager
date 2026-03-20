@@ -1,0 +1,14 @@
+---
+# Path ON THE ANSIBLE CONTROLLER (laptop) to the Red Hat AAP setup bundle tarball
+aap_bundle_tar: /path/to/ansible-automation-platform-setup-bundle-*.tar.gz
+
+# Remote install directory
+aap_install_dir: /opt/aap-setup
+
+# Inventory secrets — use Ansible Vault in real environments
+aap_admin_password: CHANGEME
+aap_pg_password: CHANGEME
+
+# RHEM / RHACM playbook (playbooks/rhem_enable_rhacm.yml)
+rhacm_namespace: rhacm
+kubeconfig_path: "{{ lookup('env', 'HOME') }}/.kube/hub-config"

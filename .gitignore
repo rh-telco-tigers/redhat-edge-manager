@@ -1,0 +1,17 @@
+# Secrets — never commit
+*.auto.tfvars
+terraform.tfvars
+!*.tfvars.example
+.prereqs-secrets.env
+prereqs/ansible/group_vars/all.yml
+*.pem
+id_rsa*
+
+# Local env for Make / tf.sh (Proxmox credentials)
+prereqs/terraform/.env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log

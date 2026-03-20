@@ -1,0 +1,18 @@
+---
+- name: Baseline RHEL for AAP installer
+  hosts: aap_controllers
+  become: true
+  tasks:
+    - name: Ensure common tools
+      ansible.builtin.dnf:
+        name:
+          - tar
+          - unzip
+          - chrony
+        state: present
+
+    - name: Enable chronyd
+      ansible.builtin.systemd:
+        name: chronyd
+        state: started
+        enabled: true
