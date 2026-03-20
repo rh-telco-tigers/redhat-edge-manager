@@ -22,10 +22,10 @@ df -h /
 
 Use **[Installing Red Hat Edge Manager on RHEL](https://docs.redhat.com/en/documentation/red_hat_edge_manager/1.0/html/installing_red_hat_edge_manager_on_red_hat_enterprise_linux/)** (`flightctl-services`, `flightctl.target`, UI **`:3443`**). Example repo: `edge-manager-1.0-for-rhel-9-x86_64-rpms`.
 
-Repo helper: [`prereqs/docs/04-rhem-1-on-rhel.md`](../../prereqs/docs/04-rhem-1-on-rhel.md) (manual install; no automation in this repo).
+Repo helper: [`prereqs/docs/04-rhem-1-on-rhel.md`](../../prereqs/docs/04-rhem-1-on-rhel.md) (manual install; no automation in this repo). **Register and attach a subscription first** — otherwise `subscription-manager repos` reports *no repositories available*.
 
 ```bash
-# After subscription + repos (see doc):
+# After: subscription-manager register / attach / refresh (see 04 doc):
 # sudo dnf install -y flightctl-services flightctl-cli
 # sudo systemctl enable --now flightctl.target
 ```
