@@ -84,7 +84,7 @@ flightctl version
 flightctl login https://<RHEM_HOST>:3443 --username <USER> --password <PASS>
 ```
 
-5. **UI** — `https://<RHEM_HOST>:3443/` (TLS / self-signed: follow browser + CLI prompts).
+5. **UI** — `https://<RHEM_HOST>/` (TLS / self-signed: follow browser prompts). Use `https://<RHEM_HOST>:3443` for `flightctl` CLI/API login, not for the browser UI.
 
 ## Next (doc)
 
