@@ -30,6 +30,8 @@ Repo helper: [`prereqs/docs/04-rhem-1-on-rhel.md`](../../prereqs/docs/04-rhem-1-
 # sudo systemctl enable --now flightctl.target
 ```
 
+Before continuing: complete the **PAM issuer bootstrap** in [`prereqs/docs/04-rhem-1-on-rhel.md`](../../prereqs/docs/04-rhem-1-on-rhel.md). This is a required manual step on the RHEM host. You do need to run the commands that create the first local admin user; the `flightctl login` step later only authenticates with that user.
+
 ## Step 3 — Verify UI reachable
 
 ```bash

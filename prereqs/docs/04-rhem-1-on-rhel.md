@@ -62,6 +62,8 @@ By default, the RHEL install uses the bundled `flightctl-pam-issuer` container a
 
 Per product doc: create the `flightctl-admin` group and an admin user **inside** the `flightctl-pam-issuer` container, then add that user to `flightctl-admin`.
 
+Yes: this is a required manual step on the RHEM host. Run the user/group creation commands from the product doc here, before moving on. The next step only uses that account to log in; it does **not** create the user for you.
+
 4. **CLI**
 
 ```bash
