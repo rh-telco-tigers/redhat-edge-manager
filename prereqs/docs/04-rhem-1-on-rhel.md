@@ -46,7 +46,7 @@ podman --version
 sudo podman login registry.redhat.io
 ```
 
-2. **Install services**
+2. **Install and start Edge Manager services**
 
 ```bash
 sudo dnf install -y flightctl-services
@@ -54,9 +54,13 @@ sudo systemctl enable --now flightctl.target
 sudo systemctl list-units 'flightctl-*.service'
 ```
 
-3. **PAM / local users** (default OIDC via PAM issuer)
+At this point, **Red Hat Edge Manager is installed and running**. The next step is only for **initial login bootstrap**.
 
-Per doc: create `flightctl-admin` group and an admin user **inside** the `flightctl-pam-issuer` container, then `usermod -aG flightctl-admin`.
+3. **Bootstrap the first local admin user** (default OIDC via PAM issuer)
+
+By default, the RHEL install uses the bundled `flightctl-pam-issuer` container as the OIDC identity source. You still need to create a local admin account there before the UI / CLI login in the next steps will work.
+
+Per product doc: create the `flightctl-admin` group and an admin user **inside** the `flightctl-pam-issuer` container, then add that user to `flightctl-admin`.
 
 4. **CLI**
 
