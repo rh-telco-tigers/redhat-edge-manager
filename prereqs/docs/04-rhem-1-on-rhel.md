@@ -7,7 +7,7 @@ Official collection: [Red Hat Edge Manager 1.0](https://docs.redhat.com/en/docum
 ## Prerequisites (from product doc)
 
 - RHEL minimal install, **4 cores / 16 GB RAM** recommended, root/sudo + SSH  
-- **Podman** (for `registry.redhat.io` login and PAM issuer container)  
+- **Podman** (install it explicitly on the minimal cloud image before `registry.redhat.io` login and PAM issuer steps)  
 - **DNS name** resolving to the RHEM host (or use IP + TLS caveats for lab)  
 - **RHEL registered with a subscription that includes this system** — the KVM guest image does **not** auto-register. If you run `repos --enable` first and see *“This system has no repositories available through subscriptions”*, the host has **no entitled repos** yet (unregistered, no pool attached, or wrong account).
 
@@ -38,9 +38,11 @@ You also need an entitlement that includes **Red Hat Edge Manager** (not only RH
 
 ## Steps (concise)
 
-1. **Registry**
+1. **Install Podman and log in to the registry**
 
 ```bash
+sudo dnf install -y podman
+podman --version
 sudo podman login registry.redhat.io
 ```
 
