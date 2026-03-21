@@ -1,0 +1,85 @@
+global:
+  baseDomain: {{ rhem_base_domain }}
+  generateCertificates: builtin
+  auth:
+    type: oidc
+    insecureSkipTlsVerify: {{ rhem_insecure_skip_tls_verify | ternary('true', 'false') }}
+    aap:
+      apiUrl:
+      externalApiUrl:
+      oAuthApplicationClientId:
+      oAuthToken:
+    oidc:
+      clientId: {{ flightctl_client_id }}
+      clientSecret: {{ flightctl_client_secret }}
+      enabled: true
+      issuer: {{ keycloak_public_url }}/realms/{{ keycloak_realm }}
+      externalOidcAuthority: {{ keycloak_public_url }}/realms/{{ keycloak_realm }}
+      organizationAssignment:
+        type: static
+        organizationName: default
+      usernameClaim:
+        - preferred_username
+      roleAssignment:
+        type: dynamic
+        separator: ":"
+        claimPath:
+          - realm_access
+          - roles
+    pamOidcIssuer:
+      enabled: false
+      issuer:
+      clientId: {{ flightctl_client_id }}
+      clientSecret:
+      scopes:
+        - openid
+        - profile
+        - email
+        - roles
+        - offline_access
+      pamService: flightctl
+
+db:
+  name: flightctl
+  type: "builtin"
+
+service:
+  rateLimit:
+    enabled: true
+    requests: 300
+    window: 1m
+    authRequests: 20
+    authWindow: 1h
+    trustedProxies: []
+
+observability:
+  grafana:
+    image:
+    published_port:
+    oauth:
+      enabled:
+      provider_type:
+      auth_url:
+      token_url:
+      api_url:
+      scopes:
+      client_id:
+    local_admin_user:
+    local_admin_password:
+    root_url:
+  prometheus:
+    image:
+  telemetry_gateway:
+    image:
+    prometheus_port:
+    grpc_port:
+    config:
+      telemetryGateway:
+        export:
+          prometheus:
+        forward:
+          endpoint:
+  userinfo_proxy:
+    image:
+    upstream_url:
+    skip_tls_verify:

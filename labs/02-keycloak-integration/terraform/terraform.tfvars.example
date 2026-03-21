@@ -1,0 +1,28 @@
+# Copy to terraform.tfvars (gitignored).
+# Auth comes from PROXMOX_VE_* env vars or .env.
+
+proxmox_endpoint = "https://192.168.4.101:8006/"
+proxmox_insecure = true
+proxmox_node     = "homelab"
+
+vm_id   = 101
+vm_name = "rhem-keycloak-01"
+
+disk_storage = "local-lvm"
+
+# Reuse the same RHEL guest image as the RHEM VM.
+cloud_image_import_id = "local:import/rhel9-guest-image.qcow2"
+# cloud_image_download_url = "https://your-signed-red-hat-url/rhel-9.7-x86_64-kvm.qcow2"
+
+vm_cores     = 2
+vm_memory_mb = 4096
+vm_disk_gb   = 40
+
+ci_user        = "cloud-user"
+ssh_public_key = "ssh-ed25519 AAAA... your-key-here"
+
+ipv4_use_dhcp = true
+# If you want a fixed address instead:
+# ipv4_use_dhcp = false
+# ipv4_cidr     = "192.168.4.241/22"
+# ipv4_gateway  = "192.168.4.1"

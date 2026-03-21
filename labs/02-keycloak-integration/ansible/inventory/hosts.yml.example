@@ -1,0 +1,13 @@
+---
+all:
+  children:
+    keycloak_hosts:
+      hosts:
+        keycloak-01:
+          ansible_host: 192.168.4.CHANGEME
+          ansible_user: cloud-user
+    rhem_hosts:
+      hosts:
+        rhem-01:
+          ansible_host: 192.168.4.CHANGEME
+          ansible_user: cloud-user

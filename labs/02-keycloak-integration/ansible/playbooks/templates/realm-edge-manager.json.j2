@@ -1,0 +1,71 @@
+{
+  "realm": "{{ keycloak_realm }}",
+  "enabled": true,
+  "displayName": "Edge Manager",
+  "roles": {
+    "realm": [
+      {
+        "name": "flightctl-admin",
+        "description": "Administrator role consumed by Red Hat Edge Manager"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "{{ flightctl_client_id }}",
+      "name": "Edge Manager",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "{{ flightctl_client_secret }}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "{{ rhem_ui_url }}/*",
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles",
+        "web-origins"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "{{ edge_manager_admin_username }}",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{ edge_manager_admin_password }}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "flightctl-admin"
+      ]
+    },
+    {
+      "username": "{{ edge_manager_ops_username }}",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{ edge_manager_ops_password }}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "flightctl-admin"
+      ]
+    }
+  ]
+}

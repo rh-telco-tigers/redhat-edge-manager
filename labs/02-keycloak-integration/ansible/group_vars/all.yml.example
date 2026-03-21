@@ -1,0 +1,26 @@
+---
+# Keycloak VM
+keycloak_public_url: http://keycloak.rhem-eap.lan:8080
+keycloak_hostname: keycloak.rhem-eap.lan
+keycloak_image: quay.io/keycloak/keycloak:26.0.7
+keycloak_bootstrap_admin_username: admin
+keycloak_bootstrap_admin_password: CHANGEME-keycloak-admin-password
+keycloak_realm: edge-manager
+keycloak_import_dir: /opt/keycloak/import
+keycloak_container_name: keycloak
+
+# Edge Manager OIDC client
+flightctl_client_id: flightctl-client
+flightctl_client_secret: CHANGEME-flightctl-client-secret
+
+# Redirect target back to RHEM
+rhem_base_domain: rhem-prereq-rhel-01.rhem-eap.lan
+rhem_ui_url: https://rhem-prereq-rhel-01.rhem-eap.lan
+rhem_api_url: https://rhem-prereq-rhel-01.rhem-eap.lan:3443
+rhem_insecure_skip_tls_verify: true
+
+# Default lab users created in Keycloak
+edge_manager_admin_username: edgemanager-admin
+edge_manager_admin_password: CHANGEME-admin-password
+edge_manager_ops_username: edgemanager-ops
+edge_manager_ops_password: CHANGEME-ops-password

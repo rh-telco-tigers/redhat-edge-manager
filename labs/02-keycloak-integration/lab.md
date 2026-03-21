@@ -4,12 +4,14 @@
 
 **Files in this folder:**
 - `lab.md` — step-by-step process
-- `realm-edge-manager.json.template` — Keycloak realm, client, and default users
-- `service-config.keycloak.yaml.example` — `service-config.yaml` example for external OIDC
+- `terraform/` — creates the dedicated RHEL Keycloak VM
+- `ansible/` — installs Keycloak in Podman and updates RHEM to use external OIDC
+- `realm-edge-manager.json.template` — static realm example kept for reference
+- `service-config.keycloak.yaml.example` — static `service-config.yaml` example kept for reference
 
-## Step 1 — Create a separate Keycloak VM
+## Step 1 — Create a separate Keycloak VM with Terraform
 
-Use the same RHEL guest image / qcow2 workflow you already used for the RHEM VM. Create a second VM dedicated to Keycloak.
+The `terraform/` folder automates creation of a second RHEL VM dedicated to Keycloak. It uses the same RHEL guest image/qcow2 workflow as the RHEM VM.
 
 Suggested settings:
 - VM name: `rhem-keycloak-01`
@@ -17,93 +19,87 @@ Suggested settings:
 - Size: `2 vCPU / 4 GB RAM / 40 GB disk`
 - Network: same network as the RHEM VM
 
-Keep the Keycloak VM separate from the RHEM VM. Reuse the same Proxmox/Terraform process from [`../01-edge-manager-installation/lab.md`](../01-edge-manager-installation/lab.md), but pick a new VM ID, hostname, and IP or DHCP lease.
-
-## Step 2 — Register the Keycloak VM and install Podman
-
-Run these commands on the new Keycloak VM:
+Use the example files in `terraform/`:
 
 ```bash
-sudo subscription-manager status
-
-# If the host is not registered yet:
-sudo subscription-manager register --username YOUR_RHSM_USER --password YOUR_RHSM_PASSWORD
-# Or use an activation key instead:
-# sudo subscription-manager register --org=YOUR_ORG --activationkey=YOUR_KEY
-
-sudo subscription-manager attach --auto
-sudo subscription-manager refresh
-sudo dnf install -y podman
-podman --version
+cd terraform
+cp .env.example .env
+cp terraform.tfvars.example terraform.tfvars
 ```
 
-## Step 3 — Prepare the Keycloak realm file
+Edit `terraform.tfvars`:
+- set a free `vm_id`
+- confirm `proxmox_endpoint`, `proxmox_node`, and `disk_storage`
+- keep `cloud_image_import_id` pointed at the same RHEL guest image as the RHEM VM, or set `cloud_image_download_url`
+- set your SSH public key
 
-In this folder, copy the template and replace the `CHANGEME` values before moving it to the Keycloak VM:
+Then apply:
 
 ```bash
-cp realm-edge-manager.json.template realm-edge-manager.json
+./tf.sh init -input=false
+./tf.sh apply -auto-approve -input=false
 ```
 
-Update at least these values in `realm-edge-manager.json`:
-- Keycloak hostname used in redirect URIs
-- RHEM hostname used in redirect URIs
-- client secret for `flightctl-client`
-- passwords for the default users
+After apply, use `terraform output` to capture the Keycloak VM IP for the Ansible inventory.
 
-## Step 4 — Start Keycloak in Podman
+## Step 2 — Set Ansible inventory and variables
 
-Copy the edited realm file to the Keycloak VM and start Keycloak in a lightweight container.
+The `ansible/` folder automates:
+- host registration prerequisites needed for the Keycloak VM
+- Podman install
+- Keycloak container deployment
+- realm, client, and default user creation
+- RHEM configuration switch from the built-in PAM issuer to external Keycloak OIDC
+
+Prepare the local files:
 
 ```bash
-sudo mkdir -p /opt/keycloak/import
-sudo cp realm-edge-manager.json /opt/keycloak/import/realm-edge-manager.json
-
-sudo podman run -d \
-  --name keycloak \
-  --restart=unless-stopped \
-  -p 8080:8080 \
-  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
-  -e KC_BOOTSTRAP_ADMIN_PASSWORD='CHANGEME-keycloak-admin-password' \
-  -v /opt/keycloak/import:/opt/keycloak/data/import:Z \
-  quay.io/keycloak/keycloak:26.0.7 \
-  start-dev --import-realm --hostname=http://keycloak.rhem-eap.lan:8080
+cd ../ansible
+cp inventory/hosts.yml.example inventory/hosts.yml
+cp group_vars/all.yml.example group_vars/all.yml
 ```
 
-Check that Keycloak is up:
+Edit `inventory/hosts.yml`:
+- set the Keycloak VM `ansible_host`
+- set the RHEM VM `ansible_host`
+
+Edit `group_vars/all.yml`:
+- set `keycloak_public_url`
+- set `rhem_base_domain`, `rhem_ui_url`, and `rhem_api_url`
+- set `flightctl_client_secret`
+- set the bootstrap Keycloak admin password
+- set the default Edge Manager user passwords
+
+If you do not have DNS for `keycloak.rhem-eap.lan`, use an IP-based `keycloak_public_url` such as `http://192.168.4.36:8080`.
+
+## Step 3 — Run the automation
+
+Run the Ansible playbook from `ansible/`:
+
+```bash
+ansible-playbook playbooks/keycloak_integration.yml
+```
+
+This playbook:
+- installs Podman on the Keycloak VM
+- writes the Keycloak realm import from Ansible variables
+- starts Keycloak as a systemd-managed Podman container
+- backs up `/etc/flightctl/service-config.yaml` on the RHEM VM
+- replaces the RHEM auth config to use the Keycloak realm
+- restarts `flightctl.target`
+
+## Step 4 — Verify Keycloak
+
+On the Keycloak VM:
 
 ```bash
 sudo podman ps
-curl -s http://keycloak.rhem-eap.lan:8080/realms/edge-manager/.well-known/openid-configuration | head
+curl -s "${KEYCLOAK_PUBLIC_URL:-http://keycloak.rhem-eap.lan:8080}/realms/edge-manager/.well-known/openid-configuration" | head
 ```
 
-This uses `start-dev` for a lightweight lab setup. It is acceptable for demos and testing, not for production.
+This setup uses `start-dev` for a lightweight lab environment. It is acceptable for demos and testing, not for production.
 
-## Step 5 — Point RHEM to Keycloak instead of the built-in PAM issuer
-
-On the RHEM VM:
-
-```bash
-sudo cp /etc/flightctl/service-config.yaml /etc/flightctl/service-config.yaml.bak
-sudoedit /etc/flightctl/service-config.yaml
-```
-
-Use [`service-config.keycloak.yaml.example`](./service-config.keycloak.yaml.example) as the reference for the `global.auth` block. The important changes are:
-- keep `type: oidc`
-- set `pamOidcIssuer.enabled: false`
-- set `oidc.issuer` to the Keycloak realm issuer URL
-- set `oidc.clientId` and `oidc.clientSecret` to the Keycloak client values
-- use `claimPath: [realm_access, roles]` for roles
-- keep organization assignment static with `default`
-
-After editing the file, restart Flight Control:
-
-```bash
-sudo systemctl restart flightctl.target
-sudo systemctl status flightctl-api flightctl-ui --no-pager
-```
-
-## Step 6 — Verify browser and CLI login
+## Step 5 — Verify browser and CLI login
 
 Default users from the realm template:
 - `edgemanager-admin`
