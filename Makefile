@@ -6,14 +6,26 @@ MANUAL_TF := $(MANUAL_TF_DIR)/tf.sh
 SINGLE_TF_DIR := $(AUTOMATION_DIR)/terraform/environments/single-rhel9
 ANSIBLE_DIR := $(AUTOMATION_DIR)/ansible
 
-.PHONY: init-files automation-init-files
+.PHONY: help init-files automation-init-files
 .PHONY: plan up down configure
 .PHONY: auto-vm-init auto-vm-plan auto-vm-up auto-vm-down
-.PHONY: demo-vm-init demo-vm-plan demo-vm-up demo-vm-down
 .PHONY: rhel-vms-init rhel-vms-plan rhel-vms-up rhel-vms-down
-.PHONY: manual-demo-vm-init manual-demo-vm-plan manual-demo-vm-up manual-demo-vm-down
 .PHONY: create-rhel9
 .PHONY: tf-init tf-plan tf-up tf-down
+
+help:
+	@printf "%s\n" \
+	"Supported targets:" \
+	"  make help             Show this help" \
+	"  make init-files       Seed local gitignored config files" \
+	"  make up               Full automation: Terraform + Ansible" \
+	"  make down             Tear down full automated stack" \
+	"  make plan             Terraform plan for full automated stack" \
+	"  make auto-vm-up       Terraform-only layer of the automated stack" \
+	"  make auto-vm-down     Destroy Terraform-managed automated-stack VMs" \
+	"  make rhel-vms-up      Create only the manual-demo RHEL 9 VMs" \
+	"  make rhel-vms-down    Destroy only the manual-demo RHEL 9 VMs" \
+	"  make create-rhel9     Create one standalone RHEL 9 VM"
 
 init-files: automation-init-files
 
@@ -56,23 +68,6 @@ down: auto-vm-down
 
 create-rhel9:
 	$(AUTOMATION_DIR)/scripts/create-rhel9.sh
-
-# Backward-compatible Terraform aliases while the docs move to automation/.
-demo-vm-init: auto-vm-init
-
-demo-vm-plan: auto-vm-plan
-
-demo-vm-up: auto-vm-up
-
-demo-vm-down: auto-vm-down
-
-manual-demo-vm-init: rhel-vms-init
-
-manual-demo-vm-plan: rhel-vms-plan
-
-manual-demo-vm-up: rhel-vms-up
-
-manual-demo-vm-down: rhel-vms-down
 
 tf-init: auto-vm-init
 

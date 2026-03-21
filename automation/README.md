@@ -23,7 +23,6 @@
 `make create-rhel9` provisions one standalone RHEL 9 VM using role-based defaults.
 
 If you ever want only the Terraform layer of the full automated stack, use `make auto-vm-up` / `make auto-vm-down`.
-The older `make demo-vm-up` / `make demo-vm-down` targets are kept only as backward-compatible aliases.
 
 ## Full automation
 
@@ -83,8 +82,6 @@ make rhel-vms-up
 ```bash
 make rhel-vms-down
 ```
-
-If you already used the older `make manual-demo-vm-up` / `make manual-demo-vm-down` names, they still work as aliases.
 
 ## First run
 Use either the full automation path above or the manual-demo Terraform-only path, depending on whether you want the repo to configure services for you or whether you want to walk the labs by hand.
