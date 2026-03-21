@@ -20,6 +20,13 @@ resource "proxmox_virtual_environment_vm" "this" {
 
   stop_on_destroy = var.stop_on_destroy
 
+  lifecycle {
+    precondition {
+      condition     = length(trimspace(var.ssh_public_key)) > 0
+      error_message = "Set a valid SSH public key before creating VMs."
+    }
+  }
+
   agent {
     enabled = true
     type    = "virtio"

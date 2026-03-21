@@ -30,10 +30,14 @@
 make init-files
 ```
 
+This also creates a dedicated SSH keypair for the demo at `~/.ssh/redhat-edge-manager-demo` if it does not already exist, and the Terraform examples use `~/.ssh/redhat-edge-manager-demo.pub`.
+
 2. Edit:
 
 - `automation/terraform/environments/demo/terraform.tfvars`
 - `automation/ansible/group_vars/all.yml`
+
+Pick free `vm_id` values and unused IPs in `automation/terraform/environments/demo/terraform.tfvars`. The demo environment treats those VM IDs as Terraform-owned and may replace an existing VM if you point it at an ID that is already in use.
 
 3. Run:
 

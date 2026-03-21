@@ -10,7 +10,7 @@ cloud_image_import_id = "local:import/rhel9-guest-image.qcow2"
 # cloud_image_download_url = "https://your-internal-mirror.example.com/rhel-9.7-x86_64-kvm.qcow2"
 
 ci_user        = "cloud-user"
-ssh_public_key = "ssh-ed25519 AAAA... your-key-here"
+ssh_public_key_path = "~/.ssh/redhat-edge-manager-demo.pub"
 
 dns_domain           = "rhem-eap.lan"
 default_ipv4_gateway = "192.168.4.1"

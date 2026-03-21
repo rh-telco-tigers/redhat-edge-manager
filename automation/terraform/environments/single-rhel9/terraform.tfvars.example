@@ -19,7 +19,7 @@ vm_memory_mb = 4096
 vm_disk_gb   = 40
 
 ci_user        = "cloud-user"
-ssh_public_key = "ssh-ed25519 AAAA... your-key-here"
+ssh_public_key_path = "~/.ssh/redhat-edge-manager-demo.pub"
 
 ipv4_use_dhcp = false
 ipv4_cidr     = "192.168.4.120/22"

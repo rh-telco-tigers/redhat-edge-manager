@@ -3,6 +3,14 @@ provider "proxmox" {
   insecure = var.proxmox_insecure
 }
 
+locals {
+  effective_ssh_public_key = trimspace(
+    var.ssh_public_key != "" ? var.ssh_public_key : (
+      var.ssh_public_key_path != "" ? file(pathexpand(var.ssh_public_key_path)) : ""
+    )
+  )
+}
+
 resource "proxmox_virtual_environment_pool" "single" {
   comment = "Generic RHEL 9 VM automation"
   pool_id = var.resource_pool_id
@@ -35,7 +43,7 @@ module "vm" {
   cloud_image_download_verify_tls      = var.cloud_image_download_verify_tls
   cloud_image_download_overwrite       = var.cloud_image_download_overwrite
   ci_user                              = var.ci_user
-  ssh_public_key                       = var.ssh_public_key
+  ssh_public_key                       = local.effective_ssh_public_key
   extra_tags                           = var.vm_tags
   ipv4_use_dhcp                        = var.ipv4_use_dhcp
   ipv4_cidr                            = var.ipv4_cidr

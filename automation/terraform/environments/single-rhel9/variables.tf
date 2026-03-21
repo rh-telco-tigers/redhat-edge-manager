@@ -152,7 +152,14 @@ variable "ci_user" {
 
 variable "ssh_public_key" {
   type        = string
+  default     = ""
   description = "SSH public key injected by cloud-init"
+}
+
+variable "ssh_public_key_path" {
+  type        = string
+  default     = ""
+  description = "Path to a local SSH public key file on the machine running Terraform"
 }
 
 variable "vm_tags" {

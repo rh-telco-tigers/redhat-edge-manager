@@ -9,6 +9,12 @@ locals {
     if vm.enabled
   }
 
+  effective_ssh_public_key = trimspace(
+    var.ssh_public_key != "" ? var.ssh_public_key : (
+      var.ssh_public_key_path != "" ? file(pathexpand(var.ssh_public_key_path)) : ""
+    )
+  )
+
   dns_vm_ip = contains(keys(local.enabled_vms), "dns") && !local.enabled_vms["dns"].ipv4_use_dhcp ? split("/", local.enabled_vms["dns"].ipv4_cidr)[0] : ""
 
   cloud_init_dns_servers = local.dns_vm_ip != "" ? distinct(concat([local.dns_vm_ip], var.upstream_dns_servers)) : var.upstream_dns_servers
@@ -69,7 +75,7 @@ module "vms" {
   cloud_image_download_verify_tls      = var.cloud_image_download_verify_tls
   cloud_image_download_overwrite       = var.cloud_image_download_overwrite
   ci_user                              = var.ci_user
-  ssh_public_key                       = var.ssh_public_key
+  ssh_public_key                       = local.effective_ssh_public_key
   extra_tags                           = each.value.extra_tags
   ipv4_use_dhcp                        = each.value.ipv4_use_dhcp
   ipv4_cidr                            = each.value.ipv4_cidr
