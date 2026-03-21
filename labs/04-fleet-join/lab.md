@@ -1,10 +1,4 @@
----
-title: "Use Case 4.5.4 — Fleet + bootc swap to app image"
-description: "Create fleet with app image template; label device; pull secrets if private OS image."
-tags: [fleet, gitops, pull-secrets]
----
-
-# Lab 4.5.4 — Fleet creation and join device
+# Fleet creation and join device
 
 **Prereqs:** Device enrolled. If OS image is **private**, ensure `/etc/ostree/auth.json` on device **before** swap (see *Configuring Container Pull Secrets*). **App image** in AutomationHub per plan.
 
@@ -60,11 +54,3 @@ Apply (if supported) or create equivalent in UI:
 flightctl get fleets
 flightctl get devices
 ```
-
-## Step 5 — Success check
-
-- [ ] Fleet exists with expected **device template** (app image)  
-- [ ] Device has matching label  
-- [ ] Device transitions to **app** image (bootc swap) after policy applies  
-
-**Done.**

@@ -1,10 +1,4 @@
----
-title: "Use Case 4.5.7 — Security & compliance (EAP)"
-description: "RBAC, TLS, patching hooks, SSM visibility, audit — fill as SA/SSA defines."
-tags: [security, compliance, ansible, newrelic]
----
-
-# Lab 4.5.7 — Security & compliance
+# Security & compliance
 
 **Status:** Test plan marked **TO DO** for SA/SSA/customer detail — this lab is a **checklist shell** you can tighten once policies are fixed.
 
@@ -45,12 +39,3 @@ curl -svI "$RHEM_URL" 2>&1 | head -20
 [ ] SSM agent present on app image device
 [ ] Evidence: AWS / Power BI dashboard or export
 ```
-
-## Step 6 — Success check (from test plan)
-
-- [ ] Containers meet compliance checks (RBAC, TLS, patch posture)  
-- [ ] Patching path verified for EAP scope  
-- [ ] New Relic visibility without data loss (per agreed acceptance criteria)  
-- [ ] Audit logs available centrally  
-
-**Done.** Finalize the success criteria when they are ready.

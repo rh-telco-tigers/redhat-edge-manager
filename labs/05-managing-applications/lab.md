@@ -1,10 +1,4 @@
----
-title: "Use Case 4.5.5 — Managing applications on device"
-description: "Deploy container app (e.g. New Relic stack via podman-compose image)."
-tags: [applications, podman, oci]
----
-
-# Lab 4.5.5 — Deploy application to edge device
+# Deploy application to edge device
 
 **Prereqs:** App image(s) in **OCI registry**; **podman-compose** wrapper image in registry (per observability vendor integration plan). Pull secret if registry is private.
 
@@ -57,10 +51,3 @@ Edge Manager → device → applications / workloads (per product UI).
 # ssh edge@CHANGEME_DEVICE_IP
 podman ps
 ```
-
-## Step 6 — Success check
-
-- [ ] Application **running** and reachable (per app requirements)  
-- [ ] Status visible in **UI** and/or **CLI**  
-
-**Done.**

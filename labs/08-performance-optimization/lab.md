@@ -1,10 +1,4 @@
----
-title: "Use Case 4.5.8 — Performance & optimization (EAP)"
-description: "Resource tuning, scaling policies, predictive alerts — fill as customer defines."
-tags: [performance, ansible, newrelic, dell]
----
-
-# Lab 4.5.8 — Performance optimization
+# Performance optimization
 
 **Status:** Test plan **TO DO** for customer specifics — **checklist shell** for Dell R260 + New Relic + RHEM.
 
@@ -37,12 +31,3 @@ CHANGEME: timestamp, device ID, screenshot or export link
 [ ] New Relic NRQL / alert condition names
 [ ] Test: synthetic load or documented drill
 ```
-
-## Step 5 — Success check (from test plan)
-
-- [ ] Improved or **validated** CPU/memory efficiency vs baseline  
-- [ ] Automated scaling / policy **tested** (if in scope)  
-- [ ] Bottleneck alerts **fire** in a controlled test  
-- [ ] SLA / downtime narrative updated for EAP  
-
-**Done.**

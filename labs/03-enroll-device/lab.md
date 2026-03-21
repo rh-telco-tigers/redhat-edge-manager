@@ -1,10 +1,4 @@
----
-title: "Use Case 4.5.3 — Enroll device"
-description: "Boot device; approve enrollment in RHEM."
-tags: [enrollment, device]
----
-
-# Lab 4.5.3 — Enroll (onboard) device
+# Enroll (onboard) device
 
 **Prereqs:** bootc **base** image with enrollment config; device reaches RHEM **HTTPS/443**.
 
@@ -43,11 +37,3 @@ flightctl approve enrollmentrequest CHANGEME_REQUEST_NAME
 ```bash
 flightctl get devices
 ```
-
-## Step 6 — Success check
-
-- [ ] Enrollment request appeared  
-- [ ] Request approved  
-- [ ] Device visible in `flightctl get devices`  
-
-**Done.**

@@ -1,10 +1,4 @@
----
-title: "Use Case 4.5.6 — Monitoring + support gather"
-description: "CPU/memory/disk visibility; must-gather for agent/RHEM."
-tags: [monitoring, must-gather, alertmanager]
----
-
-# Lab 4.5.6 — Device monitoring and log gathering
+# Device monitoring and log gathering
 
 **Prereqs:** UI/CLI access to RHEM. For **Alertmanager → SolarWinds/SNMP**, plan references webhook + translator (e.g. snmp_notifier); RHEM team documents to webhook boundary; customer owns downstream integration.
 
@@ -39,10 +33,3 @@ Follow *Must-gather procedure for Red Hat Edge Manager Agent*. Paste your approv
 # podman run --rm ... must-gather ...
 ls -la ./support
 ```
-
-## Step 5 — Success check
-
-- [ ] Current **CPU / memory / disk** visible (UI and/or CLI)  
-- [ ] **Support bundle** collected and stored per retention policy  
-
-**Done.**

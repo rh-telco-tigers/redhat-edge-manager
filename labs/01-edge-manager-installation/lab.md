@@ -1,10 +1,4 @@
----
-title: "Use Case 4.5.1 — Red Hat Edge Manager installation"
-description: "Install RHEM on RHEL; verify UI + flightctl CLI."
-tags: [rhem, install, rhel]
----
-
-# Lab 4.5.1 — RHEM installation (RHEL)
+# RHEM installation (RHEL)
 
 **Prereqs:** RHEL host for RHEM + Keycloak — **16 GB RAM, 4 vCPU, 70 GB disk** (per test plan). Use a DNS name that resolves to this host if possible. The browser UI uses `https://<DNS_Name>/` and the `flightctl` CLI uses `https://<DNS_Name>:3443`.
 
@@ -87,10 +81,3 @@ flightctl whoami
 ```
 
 If the certificate is self-signed, the CLI prompts to continue with an insecure connection. That is expected in a lab setup.
-
-## Step 6 — Success check
-
-- [ ] UI login works  
-- [ ] `flightctl` authenticates and returns identity / empty resource list is OK  
-
-**Done.**
