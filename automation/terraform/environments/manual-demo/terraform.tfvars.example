@@ -1,0 +1,54 @@
+# Copy to terraform.tfvars in this directory. File is gitignored.
+
+proxmox_endpoint = "https://192.168.4.101:8006/"
+proxmox_insecure = true
+proxmox_node     = "homelab"
+
+resource_pool_id = "rhem-eap-manual-demo"
+disk_storage     = "local-lvm"
+
+cloud_image_import_id = "local:import/rhel9-guest-image.qcow2"
+
+ci_user             = "cloud-user"
+ssh_public_key_path = "~/.ssh/redhat-edge-manager-demo.pub"
+
+dns_domain           = "rhem-eap.lan"
+default_ipv4_gateway = "192.168.4.1"
+upstream_dns_servers = ["1.1.1.1", "8.8.8.8"]
+generate_ansible_inventory = false
+
+vms = {
+  rhem = {
+    enabled        = true
+    role           = "edge-manager"
+    vm_id          = 120
+    vm_name        = "rhem-manual-rhel-01"
+    vm_description = "Manual demo RHEL host for Red Hat Edge Manager"
+    vm_cores       = 4
+    vm_memory_mb   = 16384
+    vm_disk_gb     = 80
+    dns_name       = "rhem-manual"
+    ipv4_use_dhcp  = false
+    ipv4_cidr      = "192.168.4.120/22"
+    ipv4_gateway   = "192.168.4.1"
+    groups         = ["rhem_hosts"]
+    extra_tags     = ["manual-demo", "service-rhem"]
+  }
+
+  keycloak = {
+    enabled        = true
+    role           = "keycloak"
+    vm_id          = 121
+    vm_name        = "rhem-manual-keycloak-01"
+    vm_description = "Manual demo RHEL host for Keycloak"
+    vm_cores       = 2
+    vm_memory_mb   = 4096
+    vm_disk_gb     = 40
+    dns_name       = "keycloak-manual"
+    ipv4_use_dhcp  = false
+    ipv4_cidr      = "192.168.4.121/22"
+    ipv4_gateway   = "192.168.4.1"
+    groups         = ["keycloak_hosts"]
+    extra_tags     = ["manual-demo", "service-keycloak"]
+  }
+}

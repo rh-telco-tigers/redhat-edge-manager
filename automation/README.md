@@ -22,7 +22,9 @@
 
 `make create-rhel9` provisions one standalone RHEL 9 VM using role-based defaults.
 
-## First run
+## Full automation
+
+Use this when you want Terraform plus Ansible to stand up the fully automated stack.
 
 1. Create the local files:
 
@@ -50,6 +52,37 @@ make up
 ```bash
 make down
 ```
+
+## Manual demo VMs
+
+Use this when you want the labs to stay manual, but you still want Terraform to create the base RHEL VMs for Edge Manager and Keycloak.
+
+1. Create the local files:
+
+```bash
+make init-files
+```
+
+2. Edit:
+
+- `automation/terraform/environments/manual-demo/terraform.tfvars`
+
+The manual demo environment is Terraform-only. It does not run Ansible, and it only creates the RHEM and Keycloak RHEL VMs for Labs 1 and 2.
+
+3. Run:
+
+```bash
+make manual-demo-vm-up
+```
+
+4. Tear down:
+
+```bash
+make manual-demo-vm-down
+```
+
+## First run
+Use either the full automation path above or the manual-demo Terraform-only path, depending on whether you want the repo to configure services for you or whether you want to walk the labs by hand.
 
 ## Single VM helper
 

@@ -3,9 +3,11 @@
 This repo now has two clear paths:
 
 - `labs/` are manual step-by-step walkthroughs.
-- `automation/` is the runnable environment setup and teardown path.
+- `automation/` contains both the fully automated stack and a Terraform-only manual-demo VM flow.
 
-If you want the automated management stack, start with [`automation/README.md`](automation/README.md) and use `make up` / `make down`.
+If you want the fully automated management stack, start with [`automation/README.md`](automation/README.md) and use `make up` / `make down`.
+
+If you want to follow the labs manually but still have Terraform create the base RHEL VMs for Labs 1 and 2, use `make manual-demo-vm-up` / `make manual-demo-vm-down`.
 
 ## Steps
 

@@ -6,6 +6,8 @@
 
 Use a second RHEL 9 VM for Keycloak so the identity provider stays separate from the RHEM host.
 
+If you are using the repo’s manual-demo Terraform path, this VM is created by `make manual-demo-vm-up`. Use the hostnames, IPs, and VM sizes from `automation/terraform/environments/manual-demo/terraform.tfvars`.
+
 Suggested sizing:
 
 - Hostname: `keycloak.rhem-eap.lan`

@@ -1,12 +1,15 @@
 AUTOMATION_DIR := automation
 DEMO_TF_DIR := $(AUTOMATION_DIR)/terraform/environments/demo
 DEMO_TF := $(DEMO_TF_DIR)/tf.sh
+MANUAL_TF_DIR := $(AUTOMATION_DIR)/terraform/environments/manual-demo
+MANUAL_TF := $(MANUAL_TF_DIR)/tf.sh
 SINGLE_TF_DIR := $(AUTOMATION_DIR)/terraform/environments/single-rhel9
 ANSIBLE_DIR := $(AUTOMATION_DIR)/ansible
 
 .PHONY: init-files automation-init-files
 .PHONY: plan up down configure
 .PHONY: demo-vm-init demo-vm-plan demo-vm-up demo-vm-down
+.PHONY: manual-demo-vm-init manual-demo-vm-plan manual-demo-vm-up manual-demo-vm-down
 .PHONY: create-rhel9
 .PHONY: tf-init tf-plan tf-up tf-down
 
@@ -26,6 +29,18 @@ demo-vm-up: demo-vm-init
 
 demo-vm-down: demo-vm-init
 	$(DEMO_TF) destroy -auto-approve -input=false
+
+manual-demo-vm-init: automation-init-files
+	cd $(MANUAL_TF_DIR) && terraform init -input=false
+
+manual-demo-vm-plan: manual-demo-vm-init
+	$(MANUAL_TF) plan -input=false
+
+manual-demo-vm-up: manual-demo-vm-init
+	cd $(MANUAL_TF_DIR) && ./tf.sh apply -auto-approve -input=false
+
+manual-demo-vm-down: manual-demo-vm-init
+	$(MANUAL_TF) destroy -auto-approve -input=false
 
 configure: automation-init-files
 	command -v ansible-playbook >/dev/null 2>&1 || { echo "ansible-playbook not found"; exit 1; }

@@ -61,9 +61,19 @@ copy_if_missing \
   "$repo_root/automation/terraform/environments/single-rhel9/.env.example"
 
 copy_if_missing \
+  "$repo_root/automation/terraform/environments/manual-demo/.env" \
+  "$repo_root/automation/terraform/environments/demo/.env" \
+  "$repo_root/automation/terraform/environments/manual-demo/.env.example"
+
+copy_if_missing \
   "$repo_root/automation/terraform/environments/single-rhel9/terraform.tfvars" \
   "" \
   "$repo_root/automation/terraform/environments/single-rhel9/terraform.tfvars.example"
+
+copy_if_missing \
+  "$repo_root/automation/terraform/environments/manual-demo/terraform.tfvars" \
+  "" \
+  "$repo_root/automation/terraform/environments/manual-demo/terraform.tfvars.example"
 
 copy_if_missing \
   "$repo_root/automation/ansible/group_vars/all.yml" \
@@ -77,3 +87,4 @@ fi
 
 migrate_placeholder_ssh_key "$repo_root/automation/terraform/environments/demo/terraform.tfvars"
 migrate_placeholder_ssh_key "$repo_root/automation/terraform/environments/single-rhel9/terraform.tfvars"
+migrate_placeholder_ssh_key "$repo_root/automation/terraform/environments/manual-demo/terraform.tfvars"
