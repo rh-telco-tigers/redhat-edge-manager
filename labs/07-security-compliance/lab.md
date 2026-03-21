@@ -53,4 +53,4 @@ curl -svI "$RHEM_URL" 2>&1 | head -20
 - [ ] New Relic visibility without data loss (per agreed acceptance criteria)  
 - [ ] Audit logs available centrally  
 
-**Done.** Fill `RESULTS.md` when criteria are finalized.
+**Done.** Finalize the success criteria when they are ready.

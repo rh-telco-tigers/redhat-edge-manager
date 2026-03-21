@@ -63,4 +63,4 @@ podman ps
 - [ ] Application **running** and reachable (per app requirements)  
 - [ ] Status visible in **UI** and/or **CLI**  
 
-**Done.** Fill `RESULTS.md`.
+**Done.**

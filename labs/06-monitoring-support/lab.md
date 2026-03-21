@@ -45,4 +45,4 @@ ls -la ./support
 - [ ] Current **CPU / memory / disk** visible (UI and/or CLI)  
 - [ ] **Support bundle** collected and stored per retention policy  
 
-**Done.** Fill `RESULTS.md`.
+**Done.**

@@ -1,6 +1,6 @@
 # RHEM EAP — hands-on labs
 
-Follow-through labs aligned with the **Technical Use Cases** test plan. Each folder is one use case: open `lab.md`, run steps in order, paste outputs into `RESULTS.md` when done.
+Follow-through labs aligned with the **Technical Use Cases** test plan. Each folder is one use case: open `lab.md` and run the steps in order.
 
 **Infrastructure prereqs (Proxmox + Terraform + Ansible):** see [`prereqs/README.md`](prereqs/README.md). Quick VM lifecycle from repo root: `make tf-up` / `make tf-down` — set `PROXMOX_VE_*` in the shell or in `prereqs/terraform/.env` (see `.env.example`).
 
@@ -31,7 +31,6 @@ flowchart LR
 ## Conventions
 
 - **`lab.md`** — Markdoc-friendly Markdown (YAML frontmatter + steps). Copy commands from fenced blocks.
-- **`RESULTS.md`** — Short questionnaire / sign-off; duplicate from `RESULTS.template.md` if you prefer a fresh file per run.
 - Replace placeholders like `CHANGEME`, registry URLs, and hostnames before running.
 
 ## Optional: render Markdoc

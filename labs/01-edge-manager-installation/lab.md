@@ -54,4 +54,4 @@ flightctl whoami
 - [ ] UI login works  
 - [ ] `flightctl` authenticates and returns identity / empty resource list is OK  
 
-**Done.** Fill `RESULTS.md`.
+**Done.**

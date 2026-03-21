@@ -50,4 +50,4 @@ flightctl get devices
 - [ ] Request approved  
 - [ ] Device visible in `flightctl get devices`  
 
-**Done.** Fill `RESULTS.md`.
+**Done.**

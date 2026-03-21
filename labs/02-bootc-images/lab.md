@@ -62,4 +62,4 @@ ls -la ./out 2>/dev/null || echo "Set out/ path after conversion"
 - [ ] Base image converted to **ISO** (or agreed disk format)  
 - [ ] DHCP / network assumptions documented for device boot  
 
-**Done.** Fill `RESULTS.md`.
+**Done.**

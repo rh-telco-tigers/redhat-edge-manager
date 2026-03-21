@@ -67,4 +67,4 @@ flightctl get devices
 - [ ] Device has matching label  
 - [ ] Device transitions to **app** image (bootc swap) after policy applies  
 
-**Done.** Fill `RESULTS.md`.
+**Done.**
