@@ -1,36 +1,24 @@
 # RHEM EAP — hands-on labs
 
-Follow-through labs aligned with the **Technical Use Cases** test plan. Each folder is one use case: open `lab.md` and run the steps in order.
+Follow-through labs aligned with the **Technical Use Cases** test plan. Treat each numbered folder as the next step in the flow: open `lab.md` and complete it before moving on.
 
 **Infrastructure prereqs (Proxmox + Terraform + Ansible):** see [`prereqs/README.md`](prereqs/README.md). Quick VM lifecycle from repo root: `make tf-up` / `make tf-down` — set `PROXMOX_VE_*` in the shell or in `prereqs/terraform/.env` (see `.env.example`).
 
-## High-level flow
+## Steps
 
-```mermaid
-flowchart LR
-  A[1 Install RHEM] --> B[2 bootc images]
-  B --> C[3 Enroll device]
-  C --> D[4 Fleet]
-  D --> E[5 Applications]
-  E --> F[6 Monitor / logs]
-  F --> G[7 Security]
-  G --> H[8 Performance]
-```
-
-| # | Folder | Use case |
-|---|--------|----------|
-| 1 | [`labs/01-edge-manager-installation`](labs/01-edge-manager-installation) | Install RHEM on RHEL |
-| 2 | [`labs/02-bootc-images`](labs/02-bootc-images) | Base + app bootc images → registry |
-| 3 | [`labs/03-enroll-device`](labs/03-enroll-device) | Onboard device |
-| 4 | [`labs/04-fleet-join`](labs/04-fleet-join) | Fleet + bootc swap to app image |
-| 5 | [`labs/05-managing-applications`](labs/05-managing-applications) | Deploy container app |
-| 6 | [`labs/06-monitoring-support`](labs/06-monitoring-support) | Metrics + must-gather |
-| 7 | [`labs/07-security-compliance`](labs/07-security-compliance) | Security & compliance (EAP) |
-| 8 | [`labs/08-performance-optimization`](labs/08-performance-optimization) | Performance (EAP) |
+1. [`labs/01-edge-manager-installation`](labs/01-edge-manager-installation) — Install RHEM on RHEL
+2. [`labs/02-keycloak-integration`](labs/02-keycloak-integration) — Add a lightweight Keycloak VM, realm, users, and external OIDC integration
+3. [`labs/03-bootc-images`](labs/03-bootc-images) — Build base + app bootc images and publish them
+4. [`labs/04-enroll-device`](labs/04-enroll-device) — Onboard a device
+5. [`labs/05-fleet-join`](labs/05-fleet-join) — Create a fleet and roll a device onto the app image
+6. [`labs/06-managing-applications`](labs/06-managing-applications) — Deploy application workloads
+7. [`labs/07-monitoring-support`](labs/07-monitoring-support) — Review monitoring and collect support data
+8. [`labs/08-security-compliance`](labs/08-security-compliance) — Work through security and compliance checks
+9. [`labs/09-performance-optimization`](labs/09-performance-optimization) — Review performance and optimization items
 
 ## Conventions
 
-- **`lab.md`** — Markdoc-friendly Markdown (YAML frontmatter + steps). Copy commands from fenced blocks.
+- **`lab.md`** — Step-by-step Markdown guide. Copy commands from fenced blocks.
 - Replace placeholders like `CHANGEME`, registry URLs, and hostnames before running.
 
 ## Optional: render Markdoc

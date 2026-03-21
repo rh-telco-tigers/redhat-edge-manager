@@ -1,0 +1,71 @@
+{
+  "realm": "edge-manager",
+  "enabled": true,
+  "displayName": "Edge Manager",
+  "roles": {
+    "realm": [
+      {
+        "name": "flightctl-admin",
+        "description": "Administrator role consumed by Red Hat Edge Manager"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "flightctl-client",
+      "name": "Edge Manager",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "CHANGEME-flightctl-client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "https://CHANGEME-rhem.example.com/*",
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles",
+        "web-origins"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "edgemanager-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "CHANGEME-admin-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "flightctl-admin"
+      ]
+    },
+    {
+      "username": "edgemanager-ops",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "CHANGEME-ops-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "flightctl-admin"
+      ]
+    }
+  ]
+}
