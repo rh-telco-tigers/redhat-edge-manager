@@ -2,7 +2,7 @@
 
 **Prereqs:** RHEL host for RHEM + Keycloak — **16 GB RAM, 4 vCPU, 70 GB disk** (per test plan). Use a DNS name that resolves to this host if possible. The browser UI uses `https://<DNS_Name>/` and the `flightctl` CLI uses `https://<DNS_Name>:3443`.
 
-If you want Terraform to create the base RHEL VMs but still do the install manually, use `make manual-demo-vm-up` and edit `automation/terraform/environments/manual-demo/terraform.tfvars` first.
+If you want Terraform to create the base RHEL VMs but still do the install manually, use `make rhel-vms-up` and edit `automation/terraform/environments/manual-demo/terraform.tfvars` first.
 
 ## Step 1 — Record environment
 

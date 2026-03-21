@@ -7,7 +7,7 @@ This repo now has two clear paths:
 
 If you want the fully automated management stack, start with [`automation/README.md`](automation/README.md) and use `make up` / `make down`.
 
-If you want to follow the labs manually but still have Terraform create the base RHEL VMs for Labs 1 and 2, use `make manual-demo-vm-up` / `make manual-demo-vm-down`.
+If you want to follow the labs manually but still have Terraform create the base RHEL VMs for Labs 1 and 2, use `make rhel-vms-up` / `make rhel-vms-down`.
 
 ## Steps
 

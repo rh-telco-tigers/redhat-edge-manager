@@ -70,19 +70,21 @@ make init-files
 
 - `automation/terraform/environments/manual-demo/terraform.tfvars`
 
-The manual demo environment is Terraform-only. It does not run Ansible, and it only creates the RHEM and Keycloak RHEL VMs for Labs 1 and 2.
+The manual demo environment is Terraform-only. It does not run Ansible, and it currently creates only the RHEM and Keycloak RHEL 9 VMs for Labs 1 and 2.
 
 3. Run:
 
 ```bash
-make manual-demo-vm-up
+make rhel-vms-up
 ```
 
 4. Tear down:
 
 ```bash
-make manual-demo-vm-down
+make rhel-vms-down
 ```
+
+If you already used the older `make manual-demo-vm-up` / `make manual-demo-vm-down` names, they still work as aliases.
 
 ## First run
 Use either the full automation path above or the manual-demo Terraform-only path, depending on whether you want the repo to configure services for you or whether you want to walk the labs by hand.

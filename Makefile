@@ -10,6 +10,7 @@ ANSIBLE_DIR := $(AUTOMATION_DIR)/ansible
 .PHONY: plan up down configure
 .PHONY: auto-vm-init auto-vm-plan auto-vm-up auto-vm-down
 .PHONY: demo-vm-init demo-vm-plan demo-vm-up demo-vm-down
+.PHONY: rhel-vms-init rhel-vms-plan rhel-vms-up rhel-vms-down
 .PHONY: manual-demo-vm-init manual-demo-vm-plan manual-demo-vm-up manual-demo-vm-down
 .PHONY: create-rhel9
 .PHONY: tf-init tf-plan tf-up tf-down
@@ -31,16 +32,16 @@ auto-vm-up: auto-vm-init
 auto-vm-down: auto-vm-init
 	$(DEMO_TF) destroy -auto-approve -input=false
 
-manual-demo-vm-init: automation-init-files
+rhel-vms-init: automation-init-files
 	cd $(MANUAL_TF_DIR) && terraform init -input=false
 
-manual-demo-vm-plan: manual-demo-vm-init
+rhel-vms-plan: rhel-vms-init
 	$(MANUAL_TF) plan -input=false
 
-manual-demo-vm-up: manual-demo-vm-init
+rhel-vms-up: rhel-vms-init
 	cd $(MANUAL_TF_DIR) && ./tf.sh apply -auto-approve -input=false
 
-manual-demo-vm-down: manual-demo-vm-init
+rhel-vms-down: rhel-vms-init
 	$(MANUAL_TF) destroy -auto-approve -input=false
 
 configure: automation-init-files
@@ -64,6 +65,14 @@ demo-vm-plan: auto-vm-plan
 demo-vm-up: auto-vm-up
 
 demo-vm-down: auto-vm-down
+
+manual-demo-vm-init: rhel-vms-init
+
+manual-demo-vm-plan: rhel-vms-plan
+
+manual-demo-vm-up: rhel-vms-up
+
+manual-demo-vm-down: rhel-vms-down
 
 tf-init: auto-vm-init
 
