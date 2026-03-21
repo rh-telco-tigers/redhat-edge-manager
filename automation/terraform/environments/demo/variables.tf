@@ -115,6 +115,12 @@ variable "ssh_public_key_path" {
   description = "Path to a local SSH public key file on the machine running Terraform"
 }
 
+variable "ssh_private_key_path" {
+  type        = string
+  default     = ""
+  description = "Optional path to the matching local SSH private key for Ansible access"
+}
+
 variable "dns_domain" {
   type        = string
   default     = "rhem-eap.lan"

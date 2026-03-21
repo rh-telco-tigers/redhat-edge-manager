@@ -22,6 +22,8 @@
 
 `make create-rhel9` provisions one standalone RHEL 9 VM using role-based defaults.
 
+`make up` bootstraps a repo-local Ansible environment in `automation/.venv` automatically, so you do not need a separate global `ansible-playbook` install on your Mac.
+
 ## Full automation
 
 Use this when you want Terraform plus Ansible to stand up the fully automated stack.
@@ -41,10 +43,23 @@ This also creates a dedicated SSH keypair for the demo at `~/.ssh/redhat-edge-ma
 
 Pick free `vm_id` values and unused IPs in `automation/terraform/environments/demo/terraform.tfvars`. The demo environment treats those VM IDs as Terraform-owned and may replace an existing VM if you point it at an ID that is already in use.
 
+In `automation/ansible/group_vars/all.yml`, set one RHSM auth method before running `make up`:
+
+- `rhsm_username` and `rhsm_password`, or
+- `rhsm_org` and `rhsm_activation_key`
+
+If `registry_redhat_io_username` and `registry_redhat_io_password` are left blank, the automation reuses the RHSM username and password for `registry.redhat.io`.
+
 3. Run:
 
 ```bash
 make up
+```
+
+If Terraform already succeeded and you only need to retry the Ansible phase, run:
+
+```bash
+make configure
 ```
 
 4. Tear down:

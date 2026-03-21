@@ -15,6 +15,14 @@ locals {
     )
   )
 
+  effective_ssh_private_key_path = trimspace(
+    var.ssh_private_key_path != "" ? abspath(pathexpand(var.ssh_private_key_path)) : (
+      var.ssh_public_key_path != "" && endswith(pathexpand(var.ssh_public_key_path), ".pub")
+      ? abspath(trimsuffix(pathexpand(var.ssh_public_key_path), ".pub"))
+      : ""
+    )
+  )
+
   dns_vm_ip = contains(keys(local.enabled_vms), "dns") && !local.enabled_vms["dns"].ipv4_use_dhcp ? split("/", local.enabled_vms["dns"].ipv4_cidr)[0] : ""
 
   cloud_init_dns_servers = local.dns_vm_ip != "" ? distinct(concat([local.dns_vm_ip], var.upstream_dns_servers)) : var.upstream_dns_servers
@@ -89,6 +97,14 @@ resource "local_file" "ansible_inventory" {
   filename = abspath("${path.module}/${var.ansible_inventory_output_path}")
   content = yamlencode({
     all = {
+      vars = merge(
+        {
+          ansible_ssh_common_args = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        },
+        local.effective_ssh_private_key_path != "" ? {
+          ansible_ssh_private_key_file = local.effective_ssh_private_key_path
+        } : {}
+      )
       children = merge({
         managed_rhel_hosts = {
           hosts = local.ansible_hosts
