@@ -22,12 +22,10 @@ Suggested settings:
 Use the example files in `terraform/`:
 
 ```bash
-cd terraform
-cp .env.example .env
-cp terraform.tfvars.example terraform.tfvars
+make keycloak-init-files
 ```
 
-Edit `terraform.tfvars`:
+Edit `labs/02-keycloak-integration/terraform/terraform.tfvars`:
 - set a free `vm_id`
 - confirm `proxmox_endpoint`, `proxmox_node`, and `disk_storage`
 - keep `cloud_image_import_id` pointed at the same RHEL guest image as the RHEM VM, or set `cloud_image_download_url`
@@ -36,11 +34,10 @@ Edit `terraform.tfvars`:
 Then apply:
 
 ```bash
-./tf.sh init -input=false
-./tf.sh apply -auto-approve -input=false
+make keycloak-vm-up
 ```
 
-After apply, use `terraform output` to capture the Keycloak VM IP for the Ansible inventory.
+After apply, use `terraform -chdir=labs/02-keycloak-integration/terraform output` to capture the Keycloak VM IP for the Ansible inventory.
 
 ## Step 2 — Set Ansible inventory and variables
 
@@ -54,16 +51,14 @@ The `ansible/` folder automates:
 Prepare the local files:
 
 ```bash
-cd ../ansible
-cp inventory/hosts.yml.example inventory/hosts.yml
-cp group_vars/all.yml.example group_vars/all.yml
+make keycloak-init-files
 ```
 
-Edit `inventory/hosts.yml`:
+Edit `labs/02-keycloak-integration/ansible/inventory/hosts.yml`:
 - set the Keycloak VM `ansible_host`
 - set the RHEM VM `ansible_host`
 
-Edit `group_vars/all.yml`:
+Edit `labs/02-keycloak-integration/ansible/group_vars/all.yml`:
 - set `keycloak_public_url`
 - set `rhem_base_domain`, `rhem_ui_url`, and `rhem_api_url`
 - set `flightctl_client_secret`
@@ -77,7 +72,7 @@ If you do not have DNS for `keycloak.rhem-eap.lan`, use an IP-based `keycloak_pu
 Run the Ansible playbook from `ansible/`:
 
 ```bash
-ansible-playbook playbooks/keycloak_integration.yml
+make keycloak-configure
 ```
 
 This playbook:
@@ -87,6 +82,12 @@ This playbook:
 - backs up `/etc/flightctl/service-config.yaml` on the RHEM VM
 - replaces the RHEM auth config to use the Keycloak realm
 - restarts `flightctl.target`
+
+If both `terraform.tfvars` and the Ansible inventory/variables are ready, you can run the whole flow with:
+
+```bash
+make keycloak-setup
+```
 
 ## Step 4 — Verify Keycloak
 
