@@ -8,6 +8,7 @@ ANSIBLE_DIR := $(AUTOMATION_DIR)/ansible
 
 .PHONY: init-files automation-init-files
 .PHONY: plan up down configure
+.PHONY: auto-vm-init auto-vm-plan auto-vm-up auto-vm-down
 .PHONY: demo-vm-init demo-vm-plan demo-vm-up demo-vm-down
 .PHONY: manual-demo-vm-init manual-demo-vm-plan manual-demo-vm-up manual-demo-vm-down
 .PHONY: create-rhel9
@@ -18,16 +19,16 @@ init-files: automation-init-files
 automation-init-files:
 	$(AUTOMATION_DIR)/scripts/init-files.sh
 
-demo-vm-init: automation-init-files
+auto-vm-init: automation-init-files
 	cd $(DEMO_TF_DIR) && terraform init -input=false
 
-demo-vm-plan: demo-vm-init
+auto-vm-plan: auto-vm-init
 	$(DEMO_TF) plan -input=false
 
-demo-vm-up: demo-vm-init
+auto-vm-up: auto-vm-init
 	cd $(DEMO_TF_DIR) && ./tf.sh apply -auto-approve -input=false
 
-demo-vm-down: demo-vm-init
+auto-vm-down: auto-vm-init
 	$(DEMO_TF) destroy -auto-approve -input=false
 
 manual-demo-vm-init: automation-init-files
@@ -46,20 +47,28 @@ configure: automation-init-files
 	command -v ansible-playbook >/dev/null 2>&1 || { echo "ansible-playbook not found"; exit 1; }
 	cd $(ANSIBLE_DIR) && ansible-playbook playbooks/demo_up.yml
 
-plan: demo-vm-plan
+plan: auto-vm-plan
 
-up: demo-vm-up configure
+up: auto-vm-up configure
 
-down: demo-vm-down
+down: auto-vm-down
 
 create-rhel9:
 	$(AUTOMATION_DIR)/scripts/create-rhel9.sh
 
 # Backward-compatible Terraform aliases while the docs move to automation/.
-tf-init: demo-vm-init
+demo-vm-init: auto-vm-init
 
-tf-plan: demo-vm-plan
+demo-vm-plan: auto-vm-plan
 
-tf-up: demo-vm-up
+demo-vm-up: auto-vm-up
 
-tf-down: demo-vm-down
+demo-vm-down: auto-vm-down
+
+tf-init: auto-vm-init
+
+tf-plan: auto-vm-plan
+
+tf-up: auto-vm-up
+
+tf-down: auto-vm-down

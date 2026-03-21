@@ -22,6 +22,9 @@
 
 `make create-rhel9` provisions one standalone RHEL 9 VM using role-based defaults.
 
+If you ever want only the Terraform layer of the full automated stack, use `make auto-vm-up` / `make auto-vm-down`.
+The older `make demo-vm-up` / `make demo-vm-down` targets are kept only as backward-compatible aliases.
+
 ## Full automation
 
 Use this when you want Terraform plus Ansible to stand up the fully automated stack.
