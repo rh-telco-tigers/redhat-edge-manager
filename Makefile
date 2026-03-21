@@ -1,59 +1,50 @@
-# Proxmox / RHEL VM — credentials: export PROXMOX_VE_* or use prereqs/terraform/.env
-TF_DIR := prereqs/terraform
-TF := $(TF_DIR)/tf.sh
+AUTOMATION_DIR := automation
+DEMO_TF_DIR := $(AUTOMATION_DIR)/terraform/environments/demo
+DEMO_TF := $(DEMO_TF_DIR)/tf.sh
+SINGLE_TF_DIR := $(AUTOMATION_DIR)/terraform/environments/single-rhel9
+ANSIBLE_DIR := $(AUTOMATION_DIR)/ansible
 
-# Keycloak integration VM + automation
-KC_TF_DIR := labs/02-keycloak-integration/terraform
-KC_TF := $(KC_TF_DIR)/tf.sh
-KC_ANSIBLE_DIR := labs/02-keycloak-integration/ansible
-
+.PHONY: init-files automation-init-files
+.PHONY: plan up down configure
+.PHONY: demo-vm-init demo-vm-plan demo-vm-up demo-vm-down
+.PHONY: create-rhel9
 .PHONY: tf-init tf-plan tf-up tf-down
-.PHONY: rhem-vm-init rhem-vm-plan rhem-vm-up rhem-vm-down
-.PHONY: keycloak-init-files keycloak-vm-init keycloak-vm-plan keycloak-vm-up keycloak-vm-down
-.PHONY: keycloak-configure keycloak-setup
 
-tf-init:
-	cd $(TF_DIR) && terraform init -input=false
+init-files: automation-init-files
 
-tf-plan:
-	$(TF) plan -input=false
+automation-init-files:
+	$(AUTOMATION_DIR)/scripts/init-files.sh
 
-tf-up:
-	cd $(TF_DIR) && terraform init -input=false && ./tf.sh apply -auto-approve -input=false
+demo-vm-init: automation-init-files
+	cd $(DEMO_TF_DIR) && terraform init -input=false
 
-tf-down:
-	$(TF) destroy -auto-approve -input=false
+demo-vm-plan: demo-vm-init
+	$(DEMO_TF) plan -input=false
 
-rhem-vm-init: tf-init
+demo-vm-up: demo-vm-init
+	cd $(DEMO_TF_DIR) && ./tf.sh apply -auto-approve -input=false
 
-rhem-vm-plan: tf-plan
+demo-vm-down: demo-vm-init
+	$(DEMO_TF) destroy -auto-approve -input=false
 
-rhem-vm-up: tf-up
-
-rhem-vm-down: tf-down
-
-keycloak-init-files:
-	test -f $(KC_TF_DIR)/.env || cp $(KC_TF_DIR)/.env.example $(KC_TF_DIR)/.env
-	test -f $(KC_TF_DIR)/terraform.tfvars || cp $(KC_TF_DIR)/terraform.tfvars.example $(KC_TF_DIR)/terraform.tfvars
-	test -f $(KC_ANSIBLE_DIR)/inventory/hosts.yml || cp $(KC_ANSIBLE_DIR)/inventory/hosts.yml.example $(KC_ANSIBLE_DIR)/inventory/hosts.yml
-	test -f $(KC_ANSIBLE_DIR)/group_vars/all.yml || cp $(KC_ANSIBLE_DIR)/group_vars/all.yml.example $(KC_ANSIBLE_DIR)/group_vars/all.yml
-
-keycloak-vm-init:
-	cd $(KC_TF_DIR) && terraform init -input=false
-
-keycloak-vm-plan:
-	$(KC_TF) plan -input=false
-
-keycloak-vm-up:
-	cd $(KC_TF_DIR) && terraform init -input=false && ./tf.sh apply -auto-approve -input=false
-
-keycloak-vm-down:
-	$(KC_TF) destroy -auto-approve -input=false
-
-keycloak-configure:
+configure: automation-init-files
 	command -v ansible-playbook >/dev/null 2>&1 || { echo "ansible-playbook not found"; exit 1; }
-	cd $(KC_ANSIBLE_DIR) && ansible-playbook playbooks/keycloak_integration.yml
+	cd $(ANSIBLE_DIR) && ansible-playbook playbooks/demo_up.yml
 
-keycloak-setup:
-	$(MAKE) keycloak-vm-up
-	$(MAKE) keycloak-configure
+plan: demo-vm-plan
+
+up: demo-vm-up configure
+
+down: demo-vm-down
+
+create-rhel9:
+	$(AUTOMATION_DIR)/scripts/create-rhel9.sh
+
+# Backward-compatible Terraform aliases while the docs move to automation/.
+tf-init: demo-vm-init
+
+tf-plan: demo-vm-plan
+
+tf-up: demo-vm-up
+
+tf-down: demo-vm-down

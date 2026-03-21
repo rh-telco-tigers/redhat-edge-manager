@@ -1,0 +1,6 @@
+---
+- import_playbook: rhel_prepare.yml
+- import_playbook: dns_setup.yml
+- import_playbook: rhem_install.yml
+- import_playbook: keycloak_integration.yml
+- import_playbook: aap_install.yml

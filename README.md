@@ -1,8 +1,11 @@
-# RHEM EAP — hands-on labs
+# RHEM EAP demo repo
 
-Follow-through labs aligned with the **Technical Use Cases** test plan. Treat each numbered folder as the next step in the flow: open `lab.md` and complete it before moving on.
+This repo now has two clear paths:
 
-**Infrastructure prereqs (Proxmox + Terraform + Ansible):** see [`prereqs/README.md`](prereqs/README.md). Quick VM lifecycle from repo root: `make tf-up` / `make tf-down` — set `PROXMOX_VE_*` in the shell or in `prereqs/terraform/.env` (see `.env.example`).
+- `labs/` are manual step-by-step walkthroughs.
+- `automation/` is the runnable environment setup and teardown path.
+
+If you want the automated management stack, start with [`automation/README.md`](automation/README.md) and use `make up` / `make down`.
 
 ## Steps
 
@@ -20,6 +23,7 @@ Follow-through labs aligned with the **Technical Use Cases** test plan. Treat ea
 
 - **`lab.md`** — Step-by-step Markdown guide. Copy commands from fenced blocks.
 - Replace placeholders like `CHANGEME`, registry URLs, and hostnames before running.
+- `automation/` is where runnable Terraform, Ansible, and Make targets live.
 
 ## Optional: render Markdoc
 

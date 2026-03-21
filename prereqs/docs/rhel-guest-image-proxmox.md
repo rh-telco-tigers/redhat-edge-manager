@@ -1,11 +1,11 @@
 # RHEL 9 KVM guest image on Proxmox
 
-Terraform needs a **RHEL 9 KVM guest** `.qcow2` available to Proxmox before (or during) `make tf-up`.
+Terraform needs a **RHEL 9 KVM guest** `.qcow2` available to Proxmox before (or during) `make up`.
 
 ## Why this is not “fully automatic” by default
 
 - **Red Hat** distributes the KVM guest image from the [customer portal](https://access.redhat.com/downloads/content/479/) behind **subscription login**. Proxmox’s download-url task uses a plain **HTTPS GET** — it cannot log in to Red Hat for you.
-- So **`make tf-up`** either uses an image you **uploaded manually**, or an optional **`cloud_image_download_url`** you supply (internal mirror, artifact repo, presigned URL, etc.).
+- So **`make up`** either uses an image you **uploaded manually**, or an optional **`cloud_image_download_url`** you supply (internal mirror, artifact repo, presigned URL, etc.).
 
 ## Optional: let Proxmox download the image (Terraform)
 

@@ -1,0 +1,15 @@
+[Unit]
+Description=Keycloak Container
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Restart=always
+RestartSec=15
+ExecStartPre=-/usr/bin/podman rm -f {{ keycloak_container_name }}
+ExecStart=/usr/bin/podman run --name {{ keycloak_container_name }} --replace --rm --pull missing --env-file /etc/keycloak.env -v {{ keycloak_import_dir }}:/opt/keycloak/data/import:Z -p 8080:8080 {{ keycloak_image }} start-dev --import-realm --hostname={{ keycloak_effective_public_url }}
+ExecStop=/usr/bin/podman stop -t 10 {{ keycloak_container_name }}
+ExecStopPost=-/usr/bin/podman rm -f {{ keycloak_container_name }}
+
+[Install]
+WantedBy=multi-user.target

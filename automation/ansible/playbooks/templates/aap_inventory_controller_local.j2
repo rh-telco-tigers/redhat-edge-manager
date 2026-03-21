@@ -1,0 +1,15 @@
+# Jinja2 — AAP automation controller + embedded DB (single node)
+[automationcontroller]
+localhost ansible_connection=local
+
+[database]
+
+[all:vars]
+admin_password='{{ aap_admin_password }}'
+
+pg_host=''
+pg_port=''
+
+pg_database='awx'
+pg_username='awx'
+pg_password='{{ aap_pg_password }}'

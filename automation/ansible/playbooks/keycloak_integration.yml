@@ -1,0 +1,110 @@
+---
+- name: Install and start Keycloak on the dedicated VM
+  hosts: keycloak_hosts
+  become: true
+  vars:
+    keycloak_effective_public_url: "{{ keycloak_public_url | default('http://' ~ fqdn ~ ':8080', true) }}"
+  tasks:
+    - name: Ensure required packages
+      ansible.builtin.dnf:
+        name:
+          - podman
+          - curl
+        state: present
+
+    - name: Create Keycloak import directory
+      ansible.builtin.file:
+        path: "{{ keycloak_import_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Render Keycloak realm import
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/realm-edge-manager.json.j2"
+        dest: "{{ keycloak_import_dir }}/realm-edge-manager.json"
+        mode: "0600"
+
+    - name: Render Keycloak env file
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/keycloak.env.j2"
+        dest: /etc/keycloak.env
+        mode: "0600"
+
+    - name: Render Keycloak systemd unit
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/keycloak.service.j2"
+        dest: /etc/systemd/system/keycloak.service
+        mode: "0644"
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and start Keycloak
+      ansible.builtin.systemd:
+        name: keycloak
+        state: restarted
+        enabled: true
+
+    - name: Wait for Keycloak port
+      ansible.builtin.wait_for:
+        port: 8080
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        timeout: 180
+      delegate_to: localhost
+      become: false
+
+    - name: Wait for Keycloak realm discovery document
+      ansible.builtin.uri:
+        url: "{{ keycloak_effective_public_url }}/realms/{{ keycloak_realm }}/.well-known/openid-configuration"
+        method: GET
+        status_code: 200
+        return_content: false
+      register: _oidc_probe
+      retries: 12
+      delay: 5
+      until: _oidc_probe.status == 200
+      delegate_to: localhost
+      become: false
+      when: rhem_enable_keycloak | bool
+
+- name: Configure RHEM to use Keycloak for OIDC
+  hosts: rhem_hosts
+  become: true
+  vars:
+    keycloak_effective_public_url: "{{ keycloak_public_url | default('http://' ~ hostvars[groups['keycloak_hosts'][0]].fqdn ~ ':8080', true) }}"
+    rhem_effective_base_domain: "{{ rhem_base_domain | default(fqdn, true) }}"
+    rhem_effective_ui_url: "{{ rhem_ui_url | default('https://' ~ fqdn, true) }}"
+    rhem_effective_api_url: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
+  tasks:
+    - name: Backup existing flightctl service config
+      ansible.builtin.copy:
+        src: /etc/flightctl/service-config.yaml
+        dest: /etc/flightctl/service-config.yaml.pre-keycloak
+        remote_src: true
+        force: false
+        mode: preserve
+      when: rhem_enable_keycloak | bool
+
+    - name: Render flightctl service config for external Keycloak
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/service-config.keycloak.yaml.j2"
+        dest: /etc/flightctl/service-config.yaml
+        mode: "0644"
+        backup: true
+      when: rhem_enable_keycloak | bool
+
+    - name: Restart Edge Manager services
+      ansible.builtin.systemd:
+        name: flightctl.target
+        state: restarted
+      when: rhem_enable_keycloak | bool
+
+    - name: Wait for Edge Manager API after OIDC reconfiguration
+      ansible.builtin.wait_for:
+        port: 3443
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        timeout: 180
+      delegate_to: localhost
+      become: false
+      when: rhem_enable_keycloak | bool

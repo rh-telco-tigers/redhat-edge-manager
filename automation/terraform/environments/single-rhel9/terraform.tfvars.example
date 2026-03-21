@@ -1,0 +1,29 @@
+# Copy to terraform.tfvars in this directory. File is gitignored.
+
+proxmox_endpoint = "https://192.168.4.101:8006/"
+proxmox_insecure = true
+proxmox_node     = "homelab"
+
+disk_storage = "local-lvm"
+
+vm_role        = "edge-manager"
+vm_id          = 120
+vm_name        = "rhel9-generic-01"
+dns_name       = "rhel9-generic-01"
+vm_description = "Generic RHEL 9 cloud image VM"
+
+cloud_image_import_id = "local:import/rhel9-guest-image.qcow2"
+
+vm_cores     = 2
+vm_memory_mb = 4096
+vm_disk_gb   = 40
+
+ci_user        = "cloud-user"
+ssh_public_key = "ssh-ed25519 AAAA... your-key-here"
+
+ipv4_use_dhcp = false
+ipv4_cidr     = "192.168.4.120/22"
+ipv4_gateway  = "192.168.4.1"
+
+dns_servers = ["1.1.1.1", "8.8.8.8"]
+dns_domain  = "rhem-eap.lan"

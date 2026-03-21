@@ -1,0 +1,92 @@
+---
+- name: Install Ansible Automation Platform (optional)
+  hosts: aap_controllers
+  become: true
+  vars:
+    _aap_enabled: "{{ aap_install_enabled | bool }}"
+  tasks:
+    - name: Skip AAP when disabled
+      ansible.builtin.meta: end_host
+      when: not _aap_enabled
+
+    - name: Ensure baseline packages for AAP
+      ansible.builtin.dnf:
+        name:
+          - tar
+          - unzip
+          - chrony
+        state: present
+
+    - name: Enable chronyd
+      ansible.builtin.systemd:
+        name: chronyd
+        state: started
+        enabled: true
+
+    - name: Require local bundle tarball on controller
+      ansible.builtin.stat:
+        path: "{{ aap_bundle_tar }}"
+      delegate_to: localhost
+      become: false
+      register: _bundle
+
+    - name: Fail if bundle missing
+      ansible.builtin.assert:
+        that:
+          - _bundle.stat.exists
+        fail_msg: "Set aap_bundle_tar to your ansible-automation-platform-setup-bundle path before running make up."
+
+    - name: Create install directory
+      ansible.builtin.file:
+        path: "{{ aap_install_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy bundle to host
+      ansible.builtin.copy:
+        src: "{{ aap_bundle_tar }}"
+        dest: "{{ aap_install_dir }}/{{ aap_bundle_tar | basename }}"
+        mode: "0644"
+
+    - name: Extract bundle
+      ansible.builtin.unarchive:
+        src: "{{ aap_install_dir }}/{{ aap_bundle_tar | basename }}"
+        dest: "{{ aap_install_dir }}"
+        remote_src: true
+
+    - name: Find setup root
+      ansible.builtin.find:
+        paths: "{{ aap_install_dir }}"
+        patterns: setup.sh
+        file_type: file
+        recurse: true
+      register: _setup_sh
+
+    - name: Fail if setup.sh is missing
+      ansible.builtin.assert:
+        that:
+          - _setup_sh.files | length > 0
+        fail_msg: "setup.sh not found under {{ aap_install_dir }} after extracting the bundle."
+
+    - name: Set setup directory fact
+      ansible.builtin.set_fact:
+        aap_setup_root: "{{ _setup_sh.files[0].path | dirname }}"
+
+    - name: Render installer inventory
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/aap_inventory_controller_local.j2"
+        dest: "{{ aap_setup_root }}/inventory"
+        mode: "0600"
+
+    - name: Run AAP installer
+      ansible.builtin.command:
+        chdir: "{{ aap_setup_root }}"
+        cmd: ./setup.sh
+      register: _setup
+      changed_when: true
+      async: 7200
+      poll: 60
+
+    - name: Show installer tail
+      ansible.builtin.debug:
+        msg: "{{ (_setup.stdout_lines | default([]))[-40:] | join('\n') }}"

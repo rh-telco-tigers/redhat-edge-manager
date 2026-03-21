@@ -1,0 +1,40 @@
+---
+- name: Enable RHEM on RHACM hub
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    rhacm_namespace: rhacm
+    multiclusterhub_name: multiclusterhub
+    kubeconfig_path: "{{ lookup('env', 'KUBECONFIG') | default(lookup('env', 'HOME') ~ '/.kube/config', true) }}"
+  tasks:
+    - name: Patch MultiClusterHub to enable edge-manager-preview
+      ansible.builtin.command:
+        argv:
+          - oc
+          - patch
+          - multiclusterhubs.operator.open-cluster-management.io
+          - "{{ multiclusterhub_name }}"
+          - -n
+          - "{{ rhacm_namespace }}"
+          - --type
+          - json
+          - --patch
+          - '[{"op": "add", "path":"/spec/overrides/components/-", "value": {"name":"edge-manager-preview","enabled": true}}]'
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: _patch
+      changed_when: _patch.rc == 0
+
+    - name: List flightctl-related pods
+      ansible.builtin.shell: |
+        oc -n open-cluster-management get pods 2>/dev/null | grep -E 'NAME|flightctl' || true
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: _pods
+      changed_when: false
+      failed_when: false
+
+    - name: Show pod list
+      ansible.builtin.debug:
+        msg: "{{ _pods.stdout }}"

@@ -1,0 +1,52 @@
+---
+# RHSM registration for all managed RHEL hosts.
+# Use either username/password or org + activation key.
+rhsm_username: ""
+rhsm_password: ""
+rhsm_org: ""
+rhsm_activation_key: ""
+
+# registry.redhat.io login used on the RHEM host before installing flightctl-services.
+# Leave empty to reuse the RHSM username/password.
+registry_redhat_io_username: ""
+registry_redhat_io_password: ""
+
+# PowerDNS
+demo_dns_zone: rhem-eap.lan
+demo_dns_api_key: CHANGEME-pdns-api-key
+powerdns_auth_repo_url: https://repo.powerdns.com/repo-files/el-auth-50.repo
+
+# Red Hat Edge Manager
+rhem_edge_manager_repo: edge-manager-1.0-for-rhel-9-x86_64-rpms
+rhem_admin_username: edgemanager-admin
+rhem_admin_password: CHANGEME-edgemanager-admin-password
+rhem_enable_keycloak: true
+rhem_insecure_skip_tls_verify: true
+
+# Keycloak
+keycloak_public_url: ""
+keycloak_image: quay.io/keycloak/keycloak:26.0.7
+keycloak_bootstrap_admin_username: admin
+keycloak_bootstrap_admin_password: CHANGEME-keycloak-admin-password
+keycloak_realm: edge-manager
+keycloak_import_dir: /opt/keycloak/import
+keycloak_container_name: keycloak
+flightctl_client_id: flightctl-client
+flightctl_client_secret: CHANGEME-flightctl-client-secret
+edge_manager_admin_username: edgemanager-admin
+edge_manager_admin_password: CHANGEME-admin-password
+edge_manager_ops_username: edgemanager-ops
+edge_manager_ops_password: CHANGEME-ops-password
+
+# RHEM OIDC URL overrides.
+# Leave blank to derive values from the generated inventory.
+rhem_base_domain: ""
+rhem_ui_url: ""
+rhem_api_url: ""
+
+# AAP (optional)
+aap_install_enabled: false
+aap_bundle_tar: /path/to/ansible-automation-platform-setup-bundle.tar.gz
+aap_install_dir: /opt/aap-setup
+aap_admin_password: CHANGEME-aap-admin-password
+aap_pg_password: CHANGEME-aap-pg-password

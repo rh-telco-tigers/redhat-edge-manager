@@ -1,0 +1,93 @@
+---
+- name: Prepare all managed RHEL hosts
+  hosts: managed_rhel_hosts
+  become: true
+  vars:
+    _rhsm_has_userpass: "{{ rhsm_username | default('') | length > 0 and rhsm_password | default('') | length > 0 }}"
+    _rhsm_has_activationkey: "{{ rhsm_org | default('') | length > 0 and rhsm_activation_key | default('') | length > 0 }}"
+  tasks:
+    - name: Check RHSM registration state
+      ansible.builtin.command: subscription-manager identity
+      register: _rhsm_identity
+      changed_when: false
+      failed_when: false
+
+    - name: Require RHSM credentials if host is not registered
+      ansible.builtin.assert:
+        that:
+          - _rhsm_identity.rc == 0 or _rhsm_has_userpass or _rhsm_has_activationkey
+        fail_msg: "Provide RHSM credentials in automation/ansible/group_vars/all.yml before running make up."
+
+    - name: Register host with activation key
+      ansible.builtin.command:
+        argv:
+          - subscription-manager
+          - register
+          - --org
+          - "{{ rhsm_org }}"
+          - --activationkey
+          - "{{ rhsm_activation_key }}"
+          - --force
+      when:
+        - _rhsm_identity.rc != 0
+        - _rhsm_has_activationkey
+      no_log: true
+
+    - name: Register host with username and password
+      ansible.builtin.command:
+        argv:
+          - subscription-manager
+          - register
+          - --username
+          - "{{ rhsm_username }}"
+          - --password
+          - "{{ rhsm_password }}"
+          - --force
+      when:
+        - _rhsm_identity.rc != 0
+        - _rhsm_has_userpass
+      no_log: true
+
+    - name: Auto-attach subscription when using username/password
+      ansible.builtin.command: subscription-manager attach --auto
+      when:
+        - _rhsm_identity.rc != 0
+        - _rhsm_has_userpass
+      register: _rhsm_attach
+      changed_when: _rhsm_attach.rc == 0
+      failed_when: false
+
+    - name: Refresh subscription metadata
+      ansible.builtin.command: subscription-manager refresh
+      register: _rhsm_refresh
+      changed_when: false
+      failed_when: false
+
+    - name: Set hostname to the expected FQDN
+      ansible.builtin.hostname:
+        name: "{{ fqdn }}"
+      when:
+        - fqdn is defined
+        - fqdn | length > 0
+
+    - name: Ensure host record exists locally
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "^[0-9.]+\\s+{{ fqdn | regex_escape() }}(\\s|$)"
+        line: "{{ ansible_host }} {{ fqdn }} {{ dns_name }}"
+        state: present
+
+    - name: Install baseline packages
+      ansible.builtin.dnf:
+        name:
+          - chrony
+          - curl
+          - tar
+          - unzip
+        state: present
+
+    - name: Enable chronyd
+      ansible.builtin.systemd:
+        name: chronyd
+        state: started
+        enabled: true

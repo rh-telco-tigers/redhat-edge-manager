@@ -45,4 +45,4 @@ RHACM doc: enable repo `rhacm-2.13-for-rhel-<version>-<arch>-rpms`, then `dnf in
 
 ## Ansible
 
-Use [playbooks/rhem_enable_rhacm.yml](../ansible/playbooks/rhem_enable_rhacm.yml) **from a control node that has `oc` + kubeconfig** (often `localhost` with `ansible_connection: local`).
+Use [automation/ansible/playbooks/rhem_enable_rhacm.yml](../../automation/ansible/playbooks/rhem_enable_rhacm.yml) **from a control node that has `oc` + kubeconfig** (often `localhost` with `ansible_connection: local`).

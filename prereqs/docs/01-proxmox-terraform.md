@@ -1,10 +1,10 @@
-# Step 1 — Proxmox VM (Terraform)
+# Step 1 — Proxmox VMs (automation Terraform)
 
 ## Before you run
 
-1. **Resource pool** — Terraform creates **`rhem-eap-prereq`** and assigns only this VM. It does **not** add/remove members of the **habitvillage** pool or edit habitvillage VMs.
+1. **Resource pool** — the automation creates a dedicated project pool and only manages VMs inside that pool. It does **not** add/remove members of the **habitvillage** pool or edit habitvillage VMs.
 2. **Network & storage** — Defaults mirror a habitvillage k3s node ( **`vmbr0`**, **`192.168.4.0/22`**, gateway **`192.168.4.1`**, DNS **`192.168.4.220`** + forwarders). See [network-habitvillage-parity.md](network-habitvillage-parity.md). Pick an **unused** `ipv4_cidr`.
-3. **Cloud image** — **RHEL 9 KVM guest** qcow2 as **`local:import/rhel9-guest-image.qcow2`** (see [rhel-guest-image-proxmox.md](rhel-guest-image-proxmox.md)). User **`cloud-user`**. Disk on **`local-zfs`**.
+3. **Cloud image** — **RHEL 9 KVM guest** qcow2 as **`local:import/rhel9-guest-image.qcow2`** (see [rhel-guest-image-proxmox.md](rhel-guest-image-proxmox.md)). User **`cloud-user`**.
 4. **Auth** — `PROXMOX_VE_API_TOKEN` **or** `PROXMOX_VE_USERNAME` + `PROXMOX_VE_PASSWORD` (passwords with `%` need URL-encoding when testing with curl).
 5. **SSH public key** — In `terraform.tfvars`.
 
@@ -12,28 +12,28 @@ Provider: [bpg/proxmox](https://registry.terraform.io/providers/bpg/proxmox/late
 
 ## Steps
 
-From the **repo root** (after `cp prereqs/terraform/terraform.tfvars.example prereqs/terraform/terraform.tfvars` and editing it):
+From the **repo root** (after `make init-files` and editing `automation/terraform/environments/demo/terraform.tfvars`):
 
 **Credentials** (the provider error *“must provide either username and password, an API token, or a ticket”* means none of these were set):
 
 - **Option A — shell:** `export PROXMOX_VE_API_TOKEN='user@pam!id=secret'` *or* `export PROXMOX_VE_USERNAME='root@pam'` and `export PROXMOX_VE_PASSWORD='...'`
-- **Option B — file:** `cp prereqs/terraform/.env.example prereqs/terraform/.env` and edit (`.env` is gitignored). `make tf-up` runs [`tf.sh`](../terraform/tf.sh), which sources `.env` automatically.
+- **Option B — file:** `make init-files`, then edit `automation/terraform/environments/demo/.env` (`.env` is gitignored). `make up` runs the environment-local `tf.sh`, which sources `.env` automatically.
 
 Also set `export PROXMOX_VE_INSECURE=true` when using the default self-signed PVE cert (or put it in `.env`).
 
 ```bash
-make tf-up    # init + apply (creates pool + RHEL VM)
-# make tf-plan   # optional preview
-# make tf-down   # destroy (same credentials)
+make plan   # optional preview
+make up     # create demo VMs, then run Ansible automation
+make down   # destroy the demo VMs
 ```
 
 Or manually:
 
 ```bash
-cd prereqs/terraform
+cd automation/terraform/environments/demo
 terraform init
-terraform plan
-terraform apply
+./tf.sh plan
+./tf.sh apply
 ```
 
 ## After apply
@@ -43,7 +43,7 @@ terraform apply
 
 ## Sizing
 
-Defaults **2 vCPU / 8 GB RAM / 50 GB** — enough for a subscribed RHEL 9 guest and light use. If this VM will host **Red Hat Edge Manager**, raise cores, RAM, and disk before `apply` (see [Lab 1](../../labs/01-edge-manager-installation/lab.md)).
+The demo environment defines separate sizing for DNS, RHEM, Keycloak, and AAP in `automation/terraform/environments/demo/terraform.tfvars`. Adjust those values before `make up`.
 
 ## Troubleshooting
 

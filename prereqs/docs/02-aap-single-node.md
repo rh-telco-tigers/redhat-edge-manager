@@ -23,12 +23,12 @@ Based on Red Hat: [Installing AAP components on a single machine](https://docs.r
 ## Commands
 
 ```bash
-cd prereqs/ansible
-cp inventory/hosts.yml.example inventory/hosts.yml
-cp group_vars/all.yml.example group_vars/all.yml
-# Edit hosts.yml (ansible_host), all.yml (passwords, bundle path)
+make init-files
+# Edit automation/ansible/group_vars/all.yml
+# Edit automation/terraform/environments/demo/terraform.tfvars if you want the AAP VM created by make up
 
-ansible-playbook -i inventory/hosts.yml playbooks/aap_install.yml
+cd automation/ansible
+ansible-playbook -l aap_controllers playbooks/aap_install.yml
 ```
 
 ## Verify (from Red Hat doc)

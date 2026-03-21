@@ -1,0 +1,87 @@
+---
+- name: Install and configure PowerDNS
+  hosts: dns_hosts
+  become: true
+  vars:
+    pdns_zone_path: "/var/lib/powerdns/zones/{{ demo_dns_zone }}.zone"
+  tasks:
+    - name: Add PowerDNS repository
+      ansible.builtin.get_url:
+        url: "{{ powerdns_auth_repo_url }}"
+        dest: /etc/yum.repos.d/powerdns-auth.repo
+        mode: "0644"
+
+    - name: Install PowerDNS authoritative server
+      ansible.builtin.dnf:
+        name:
+          - pdns
+        state: present
+
+    - name: Install bind backend when packaged separately
+      ansible.builtin.dnf:
+        name:
+          - pdns-backend-bind
+        state: present
+      register: _pdns_bind_backend
+      failed_when: false
+
+    - name: Create PowerDNS zone directory
+      ansible.builtin.file:
+        path: /var/lib/powerdns/zones
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Render PowerDNS main configuration
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/pdns.conf.j2"
+        dest: /etc/pdns/pdns.conf
+        mode: "0644"
+
+    - name: Render PowerDNS bind backend config
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/pdns.named.conf.j2"
+        dest: /etc/pdns/named.conf
+        mode: "0644"
+
+    - name: Render PowerDNS zone file
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/pdns.zone.j2"
+        dest: "{{ pdns_zone_path }}"
+        mode: "0644"
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Open DNS service in firewalld when available
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - --add-service=dns
+      register: _firewalld_permanent
+      changed_when: _firewalld_permanent.rc == 0
+      failed_when: false
+      when: "'firewalld.service' in ansible_facts.services"
+
+    - name: Reload firewalld when available
+      ansible.builtin.command: firewall-cmd --reload
+      register: _firewalld_reload
+      changed_when: _firewalld_reload.rc == 0
+      failed_when: false
+      when: "'firewalld.service' in ansible_facts.services"
+
+    - name: Enable and restart PowerDNS
+      ansible.builtin.systemd:
+        name: pdns
+        state: restarted
+        enabled: true
+
+    - name: Wait for DNS port
+      ansible.builtin.wait_for:
+        port: 53
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        timeout: 120
+      delegate_to: localhost
+      become: false

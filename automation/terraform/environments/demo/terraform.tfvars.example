@@ -1,0 +1,87 @@
+# Copy to terraform.tfvars in this directory. File is gitignored.
+
+proxmox_endpoint = "https://192.168.4.101:8006/"
+proxmox_insecure = true
+proxmox_node     = "homelab"
+
+disk_storage = "local-lvm"
+
+cloud_image_import_id = "local:import/rhel9-guest-image.qcow2"
+# cloud_image_download_url = "https://your-internal-mirror.example.com/rhel-9.7-x86_64-kvm.qcow2"
+
+ci_user        = "cloud-user"
+ssh_public_key = "ssh-ed25519 AAAA... your-key-here"
+
+dns_domain           = "rhem-eap.lan"
+default_ipv4_gateway = "192.168.4.1"
+upstream_dns_servers = ["1.1.1.1", "8.8.8.8"]
+
+vms = {
+  dns = {
+    enabled        = true
+    role           = "dns"
+    vm_id          = 110
+    vm_name        = "rhem-dns-01"
+    vm_description = "PowerDNS for the RHEM demo stack"
+    vm_cores       = 2
+    vm_memory_mb   = 4096
+    vm_disk_gb     = 30
+    dns_name       = "dns"
+    ipv4_use_dhcp  = false
+    ipv4_cidr      = "192.168.4.30/22"
+    ipv4_gateway   = "192.168.4.1"
+    groups         = ["dns_hosts"]
+    extra_tags     = ["service-dns"]
+  }
+
+  rhem = {
+    enabled        = true
+    role           = "edge-manager"
+    vm_id          = 100
+    vm_name        = "rhem-prereq-rhel-01"
+    vm_description = "Red Hat Edge Manager host"
+    vm_cores       = 4
+    vm_memory_mb   = 16384
+    vm_disk_gb     = 80
+    dns_name       = "rhem"
+    ipv4_use_dhcp  = false
+    ipv4_cidr      = "192.168.4.35/22"
+    ipv4_gateway   = "192.168.4.1"
+    groups         = ["rhem_hosts"]
+    extra_tags     = ["service-rhem"]
+  }
+
+  keycloak = {
+    enabled        = true
+    role           = "keycloak"
+    vm_id          = 101
+    vm_name        = "rhem-keycloak-01"
+    vm_description = "Keycloak identity provider for Red Hat Edge Manager"
+    vm_cores       = 2
+    vm_memory_mb   = 4096
+    vm_disk_gb     = 40
+    dns_name       = "keycloak"
+    ipv4_use_dhcp  = false
+    ipv4_cidr      = "192.168.4.36/22"
+    ipv4_gateway   = "192.168.4.1"
+    groups         = ["keycloak_hosts"]
+    extra_tags     = ["service-keycloak"]
+  }
+
+  aap = {
+    enabled        = true
+    role           = "aap"
+    vm_id          = 102
+    vm_name        = "rhem-aap-01"
+    vm_description = "Ansible Automation Platform controller"
+    vm_cores       = 4
+    vm_memory_mb   = 16384
+    vm_disk_gb     = 80
+    dns_name       = "aap"
+    ipv4_use_dhcp  = false
+    ipv4_cidr      = "192.168.4.37/22"
+    ipv4_gateway   = "192.168.4.1"
+    groups         = ["aap_controllers"]
+    extra_tags     = ["service-aap"]
+  }
+}

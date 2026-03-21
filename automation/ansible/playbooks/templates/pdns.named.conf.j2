@@ -1,0 +1,4 @@
+zone "{{ demo_dns_zone }}" {
+  type master;
+  file "/var/lib/powerdns/zones/{{ demo_dns_zone }}.zone";
+};
