@@ -60,9 +60,21 @@ At this point, **Red Hat Edge Manager is installed and running**. The next step 
 
 By default, the RHEL install uses the bundled `flightctl-pam-issuer` container as the OIDC identity source. You still need to create a local admin account there before the UI / CLI login in the next steps will work.
 
-Per product doc: create the `flightctl-admin` group and an admin user **inside** the `flightctl-pam-issuer` container, then add that user to `flightctl-admin`.
+Yes: this is a required manual step on the RHEM host. Run the user/group creation commands here before moving on. The next step only uses that account to log in; it does **not** create the user for you.
 
-Yes: this is a required manual step on the RHEM host. Run the user/group creation commands from the product doc here, before moving on. The next step only uses that account to log in; it does **not** create the user for you.
+Per product doc, run these commands on the RHEM host:
+
+```bash
+export RHEM_ADMIN_USER="CHANGEME-admin"
+export RHEM_ADMIN_PASSWORD='CHANGEME-password'
+
+sudo podman exec -i flightctl-pam-issuer groupadd flightctl-admin
+sudo podman exec flightctl-pam-issuer adduser "$RHEM_ADMIN_USER"
+sudo podman exec -i flightctl-pam-issuer sh -c "echo '${RHEM_ADMIN_USER}:${RHEM_ADMIN_PASSWORD}' | chpasswd"
+sudo podman exec -i flightctl-pam-issuer usermod -aG flightctl-admin "$RHEM_ADMIN_USER"
+```
+
+Use that same username and password in the UI and `flightctl login` step below.
 
 4. **CLI**
 
