@@ -43,7 +43,7 @@ terraform apply
 
 ## Sizing
 
-Defaults **2 vCPU / 8 GB RAM / 50 GB** — enough for a subscribed RHEL 9 guest and light use. If this VM will host **Red Hat Edge Manager**, raise cores, RAM, and disk before `apply` (see [04-rhem-1-on-rhel.md](04-rhem-1-on-rhel.md)).
+Defaults **2 vCPU / 8 GB RAM / 50 GB** — enough for a subscribed RHEL 9 guest and light use. If this VM will host **Red Hat Edge Manager**, raise cores, RAM, and disk before `apply` (see [Lab 1](../../labs/01-edge-manager-installation/lab.md)).
 
 ## Troubleshooting
 

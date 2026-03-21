@@ -18,7 +18,7 @@ cloud_image_import_id = "local:import/rhel9-guest-image.qcow2"
 
 # rhem_resource_pool_id = "rhem-eap-prereq"
 
-# Defaults suit a general RHEL 9 VM; for RHEM on this host use e.g. 4 / 16384 / 80 (see docs/04-rhem-1-on-rhel.md)
+# Defaults suit a general RHEL 9 VM; for RHEM on this host use e.g. 4 / 16384 / 80 (see ../../labs/01-edge-manager-installation/lab.md)
 vm_cores     = 2
 vm_memory_mb = 8192
 vm_disk_gb   = 50

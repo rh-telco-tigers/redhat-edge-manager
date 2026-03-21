@@ -6,7 +6,7 @@ tags: [rhem, install, rhel]
 
 # Lab 4.5.1 — RHEM installation (RHEL)
 
-**Prereqs:** RHEL host for RHEM + Keycloak — **16 GB RAM, 4 vCPU, 70 GB disk** (per test plan).
+**Prereqs:** RHEL host for RHEM + Keycloak — **16 GB RAM, 4 vCPU, 70 GB disk** (per test plan). Use a DNS name that resolves to this host if possible. The browser UI uses `https://<DNS_Name>/` and the `flightctl` CLI uses `https://<DNS_Name>:3443`.
 
 ## Step 1 — Record environment
 
@@ -18,41 +18,77 @@ nproc
 df -h /
 ```
 
-## Step 2 — Install per Red Hat Edge Manager 1.0 on RHEL
+## Step 2 — Register the host and install Red Hat Edge Manager
 
-Use **[Installing Red Hat Edge Manager on RHEL](https://docs.redhat.com/en/documentation/red_hat_edge_manager/1.0/html/installing_red_hat_edge_manager_on_red_hat_enterprise_linux/)** (`flightctl-services`, `flightctl.target`, Web UI on `https://<DNS_Name>/`, CLI/API on `https://<DNS_Name>:3443`). Example repo: `edge-manager-1.0-for-rhel-9-x86_64-rpms`.
-
-Repo helper: [`prereqs/docs/04-rhem-1-on-rhel.md`](../../prereqs/docs/04-rhem-1-on-rhel.md) (manual install; no automation in this repo). **Register and attach a subscription first** — otherwise `subscription-manager repos` reports *no repositories available*.
+Use **[Installing Red Hat Edge Manager on RHEL](https://docs.redhat.com/en/documentation/red_hat_edge_manager/1.0/html/installing_red_hat_edge_manager_on_red_hat_enterprise_linux/)** as the source of truth. This lab keeps the install flow in one place for the common path on a fresh RHEL VM.
 
 ```bash
-# After: subscription-manager register / attach / refresh (see 04 doc):
-# sudo dnf install -y flightctl-services flightctl-cli
-# sudo systemctl enable --now flightctl.target
+# Check registration state
+sudo subscription-manager status
+
+# If the host is not registered yet:
+sudo subscription-manager register --username YOUR_RHSM_USER --password YOUR_RHSM_PASSWORD
+# Or use an activation key instead:
+# sudo subscription-manager register --org=YOUR_ORG --activationkey=YOUR_KEY
+
+sudo subscription-manager attach --auto
+sudo subscription-manager refresh
+sudo subscription-manager repos --list-enabled
+
+sudo dnf install -y podman
+podman --version
+sudo podman login registry.redhat.io
+
+sudo subscription-manager repos --enable edge-manager-1.0-for-rhel-9-x86_64-rpms
+sudo dnf install -y flightctl-services flightctl-cli
+sudo systemctl enable --now flightctl.target
+sudo systemctl list-units 'flightctl-*.service'
 ```
 
-Before continuing: complete the **PAM issuer bootstrap** in [`prereqs/docs/04-rhem-1-on-rhel.md`](../../prereqs/docs/04-rhem-1-on-rhel.md). This is a required manual step on the RHEM host. You do need to run the commands that create the first local admin user; the `flightctl login` step later only authenticates with that user.
+If `subscription-manager repos --enable ...` reports no repositories available, the host is not attached to a subscription that includes Edge Manager yet.
 
-## Step 3 — Verify UI reachable
+## Step 3 — Create the first admin account
+
+At this point, Red Hat Edge Manager is installed and running. Before opening the UI or using `flightctl login`, create the first local admin account inside the `flightctl-pam-issuer` container.
+
+```bash
+export RHEM_ADMIN_USER="CHANGEME-admin"
+export RHEM_ADMIN_PASSWORD='CHANGEME-password'
+
+sudo podman exec -i flightctl-pam-issuer groupadd flightctl-admin
+sudo podman exec flightctl-pam-issuer adduser "$RHEM_ADMIN_USER"
+sudo podman exec -i flightctl-pam-issuer sh -c "echo '${RHEM_ADMIN_USER}:${RHEM_ADMIN_PASSWORD}' | chpasswd"
+sudo podman exec -i flightctl-pam-issuer usermod -aG flightctl-admin "$RHEM_ADMIN_USER"
+```
+
+Use this same username and password for both the browser login and the `flightctl` login below.
+
+## Step 4 — Verify the web UI
 
 ```bash
 # Web UI:
-export RHEM_UI_URL="https://CHANGEME-rhem.example.com/"
+export RHEM_HOST="CHANGEME-rhem.example.com"
+export RHEM_UI_URL="https://${RHEM_HOST}/"
 curl -skI "$RHEM_UI_URL" | head -5
 ```
 
-Open the same URL in a browser; complete login flow. Do not use `:3443` for the browser UI check.
+Open the same URL in a browser and sign in with `$RHEM_ADMIN_USER` and `$RHEM_ADMIN_PASSWORD`.
 
-## Step 4 — Install and auth **flightctl** CLI
+Use `https://<host>/` for the browser UI. Do not use `:3443` in the browser; `:3443` is the CLI/API endpoint and may return `404 page not found` there.
+
+## Step 5 — Install and auth **flightctl** CLI
 
 ```bash
-# After CLI install per docs:
-export RHEM_API_URL="https://CHANGEME-rhem.example.com:3443"
+# CLI/API endpoint:
+export RHEM_API_URL="https://${RHEM_HOST}:3443"
 flightctl version
-flightctl login --url "$RHEM_API_URL"
+flightctl login --url "$RHEM_API_URL" --username "$RHEM_ADMIN_USER" --password "$RHEM_ADMIN_PASSWORD"
 flightctl whoami
 ```
 
-## Step 5 — Success check
+If the certificate is self-signed, the CLI prompts to continue with an insecure connection. That is expected in a lab setup.
+
+## Step 6 — Success check
 
 - [ ] UI login works  
 - [ ] `flightctl` authenticates and returns identity / empty resource list is OK  

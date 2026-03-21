@@ -19,7 +19,7 @@ flowchart TB
 
 Standalone control plane: **[RHEM 1.0 on RHEL](https://docs.redhat.com/en/documentation/red_hat_edge_manager/1.0/html/installing_red_hat_edge_manager_on_red_hat_enterprise_linux/)** — RPMs `flightctl-services`, `flightctl.target`, Web UI on **`https://<DNS_Name>/`**, CLI/API on **`:3443`**, PAM issuer in Podman.
 
-- Concise checklist: [docs/04-rhem-1-on-rhel.md](04-rhem-1-on-rhel.md) (manual steps only; no Ansible playbook in this repo)
+- Install checklist: [Lab 1](../../labs/01-edge-manager-installation/lab.md) (manual steps only; no Ansible playbook in this repo)
 
 ## RHACM-integrated Edge Manager (alternate)
 
