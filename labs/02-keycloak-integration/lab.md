@@ -6,21 +6,17 @@
 
 - Lab 1 is already complete and Edge Manager is working.
 - You already have an existing Keycloak instance you can administer.
-- In this repo's demo environment, the common values are:
-  - RHEM UI: `https://rhem-prereq-rhel-01.rhem-eap.lan/`
-  - RHEM API: `https://rhem-prereq-rhel-01.rhem-eap.lan:3443`
-  - Keycloak URL: `http://keycloak.rhem-eap.lan:8080`
-- `make rhel-vms-up` can create base RHEL VMs for the manual labs, but this lab does not install or run Keycloak for you.
+- You know the Edge Manager browser hostname, the Edge Manager API hostname, and the Keycloak realm URL you want to use.
 
 ## Step 1 — Pick the integration values
 
 Use values like these for the lab:
 
 ```bash
-export RHEM_HOST_FQDN="rhem-prereq-rhel-01.rhem-eap.lan"
+export RHEM_HOST_FQDN="edge-manager.example.com"
 export RHEM_UI_URL="https://${RHEM_HOST_FQDN}"
 export RHEM_API_URL="https://${RHEM_HOST_FQDN}:3443"
-export KEYCLOAK_URL="http://keycloak.rhem-eap.lan:8080"
+export KEYCLOAK_URL="https://keycloak.example.com"
 export KEYCLOAK_REALM="edge-manager"
 export FLIGHTCTL_CLIENT_ID="flightctl-client"
 ```
@@ -62,20 +58,19 @@ Do not create a new `offline_access` role. Keycloak already includes it.
 
 ## Step 3 — Create the Edge Manager OIDC client
 
-Create a confidential client for Edge Manager with these settings:
+Create an OpenID Connect client for Edge Manager with these settings:
 
 - Client ID: `flightctl-client`
-- Client authentication: enabled
+- Client authentication: disabled
+- Access type: public
 - Standard flow: enabled
 - Direct access grants: enabled
 - Service accounts: disabled
 
-Set a client secret and save it. You will use the same secret on the RHEM host.
-
 Add these redirect URIs:
 
-- `https://rhem-prereq-rhel-01.rhem-eap.lan/*`
-- `https://rhem-prereq-rhel-01.rhem-eap.lan:443/*`
+- `https://edge-manager.example.com/*`
+- `https://edge-manager.example.com:443/*`
 - `http://localhost:8080/*`
 
 Set web origins to:
@@ -127,10 +122,10 @@ global:
     insecureSkipTlsVerify: true
     oidc:
       enabled: true
-      issuer: http://keycloak.rhem-eap.lan:8080/realms/edge-manager
-      externalOidcAuthority: http://keycloak.rhem-eap.lan:8080/realms/edge-manager
+      issuer: https://keycloak.example.com/realms/edge-manager
+      externalOidcAuthority: https://keycloak.example.com/realms/edge-manager
       clientId: flightctl-client
-      clientSecret: CHANGEME-flightctl-client-secret
+      clientSecret:
       organizationAssignment:
         type: static
         organizationName: default
@@ -159,7 +154,7 @@ sudo systemctl restart flightctl.target
 Open the RHEM UI:
 
 ```text
-https://rhem-prereq-rhel-01.rhem-eap.lan/
+https://edge-manager.example.com/
 ```
 
 Sign in with the Keycloak user you created, for example `edgemanager-admin`.

@@ -1,8 +1,6 @@
-# RHEM installation (RHEL)
+# Install Red Hat Edge Manager on RHEL
 
-**Prereqs:** RHEL host for RHEM + Keycloak — **16 GB RAM, 4 vCPU, 70 GB disk** (per test plan). Use a DNS name that resolves to this host if possible. The browser UI uses `https://<DNS_Name>/` and the `flightctl` CLI uses `https://<DNS_Name>:3443`.
-
-If you want Terraform to create the base RHEL VMs but still do the install manually, use `make rhel-vms-up` and edit `automation/terraform/environments/manual-demo/terraform.tfvars` first.
+**Prereqs:** a RHEL 9 host for Red Hat Edge Manager. Use a DNS name that resolves to this host if possible. The browser UI uses `https://<DNS_Name>/` and the `flightctl` CLI uses `https://<DNS_Name>:3443`.
 
 ## Step 1 — Record environment
 
@@ -45,7 +43,7 @@ If `subscription-manager repos --enable ...` reports no repositories available, 
 
 ## Step 3 — Create the first admin account
 
-At this point, Red Hat Edge Manager is installed and running. Before opening the UI or using `flightctl login`, create the first local admin account inside the `flightctl-pam-issuer` container.
+At this point, Red Hat Edge Manager is installed and running. Before opening the web console or using `flightctl login`, create the first local admin account inside the `flightctl-pam-issuer` container.
 
 ```bash
 export RHEM_ADMIN_USER="CHANGEME-admin"
@@ -59,10 +57,9 @@ sudo podman exec -i flightctl-pam-issuer usermod -aG flightctl-admin "$RHEM_ADMI
 
 Use this same username and password for both the browser login and the `flightctl` login below.
 
-## Step 4 — Verify the web UI
+## Step 4 — Verify the web console
 
 ```bash
-# Web UI:
 export RHEM_HOST="CHANGEME-rhem.example.com"
 export RHEM_UI_URL="https://${RHEM_HOST}/"
 curl -skI "$RHEM_UI_URL" | head -5
@@ -72,10 +69,9 @@ Open the same URL in a browser and sign in with `$RHEM_ADMIN_USER` and `$RHEM_AD
 
 Use `https://<host>/` for the browser UI. Do not use `:3443` in the browser; `:3443` is the CLI/API endpoint and may return `404 page not found` there.
 
-## Step 5 — Install and auth **flightctl** CLI
+## Step 5 — Verify the `flightctl` CLI
 
 ```bash
-# CLI/API endpoint:
 export RHEM_API_URL="https://${RHEM_HOST}:3443"
 flightctl version
 flightctl login --url "$RHEM_API_URL" --username "$RHEM_ADMIN_USER" --password "$RHEM_ADMIN_PASSWORD"

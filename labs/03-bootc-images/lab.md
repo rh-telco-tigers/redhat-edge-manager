@@ -1,40 +1,32 @@
-# Build the bootc image and publish it through Satellite
+# Build a bootc image and publish it through Satellite
 
-**Goal:** build the Edge Manager device OS image, store it in Satellite's registry, and generate the bootable disk image that you will use to onboard a fresh device in the next lab.
+**Goal:** build the device operating system image, publish it to Satellite, and generate the bootable installer artifact that you will use in the next lab.
 
-**Important:** this lab is still about Edge Manager. Satellite is only the customer-like supporting environment here:
+**Prereqs:** Labs 1 and 2 are complete. You have:
 
-- Satellite hosts the bootc image and RHEL content
-- Edge Manager still owns enrollment, fleets, and device lifecycle
+- a working Edge Manager host
+- a working Satellite host
+- shell access to both hosts
+- credentials for `registry.redhat.io`
+- credentials for the Satellite registry
 
-**Prereqs:** Labs 1 and 2 are complete. `make up` already created the RHEM, Keycloak, DNS, and Satellite VMs.
+## Step 1 — Set the hostnames you will use in this lab
 
-## Step 1 — Verify the supporting services
-
-Open:
-
-```text
-https://satellite.rhem-eap.lan/
-https://rhem-prereq-rhel-01.rhem-eap.lan/
+```bash
+export EDGE_MANAGER_HOST="edge-manager.example.com"
+export SATELLITE_HOST="satellite.example.com"
+export EDGE_MANAGER_API_URL="https://${EDGE_MANAGER_HOST}:3443"
+export OCI_IMAGE_TAG="v1"
 ```
 
-The remaining work in this lab is image and registry preparation, not service installation.
+Use the API certificate hostname for `EDGE_MANAGER_HOST`.
 
-## Step 2 — Optional: import the Satellite manifest and sync RHEL content
-
-If you want Satellite to look more like a customer environment, import your manifest and enable at least:
-
-- `Red Hat Enterprise Linux 9 for x86_64 - BaseOS (RPMs)`
-- `Red Hat Enterprise Linux 9 for x86_64 - AppStream (RPMs)`
-
-This is useful for later content-management demos, but it is not what makes the Edge Manager bootc flow work.
-
-## Step 3 — Prepare the Satellite registry path for the bootc image
+## Step 2 — Prepare the Satellite registry path
 
 SSH to the Satellite host:
 
 ```bash
-ssh cloud-user@192.168.4.38
+ssh <admin_user>@${SATELLITE_HOST}
 ```
 
 Find the organization ID:
@@ -43,49 +35,50 @@ Find the organization ID:
 sudo hammer --output csv organization list
 ```
 
-Create the custom product once if it does not already exist:
+Create the `bootc` product if it does not already exist:
 
 ```bash
 sudo hammer product create \
-  --organization-id 1 \
+  --organization-id CHANGEME_ORG_ID \
   --name bootc \
   --label bootc
 ```
 
-List products so you can capture the product ID for `bootc`:
+Find the product ID for `bootc`:
 
 ```bash
-sudo hammer --output csv product list --organization-id 1
+sudo hammer --output csv product list --organization-id CHANGEME_ORG_ID
 ```
 
-Allow anonymous pull from the `Library` lifecycle environment so the device does not need a registry pull secret for this demo:
+Allow unauthenticated pull from `Library` for this lab:
 
 ```bash
 sudo hammer lifecycle-environment update \
-  --organization-id 1 \
+  --organization-id CHANGEME_ORG_ID \
   --name Library \
   --registry-unauthenticated-pull true
 ```
 
-Set the image repository path for the next steps. Use the real product ID from the previous command:
+Set the image repository path:
 
 ```bash
-export SATELLITE_IMAGE_REPO="satellite.rhem-eap.lan/id/1/CHANGEME_PRODUCT_ID/device-os"
-export OCI_IMAGE_TAG="v1"
+export SATELLITE_ORG_ID="CHANGEME_ORG_ID"
+export SATELLITE_PRODUCT_ID="CHANGEME_PRODUCT_ID"
+export SATELLITE_IMAGE_REPO="${SATELLITE_HOST}/id/${SATELLITE_ORG_ID}/${SATELLITE_PRODUCT_ID}/device-os"
 ```
 
-## Step 4 — Request the early-binding enrollment config from Edge Manager
+## Step 3 — Request the early-binding enrollment configuration
 
-On the RHEM host:
+SSH to the Edge Manager host:
 
 ```bash
-ssh cloud-user@192.168.4.35
+ssh <admin_user>@${EDGE_MANAGER_HOST}
 ```
 
-```bash
-export RHEM_API_URL="https://rhem.rhem-eap.lan:3443"
+Log in with `flightctl` and request the embedded enrollment configuration:
 
-flightctl login "$RHEM_API_URL" \
+```bash
+flightctl login "${EDGE_MANAGER_API_URL}" \
   --username edgemanager-admin \
   --password 'CHANGEME-edgemanager-password' \
   --insecure-skip-tls-verify
@@ -96,106 +89,91 @@ flightctl certificate request \
   --output embedded > config.yaml
 ```
 
-That `config.yaml` is what makes the installed system enroll automatically in Lab 4.
-
-Use the short certified API hostname here. The browser UI may still be at `https://rhem-prereq-rhel-01.rhem-eap.lan/`, but the embedded device config must use the RHEM API certificate name.
-
-Before you add `config.yaml` into the image, confirm it uses the short certified host:
+Confirm that `config.yaml` points to the API certificate hostname:
 
 ```yaml
 enrollment-service:
-  enrollment-ui-endpoint: https://rhem.rhem-eap.lan:443
+  enrollment-ui-endpoint: https://edge-manager.example.com:443
   service:
-    server: https://rhem.rhem-eap.lan:7443/
+    server: https://edge-manager.example.com:7443/
 ```
 
-If your generated file still shows `rhem-prereq-rhel-01.rhem-eap.lan`, replace those two URL values before you build the image. The repo automation does this normalization for you.
+If your generated file shows a different host that is not covered by the Edge Manager API certificate, replace those values before building the image.
 
-## Step 5 — Build the actual bootc image
+## Step 4 — Build the bootc image
 
-Fetch the Satellite CA certificate:
+Create a working directory on the build host:
 
 ```bash
-curl -k https://satellite.rhem-eap.lan/pub/katello-server-ca.crt \
-  -o satellite-ca.crt
+mkdir -p ~/device-os
+cd ~/device-os
 ```
 
-Create the real Containerfile:
+Fetch the Satellite CA certificate and log in to the required registries:
 
-```Dockerfile
+```bash
+curl -k "https://${SATELLITE_HOST}/pub/katello-server-ca.crt" \
+  -o satellite-ca.crt
+
+sudo podman login registry.redhat.io
+
+sudo podman login "${SATELLITE_HOST}" \
+  --username admin \
+  --password 'CHANGEME-satellite-admin-password'
+```
+
+Create the `Containerfile`:
+
+```bash
+cat > Containerfile <<EOF
 FROM registry.redhat.io/rhel9/rhel-bootc:9.7
 
 RUN dnf -y install 'dnf-command(config-manager)' && \
     dnf config-manager --set-enabled edge-manager-1.0-for-rhel-9-x86_64-rpms && \
-    dnf -y install flightctl-agent qemu-guest-agent sudo && \
+    dnf -y install flightctl-agent podman qemu-guest-agent sudo && \
     dnf -y clean all && \
     systemctl enable flightctl-agent.service && \
     systemctl enable qemu-guest-agent.service && \
+    systemctl enable podman.service && \
     systemctl mask bootc-fetch-apply-updates.timer
 
-RUN dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm && \
-    dnf -y install podman-compose && \
-    dnf -y clean all && \
-    systemctl enable podman.service
-
-RUN mkdir -p /etc/containers/certs.d/satellite.rhem-eap.lan
+RUN mkdir -p /etc/containers/certs.d/${SATELLITE_HOST}
 ADD satellite-ca.crt /etc/pki/ca-trust/source/anchors/satellite-ca.crt
-ADD satellite-ca.crt /etc/containers/certs.d/satellite.rhem-eap.lan/ca.crt
+ADD satellite-ca.crt /etc/containers/certs.d/${SATELLITE_HOST}/ca.crt
 RUN update-ca-trust
 
 ADD config.yaml /etc/flightctl/
+EOF
 ```
 
-If your DHCP server does not hand out DNS for `rhem-eap.lan`, add the same management host mappings that the repo automation adds before you build the image. The automated path already handles that for you.
-
-Including `podman-compose` here is optional extra tooling. The default Lab 6 path now uses a quadlet wrapper image for a single container, so Podman is the actual requirement.
-
-Build and push the image to Satellite:
+Build and push the image:
 
 ```bash
-sudo podman login satellite.rhem-eap.lan \
-  --username admin \
-  --password 'CHANGEME-satellite-admin-password'
-
 sudo podman build -t "${SATELLITE_IMAGE_REPO}:${OCI_IMAGE_TAG}" .
-
 sudo podman push "${SATELLITE_IMAGE_REPO}:${OCI_IMAGE_TAG}"
+```
 
+Tag the same image into local container storage for `bootc-image-builder`:
+
+```bash
 sudo podman tag \
   "${SATELLITE_IMAGE_REPO}:${OCI_IMAGE_TAG}" \
-  "localhost/rhem-demo/device-os:${OCI_IMAGE_TAG}"
+  "localhost/device-os:${OCI_IMAGE_TAG}"
 ```
 
-## Step 6 — Generate the bootable disk image
+## Step 5 — Generate the bootable installer artifact
 
-For the Proxmox demo path, build the bootable qcow2 disk image from the same bootc container image:
+Use `bootc-image-builder` against the locally tagged image. This avoids private-registry pull issues during artifact generation.
+
+Create the output directory:
 
 ```bash
 mkdir -p output
-
-sudo podman run --rm -it --privileged --pull=newer \
-  --security-opt label=type:unconfined_t \
-  -v "${PWD}/output":/output \
-  -v /var/lib/containers/storage:/var/lib/containers/storage \
-  registry.redhat.io/rhel9/bootc-image-builder:latest \
-  --type qcow2 \
-  --local \
-  "localhost/rhem-demo/device-os:${OCI_IMAGE_TAG}"
 ```
 
-Main artifact:
-
-```text
-output/qcow2/disk.qcow2
-```
-
-The local `localhost/rhem-demo/device-os:${OCI_IMAGE_TAG}` tag is intentional. Current RHEL `bootc-image-builder` has a documented limitation with private registries, so the practical workaround is to keep Satellite as the hosted registry of record, then stage the same image into local container storage and build the bootable artifact with `--local`.
-
-If you explicitly need an ISO for a physical-device or USB-style path, you can still build one, but it is optional in this repo flow:
+If you want ISO media for a VM console boot or a physical-device boot:
 
 ```bash
-mkdir -p output
-
 sudo podman run --rm -it --privileged --pull=newer \
   --security-opt label=type:unconfined_t \
   -v "${PWD}/output":/output \
@@ -203,36 +181,39 @@ sudo podman run --rm -it --privileged --pull=newer \
   registry.redhat.io/rhel9/bootc-image-builder:latest \
   --type iso \
   --local \
-  "localhost/rhem-demo/device-os:${OCI_IMAGE_TAG}"
+  "localhost/device-os:${OCI_IMAGE_TAG}"
 ```
 
-## Step 7 — Use the repo automation for the same flow
-
-The repo now automates the practical version of this lab:
-
-```bash
-make bootc-build
-```
-
-By default that automation:
-
-- prepares the Satellite registry path for the image
-- pushes the bootc image to Satellite
-- stages the same image locally for `bootc-image-builder --local`
-- embeds the Edge Manager enrollment config
-- embeds the Satellite CA into the image
-- leaves Podman ready in the device OS image for Lab 6 and also installs `podman-compose` as optional extra tooling
-- generates the bootable qcow2 disk image used by the Proxmox demo device flow
-- fetches the qcow2 back to this repo
-
-Local artifacts:
+ISO artifact:
 
 ```text
-automation/artifacts/bootc/rhem-prereq-rhel-01/disk.qcow2
+output/bootiso/install.iso
 ```
 
-If you explicitly want the optional ISO too:
+If your virtualization platform can import a qcow2 disk image directly:
 
 ```bash
-BOOTC_BUILD_ISO=true BOOTC_FETCH_ISO=true make bootc-build
+sudo podman run --rm -it --privileged --pull=newer \
+  --security-opt label=type:unconfined_t \
+  -v "${PWD}/output":/output \
+  -v /var/lib/containers/storage:/var/lib/containers/storage \
+  registry.redhat.io/rhel9/bootc-image-builder:latest \
+  --type qcow2 \
+  --local \
+  "localhost/device-os:${OCI_IMAGE_TAG}"
 ```
+
+QCOW2 artifact:
+
+```text
+output/qcow2/disk.qcow2
+```
+
+## Step 6 — Prepare for the next lab
+
+Keep the installer artifact that matches your target platform:
+
+- `output/bootiso/install.iso` for ISO-based boot
+- `output/qcow2/disk.qcow2` for qcow2-based VM import
+
+You will use that artifact to boot a fresh device in Lab 4.
