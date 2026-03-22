@@ -112,6 +112,17 @@
         - rhem_enable_keycloak_effective
         - (_flightctl_clients.json | length) > 0
 
+    - name: Look up Keycloak client scopes
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/client-scopes"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        status_code: 200
+      register: _keycloak_client_scopes
+      no_log: true
+      when: rhem_enable_keycloak_effective
+
     - name: Update allowed redirect URIs for the Edge Manager client
       ansible.builtin.uri:
         url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/clients/{{ _flightctl_client.json.id }}"
@@ -125,6 +136,22 @@
       when:
         - rhem_enable_keycloak_effective
         - _flightctl_client is defined
+
+    - name: Attach offline_access as an optional scope for the Edge Manager client
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/clients/{{ _flightctl_client.json.id }}/optional-client-scopes/{{ (_keycloak_client_scopes.json | selectattr('name', 'equalto', 'offline_access') | map(attribute='id') | first) }}"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        status_code:
+          - 201
+          - 204
+      register: _offline_scope_attach
+      changed_when: "'offline_access' not in (_flightctl_client.json.optionalClientScopes | default([]))"
+      when:
+        - rhem_enable_keycloak_effective
+        - _flightctl_client is defined
+        - (_keycloak_client_scopes.json | selectattr('name', 'equalto', 'offline_access') | list | length) > 0
 
 - name: Configure RHEM to use Keycloak for OIDC
   hosts: rhem_hosts
