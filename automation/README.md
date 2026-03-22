@@ -206,10 +206,25 @@ make device-vm-up
 
 This uses the latest fetched `disk.qcow2` artifact and creates one fresh demo device VM on Proxmox.
 
+If you want to create additional named devices on the fly, pass a device name and optional site:
+
+```bash
+make device-vm-up name=database site=homelab
+make device-vm-up name=storefront site=branch-west VM_CORES=4 VM_MEMORY_MB=8192
+```
+
+Each named device uses its own Terraform workspace, so you can create and remove them independently.
+
 Remove that device VM later with:
 
 ```bash
 make device-vm-down
+```
+
+Or remove one named device:
+
+```bash
+make device-vm-down name=database
 ```
 
 ### Approve enrollment

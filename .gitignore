@@ -24,6 +24,7 @@ prereqs/terraform/
 
 # Terraform
 .terraform/
+terraform.tfstate.d/
 *.tfstate
 *.tfstate.*
 crash.log

@@ -37,8 +37,8 @@ help:
 	"  make aap-integrate    Configure Edge Manager to use AAP authentication" \
 	"  make aap-setup        Run both AAP install and AAP integration" \
 	"  make bootc-build      Build the demo bootc image, push it to Satellite, and fetch the bootable qcow2" \
-	"  make device-vm-up     Create one demo device VM from the bootc qcow2 disk image" \
-	"  make device-vm-down   Destroy the demo device VM" \
+	"  make device-vm-up     Create one named demo device VM; pass name=<device> site=<site>" \
+	"  make device-vm-down   Destroy one named demo device VM; pass name=<device>" \
 	"  make approve-enrollment Approve pending Edge Manager enrollment requests" \
 	"  make fleet-apply      Create or update the demo Edge Manager fleet" \
 	"  make device-demo      Build image, create the device VM, approve enrollment, and apply the fleet" \
@@ -88,12 +88,45 @@ device-vm-init: automation-init-files
 	cd $(DEVICE_TF_DIR) && terraform init -input=false
 
 device-vm-plan: device-vm-init
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	BOOTC_QCOW2_PATH='$(BOOTC_QCOW2_PATH)' \
+	UPLOADED_QCOW2_FILE_NAME='$(UPLOADED_QCOW2_FILE_NAME)' \
+	VM_ID='$(or $(VM_ID),$(vm_id))' \
+	VM_NAME='$(or $(VM_NAME),$(vm_name))' \
+	VM_DESCRIPTION='$(VM_DESCRIPTION)' \
+	VM_CORES='$(VM_CORES)' \
+	VM_MEMORY_MB='$(VM_MEMORY_MB)' \
+	VM_DISK_GB='$(VM_DISK_GB)' \
+	VM_TAGS='$(VM_TAGS)' \
 	ACTION=plan $(AUTOMATION_DIR)/scripts/device-vm.sh
 
 device-vm-up: device-vm-init
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	BOOTC_QCOW2_PATH='$(BOOTC_QCOW2_PATH)' \
+	UPLOADED_QCOW2_FILE_NAME='$(UPLOADED_QCOW2_FILE_NAME)' \
+	VM_ID='$(or $(VM_ID),$(vm_id))' \
+	VM_NAME='$(or $(VM_NAME),$(vm_name))' \
+	VM_DESCRIPTION='$(VM_DESCRIPTION)' \
+	VM_CORES='$(VM_CORES)' \
+	VM_MEMORY_MB='$(VM_MEMORY_MB)' \
+	VM_DISK_GB='$(VM_DISK_GB)' \
+	VM_TAGS='$(VM_TAGS)' \
 	ACTION=apply $(AUTOMATION_DIR)/scripts/device-vm.sh
 
 device-vm-down: device-vm-init
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	BOOTC_QCOW2_PATH='$(BOOTC_QCOW2_PATH)' \
+	UPLOADED_QCOW2_FILE_NAME='$(UPLOADED_QCOW2_FILE_NAME)' \
+	VM_ID='$(or $(VM_ID),$(vm_id))' \
+	VM_NAME='$(or $(VM_NAME),$(vm_name))' \
+	VM_DESCRIPTION='$(VM_DESCRIPTION)' \
+	VM_CORES='$(VM_CORES)' \
+	VM_MEMORY_MB='$(VM_MEMORY_MB)' \
+	VM_DISK_GB='$(VM_DISK_GB)' \
+	VM_TAGS='$(VM_TAGS)' \
 	ACTION=destroy $(AUTOMATION_DIR)/scripts/device-vm.sh
 
 configure: automation-init-files ansible-bootstrap
