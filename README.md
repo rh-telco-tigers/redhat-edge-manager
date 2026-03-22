@@ -53,4 +53,4 @@ If you hit a known issue while following the labs or running the automation, sta
 
 ## Reference notes
 
-[`prereqs/`](prereqs/README.md) contains supporting reference material for optional infrastructure notes and alternate deployment paths.
+[`prereqs/`](prereqs/README.md) contains supporting setup notes for the Proxmox automation path.

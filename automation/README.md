@@ -32,7 +32,7 @@ Have these ready before your first run:
 
 If you are using the full automation path, also make sure you have enough free IPs and VM IDs for the management VMs.
 
-If you need details about the Proxmox image requirement, see [../prereqs/rhel-guest-image-proxmox.md](../prereqs/rhel-guest-image-proxmox.md).
+If you need details about the Proxmox image requirement, see [../prereqs/01-proxmox-terraform.md](../prereqs/01-proxmox-terraform.md).
 
 ## Main workflows
 
