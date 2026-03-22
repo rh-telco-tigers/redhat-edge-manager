@@ -2,9 +2,19 @@
 - name: Prepare all managed RHEL hosts
   hosts: managed_rhel_hosts
   become: true
+  gather_facts: false
   vars_files:
     - ../group_vars/all.yml
   tasks:
+    - name: Wait for SSH on managed hosts
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 600
+        sleep: 10
+
+    - name: Gather facts after SSH becomes available
+      ansible.builtin.setup:
+
     - name: Check RHSM registration state
       ansible.builtin.command: subscription-manager identity
       register: _rhsm_identity
