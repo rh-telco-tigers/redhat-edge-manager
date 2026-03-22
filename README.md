@@ -20,8 +20,8 @@ The full automation path now also includes a dedicated Satellite VM in the demo 
 5. [`labs/05-fleet-join`](labs/05-fleet-join) — Create a Fleet that points at the Satellite-hosted bootc image
 6. [`labs/06-managing-applications`](labs/06-managing-applications) — Build a demo application image, package it as a quadlet wrapper image, and deploy it through the demo fleet
 7. [`labs/07-monitoring-support`](labs/07-monitoring-support) — Review monitoring and collect support data
-8. [`labs/08-security-compliance`](labs/08-security-compliance) — Work through security and compliance checks
-9. [`labs/09-performance-optimization`](labs/09-performance-optimization) — Review performance and optimization items
+8. [`labs/08-security-compliance`](labs/08-security-compliance) — Review access, TLS, image sources, and patch posture
+9. [`labs/09-performance-optimization`](labs/09-performance-optimization) — Capture a baseline, tune the deployed application, and compare results
 
 ## Conventions
 
