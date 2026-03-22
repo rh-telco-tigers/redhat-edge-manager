@@ -8,6 +8,9 @@
     keycloak_effective_public_url: "{{ keycloak_public_url | default('http://' ~ fqdn ~ ':8080', true) }}"
     rhem_enable_keycloak_effective: "{{ rhem_enable_keycloak | default(true, true) | bool }}"
     keycloak_local_probe_url: "http://127.0.0.1:8080"
+    rhem_effective_ui_url: "{{ rhem_ui_url | default('https://' ~ hostvars[groups['rhem_hosts'][0]].fqdn, true) }}"
+    rhem_effective_ui_url_with_default_https_port: "{{ rhem_effective_ui_url | regex_replace('^https://([^/:]+)$', 'https://\\1:443') }}"
+    keycloak_redirect_uris_effective: "{{ [rhem_effective_ui_url ~ '/*', rhem_effective_ui_url_with_default_https_port ~ '/*', 'http://localhost:8080/*'] | unique }}"
   tasks:
     - name: Ensure required packages
       ansible.builtin.dnf:
@@ -69,6 +72,59 @@
       delay: 5
       until: _oidc_probe.status == 200
       when: rhem_enable_keycloak_effective
+
+    - name: Get Keycloak admin access token
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          client_id: admin-cli
+          grant_type: password
+          username: "{{ keycloak_bootstrap_admin_username }}"
+          password: "{{ keycloak_bootstrap_admin_password }}"
+        status_code: 200
+      register: _keycloak_admin_token
+      no_log: true
+      when: rhem_enable_keycloak_effective
+
+    - name: Look up the Edge Manager client in Keycloak
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/clients?clientId={{ flightctl_client_id }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        status_code: 200
+      register: _flightctl_clients
+      no_log: true
+      when: rhem_enable_keycloak_effective
+
+    - name: Read the current Edge Manager client config from Keycloak
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/clients/{{ (_flightctl_clients.json | first).id }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        status_code: 200
+      register: _flightctl_client
+      no_log: true
+      when:
+        - rhem_enable_keycloak_effective
+        - (_flightctl_clients.json | length) > 0
+
+    - name: Update allowed redirect URIs for the Edge Manager client
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/clients/{{ _flightctl_client.json.id }}"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        body_format: json
+        body: "{{ _flightctl_client.json | combine({'redirectUris': keycloak_redirect_uris_effective, 'webOrigins': ['+']}, recursive=True) }}"
+        status_code: 204
+      no_log: true
+      when:
+        - rhem_enable_keycloak_effective
+        - _flightctl_client is defined
 
 - name: Configure RHEM to use Keycloak for OIDC
   hosts: rhem_hosts

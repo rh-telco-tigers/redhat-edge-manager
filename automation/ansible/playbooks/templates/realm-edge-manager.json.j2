@@ -22,7 +22,8 @@
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "redirectUris": [
-        "{{ rhem_ui_url | default('https://' ~ hostvars[groups['rhem_hosts'][0]].fqdn, true) }}/*",
+        "{{ rhem_effective_ui_url }}/*",
+        "{{ rhem_effective_ui_url_with_default_https_port }}/*",
         "http://localhost:8080/*"
       ],
       "webOrigins": [
