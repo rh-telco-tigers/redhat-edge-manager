@@ -1,37 +1,45 @@
-# RHEM EAP demo repo
+# Red Hat Edge Manager Demo Repo
 
-This repo now has two clear paths:
+This repo is for users who want to either:
 
-- `labs/` are manual step-by-step walkthroughs.
-- `automation/` contains both the fully automated stack and a Terraform-only manual-demo VM flow.
+- follow a manual Red Hat Edge Manager lab flow on their own hosts
+- use this repo to stand up and run a full demo environment
 
-If you want the fully automated management stack, start with [`automation/README.md`](automation/README.md) and use `make up` / `make down`.
+## Choose a path
 
-If you want to follow the labs manually but still have Terraform create the base RHEL VMs for Labs 1 and 2, use `make rhel-vms-up` / `make rhel-vms-down`.
+If you already have the required hosts or want to work through the setup yourself, start with the manual labs and follow them in order.
 
-The full automation path now also includes a dedicated Satellite VM in the demo stack, and the later device labs use Satellite as the registry/content source while Edge Manager remains the device control plane.
+If you want this repo to create and configure the demo environment for you, start with [`automation/README.md`](automation/README.md).
 
-## Steps
+## Manual labs
 
-1. [`labs/01-edge-manager-installation.md`](labs/01-edge-manager-installation.md) — Install RHEM on RHEL
+Follow these in order:
+
+1. [`labs/01-edge-manager-installation.md`](labs/01-edge-manager-installation.md) — Install Red Hat Edge Manager on RHEL
 2. [`labs/02-keycloak-integration.md`](labs/02-keycloak-integration.md) — Configure an existing Keycloak realm, users, and external OIDC integration
-3. [`labs/03-bootc-images.md`](labs/03-bootc-images.md) — Build the Edge Manager bootc image, publish it through Satellite, and generate the unattended installer ISO
-4. [`labs/04-enroll-device.md`](labs/04-enroll-device.md) — Boot a fresh device from that ISO, approve enrollment, and verify the device is online
-5. [`labs/05-fleet-join.md`](labs/05-fleet-join.md) — Create a Fleet that points at the Satellite-hosted bootc image
-6. [`labs/06-managing-applications.md`](labs/06-managing-applications.md) — Build a demo application image, package it as a quadlet wrapper image, and deploy it through the demo fleet
+3. [`labs/03-bootc-images.md`](labs/03-bootc-images.md) — Build the bootc image, publish it through Satellite, and generate the installer artifact
+4. [`labs/04-enroll-device.md`](labs/04-enroll-device.md) — Boot a fresh device, approve enrollment, and verify the device is online
+5. [`labs/05-fleet-join.md`](labs/05-fleet-join.md) — Create a fleet and assign the device to it
+6. [`labs/06-managing-applications.md`](labs/06-managing-applications.md) — Build and deploy an application through Edge Manager
 7. [`labs/07-monitoring-support.md`](labs/07-monitoring-support.md) — Review monitoring and collect support data
 8. [`labs/08-security-compliance.md`](labs/08-security-compliance.md) — Review access, TLS, image sources, and patch posture
 9. [`labs/09-performance-optimization.md`](labs/09-performance-optimization.md) — Capture a baseline, tune the deployed application, and compare results
 
-## Conventions
+These labs are written as manual product walkthroughs. Replace placeholders such as `CHANGEME`, hostnames, registry paths, and passwords with values from your own environment before you run the commands.
 
-- **`labs/*.md`** — Step-by-step Markdown guides. Copy commands from fenced blocks.
-- Replace placeholders like `CHANGEME`, registry URLs, and hostnames before running.
-- `automation/` is where runnable Terraform, Ansible, and Make targets live.
-- `prereqs/` is now reference-only for optional infrastructure notes and alternate deployment paths.
-- For the fully automated Labs 3 to 5 path after `make up`, use `make device-demo`.
-- For the Lab 6 application-management path after the device is already enrolled and in the fleet, use `make app-demo`.
+## Automated demo
 
-## Optional: render Markdoc
+The automated path lives under [`automation/`](automation/README.md).
 
-If you add a Markdoc site later, use the root `markdoc.config.mjs` and point your bundler at the Markdown files under `labs/`.
+Common entry points:
+
+- `make up` — create and configure the full demo stack
+- `make down` — remove the full demo stack
+- `make rhel-vms-up` — create only the base RHEL VMs for the manual lab path
+- `make rhel-vms-down` — remove those base RHEL VMs
+- `make device-demo` — run the Labs 3 to 5 device flow after the stack is up
+- `make app-demo` — run the Lab 6 application flow after the device is enrolled
+
+## Reference notes
+
+[`prereqs/`](prereqs/README.md) contains supporting reference material for optional infrastructure notes and alternate deployment paths.
