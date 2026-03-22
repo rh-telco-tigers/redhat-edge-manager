@@ -213,6 +213,15 @@ make device-vm-up name=database site=homelab
 make device-vm-up name=storefront site=branch-west VM_CORES=4 VM_MEMORY_MB=8192
 ```
 
+You can also add extra device-specific tags directly on the command line:
+
+```bash
+make device-vm-up name=database site=homelab env=lab role=db
+make device-vm-up name=camera site=factory tags=video,west
+```
+
+Extra `key=value` pairs become additional Proxmox tags for that device VM.
+
 Each named device uses its own Terraform workspace, so you can create and remove them independently.
 
 Remove that device VM later with:

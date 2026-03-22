@@ -18,6 +18,7 @@ vm_disk_gb="${VM_DISK_GB:-}"
 vm_tags="${VM_TAGS:-}"
 device_name="${DEVICE_NAME:-}"
 device_site="${DEVICE_SITE:-}"
+device_extra_tag_kvs="${DEVICE_EXTRA_TAG_KVS:-}"
 
 slugify() {
   printf '%s' "$1" \
@@ -161,8 +162,8 @@ PY
 }
 
 build_vm_tags_hcl() {
-  local device_slug site_slug tag_hcl
-  local -a tag_items extra_tag_array
+  local device_slug site_slug key value key_slug value_slug tag_hcl
+  local -a tag_items extra_tag_array extra_tag_kv_array
 
   tag_items=("device-demo")
 
@@ -181,6 +182,24 @@ build_vm_tags_hcl() {
     for tag in "${extra_tag_array[@]}"; do
       [[ -n "$tag" ]] || continue
       tag_items+=("$tag")
+    done
+  fi
+
+  if [[ -n "$device_extra_tag_kvs" ]]; then
+    IFS=' ' read -r -a extra_tag_kv_array <<< "$device_extra_tag_kvs"
+    for item in "${extra_tag_kv_array[@]}"; do
+      [[ -n "$item" && "$item" == *=* ]] || continue
+      key="${item%%=*}"
+      value="${item#*=}"
+      [[ -n "$key" && -n "$value" ]] || continue
+      key_slug="$(slugify "$key")"
+      value_slug="$(slugify "$value")"
+      [[ -n "$key_slug" && -n "$value_slug" ]] || continue
+      if [[ "$key_slug" == "$value_slug" ]]; then
+        tag_items+=("$value_slug")
+      else
+        tag_items+=("${key_slug}-${value_slug}")
+      fi
     done
   fi
 
