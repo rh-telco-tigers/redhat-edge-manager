@@ -13,19 +13,19 @@ The full automation path now also includes a dedicated Satellite VM in the demo 
 
 ## Steps
 
-1. [`labs/01-edge-manager-installation`](labs/01-edge-manager-installation) — Install RHEM on RHEL
-2. [`labs/02-keycloak-integration`](labs/02-keycloak-integration) — Configure an existing Keycloak realm, users, and external OIDC integration
-3. [`labs/03-bootc-images`](labs/03-bootc-images) — Build the Edge Manager bootc image, publish it through Satellite, and generate the unattended installer ISO
-4. [`labs/04-enroll-device`](labs/04-enroll-device) — Boot a fresh device from that ISO, approve enrollment, and verify the device is online
-5. [`labs/05-fleet-join`](labs/05-fleet-join) — Create a Fleet that points at the Satellite-hosted bootc image
-6. [`labs/06-managing-applications`](labs/06-managing-applications) — Build a demo application image, package it as a quadlet wrapper image, and deploy it through the demo fleet
-7. [`labs/07-monitoring-support`](labs/07-monitoring-support) — Review monitoring and collect support data
-8. [`labs/08-security-compliance`](labs/08-security-compliance) — Review access, TLS, image sources, and patch posture
-9. [`labs/09-performance-optimization`](labs/09-performance-optimization) — Capture a baseline, tune the deployed application, and compare results
+1. [`labs/01-edge-manager-installation.md`](labs/01-edge-manager-installation.md) — Install RHEM on RHEL
+2. [`labs/02-keycloak-integration.md`](labs/02-keycloak-integration.md) — Configure an existing Keycloak realm, users, and external OIDC integration
+3. [`labs/03-bootc-images.md`](labs/03-bootc-images.md) — Build the Edge Manager bootc image, publish it through Satellite, and generate the unattended installer ISO
+4. [`labs/04-enroll-device.md`](labs/04-enroll-device.md) — Boot a fresh device from that ISO, approve enrollment, and verify the device is online
+5. [`labs/05-fleet-join.md`](labs/05-fleet-join.md) — Create a Fleet that points at the Satellite-hosted bootc image
+6. [`labs/06-managing-applications.md`](labs/06-managing-applications.md) — Build a demo application image, package it as a quadlet wrapper image, and deploy it through the demo fleet
+7. [`labs/07-monitoring-support.md`](labs/07-monitoring-support.md) — Review monitoring and collect support data
+8. [`labs/08-security-compliance.md`](labs/08-security-compliance.md) — Review access, TLS, image sources, and patch posture
+9. [`labs/09-performance-optimization.md`](labs/09-performance-optimization.md) — Capture a baseline, tune the deployed application, and compare results
 
 ## Conventions
 
-- **`lab.md`** — Step-by-step Markdown guide. Copy commands from fenced blocks.
+- **`labs/*.md`** — Step-by-step Markdown guides. Copy commands from fenced blocks.
 - Replace placeholders like `CHANGEME`, registry URLs, and hostnames before running.
 - `automation/` is where runnable Terraform, Ansible, and Make targets live.
 - `prereqs/` is now reference-only for optional infrastructure notes and alternate deployment paths.
@@ -34,4 +34,4 @@ The full automation path now also includes a dedicated Satellite VM in the demo 
 
 ## Optional: render Markdoc
 
-If you add a Markdoc site later, use the root `markdoc.config.mjs` and point your bundler at these `lab.md` files.
+If you add a Markdoc site later, use the root `markdoc.config.mjs` and point your bundler at the Markdown files under `labs/`.
