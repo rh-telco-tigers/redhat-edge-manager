@@ -1,0 +1,62 @@
+---
+- import_playbook: aap_token_prepare.yml
+
+- name: Configure Edge Manager to use Ansible Automation Platform authentication
+  hosts: rhem_hosts
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
+    rhem_effective_base_domain: "{{ rhem_base_domain | default(fqdn, true) }}"
+    aap_api_url_effective: "{{ aap_api_url | default('https://' ~ hostvars[groups['aap_controllers'][0]].fqdn, true) }}"
+    aap_external_api_url_effective: "{{ aap_external_api_url | default(aap_api_url_effective, true) }}"
+    aap_insecure_skip_tls_verify_effective: "{{ aap_insecure_skip_tls_verify | default(true, true) | bool }}"
+    aap_oauth_application_client_id_effective: "{{ aap_oauth_application_client_id | default('', true) }}"
+    aap_oauth_token_effective: "{{ aap_edge_manager_oauth_token | default((hostvars[groups['aap_controllers'][0]].aap_edge_manager_oauth_token_effective | default('')) if ((groups['aap_controllers'] | default([])) | length > 0) else '', true) }}"
+  tasks:
+    - name: Skip AAP integration when AAP auth is not selected
+      ansible.builtin.meta: end_host
+      when: rhem_auth_provider_effective != 'aap'
+
+    - name: Require an AAP controller host when AAP auth is selected
+      ansible.builtin.assert:
+        that:
+          - (groups['aap_controllers'] | default([])) | length > 0
+        fail_msg: "AAP authentication was selected, but no aap_controllers host is available in the inventory."
+
+    - name: Require the AAP API URL and OAuth setup values
+      ansible.builtin.assert:
+        that:
+          - aap_api_url_effective | trim | length > 0
+          - aap_external_api_url_effective | trim | length > 0
+          - (aap_oauth_application_client_id_effective | trim | length > 0) or (aap_oauth_token_effective | trim | length > 0)
+        fail_msg: "Set either aap_oauth_application_client_id or aap_edge_manager_oauth_token before running AAP integration."
+
+    - name: Backup the existing flightctl service config
+      ansible.builtin.copy:
+        src: /etc/flightctl/service-config.yaml
+        dest: /etc/flightctl/service-config.yaml.pre-aap
+        remote_src: true
+        force: false
+        mode: preserve
+
+    - name: Render the flightctl service config for AAP authentication
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/service-config.aap.yaml.j2"
+        dest: /etc/flightctl/service-config.yaml
+        mode: "0600"
+        backup: true
+
+    - name: Restart Edge Manager services after AAP integration
+      ansible.builtin.systemd:
+        name: flightctl.target
+        state: restarted
+
+    - name: Wait for the Edge Manager API after AAP integration
+      ansible.builtin.wait_for:
+        port: 3443
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        timeout: 180
+      delegate_to: localhost
+      become: false

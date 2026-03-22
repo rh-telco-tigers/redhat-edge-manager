@@ -92,3 +92,11 @@
     - name: Show installer tail
       ansible.builtin.debug:
         msg: "{{ (_setup.stdout_lines | default([]))[-40:] | join('\n') }}"
+
+    - name: Wait for the AAP HTTPS endpoint
+      ansible.builtin.wait_for:
+        port: 443
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        timeout: 900
+      delegate_to: localhost
+      become: false

@@ -16,7 +16,7 @@ ANSIBLE_STAMP := $(ANSIBLE_VENV_DIR)/.ansible-ready
 .PHONY: help init-files automation-init-files ansible-bootstrap
 .PHONY: plan up down configure
 .PHONY: rhel-vms-init rhel-vms-plan rhel-vms-up rhel-vms-down
-.PHONY: create-rhel9 bootc-build approve-enrollment fleet-apply
+.PHONY: create-rhel9 aap-install aap-integrate aap-setup bootc-build approve-enrollment fleet-apply
 .PHONY: app-build app-deploy app-demo
 .PHONY: device-vm-init device-vm-plan device-vm-up device-vm-down device-demo
 .PHONY: tf-init tf-plan tf-up tf-down
@@ -33,6 +33,9 @@ help:
 	"  make rhel-vms-up      Create only the manual-demo RHEL 9 VMs" \
 	"  make rhel-vms-down    Destroy only the manual-demo RHEL 9 VMs" \
 	"  make create-rhel9     Create one standalone RHEL 9 VM" \
+	"  make aap-install      Install Ansible Automation Platform on the AAP host" \
+	"  make aap-integrate    Configure Edge Manager to use AAP authentication" \
+	"  make aap-setup        Run both AAP install and AAP integration" \
 	"  make bootc-build      Build the demo bootc image, push it to Satellite, and fetch the bootable qcow2" \
 	"  make device-vm-up     Create one demo device VM from the bootc qcow2 disk image" \
 	"  make device-vm-down   Destroy the demo device VM" \
@@ -104,6 +107,14 @@ down: tf-down
 
 create-rhel9:
 	$(AUTOMATION_DIR)/scripts/create-rhel9.sh
+
+aap-install: automation-init-files ansible-bootstrap
+	cd $(ANSIBLE_DIR) && $(ANSIBLE_PLAYBOOK) playbooks/aap_install.yml
+
+aap-integrate: automation-init-files ansible-bootstrap
+	cd $(ANSIBLE_DIR) && $(ANSIBLE_PLAYBOOK) playbooks/aap_integration.yml
+
+aap-setup: aap-install aap-integrate
 
 bootc-build: automation-init-files ansible-bootstrap
 	$(AUTOMATION_DIR)/scripts/bootc-build.sh

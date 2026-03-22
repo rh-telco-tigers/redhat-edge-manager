@@ -1,4 +1,6 @@
 ---
+- import_playbook: aap_token_prepare.yml
+
 - name: Look up Satellite registry identifiers for the demo application fleet update
   hosts: satellite_hosts
   become: true
@@ -72,6 +74,7 @@
   vars_files:
     - ../group_vars/all.yml
   vars:
+    rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
     application_workspace_dir_effective: "{{ demo_application_workspace_dir | default('/var/lib/rhem-demo/applications/' ~ (demo_application_name | default('hello-web', true)), true) }}"
     application_flightctl_config_dir_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}/flightctl"
     demo_fleet_name_effective: "{{ demo_fleet_name | default('demo', true) }}"
@@ -106,13 +109,22 @@
     application_rhem_api_url_effective: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
     application_flightctl_username_effective: "{{ edge_manager_admin_username | default(rhem_admin_username, true) }}"
     application_flightctl_password_effective: "{{ edge_manager_admin_password | default(rhem_admin_password, true) }}"
+    application_flightctl_token_effective: "{{ aap_edge_manager_oauth_token | default((hostvars[groups['aap_controllers'][0]].aap_edge_manager_oauth_token_effective | default('')) if ((groups['aap_controllers'] | default([])) | length > 0) else '', true) }}"
   tasks:
+    - name: Require an AAP OAuth token when AAP auth is selected
+      ansible.builtin.assert:
+        that:
+          - application_flightctl_token_effective | trim | length > 0
+        fail_msg: "AAP authentication is enabled, but no OAuth token is available for make app-deploy."
+      when: rhem_auth_provider_effective == 'aap'
+
     - name: Require a flightctl user before deploying the demo application
       ansible.builtin.assert:
         that:
           - application_flightctl_username_effective | trim | length > 0
           - application_flightctl_password_effective | trim | length > 0
         fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make app-deploy."
+      when: rhem_auth_provider_effective != 'aap'
 
     - name: Ensure the application workspace exists
       ansible.builtin.file:
@@ -120,7 +132,23 @@
         state: directory
         mode: "0755"
 
-    - name: Authenticate flightctl for the demo application deploy
+    - name: Authenticate flightctl for the demo application deploy with an AAP token
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - login
+          - "{{ application_rhem_api_url_effective }}"
+          - --config-dir
+          - "{{ application_flightctl_config_dir_effective }}"
+          - --token
+          - "{{ application_flightctl_token_effective }}"
+          - --insecure-skip-tls-verify
+      register: _application_login
+      changed_when: true
+      no_log: true
+      when: rhem_auth_provider_effective == 'aap'
+
+    - name: Authenticate flightctl for the demo application deploy with username and password
       ansible.builtin.command:
         argv:
           - flightctl
@@ -136,6 +164,7 @@
       register: _application_login
       changed_when: true
       no_log: true
+      when: rhem_auth_provider_effective != 'aap'
 
     - name: Render the demo fleet manifest with the application
       ansible.builtin.template:

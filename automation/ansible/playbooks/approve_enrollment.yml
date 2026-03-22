@@ -1,26 +1,38 @@
 ---
+- import_playbook: aap_token_prepare.yml
+
 - name: Approve pending Edge Manager enrollment requests
   hosts: rhem_hosts
   become: true
   vars_files:
     - ../group_vars/all.yml
   vars:
+    rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
     enrollment_flightctl_config_dir_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}/flightctl"
     enrollment_rhem_api_url_effective: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
     enrollment_flightctl_username_effective: "{{ edge_manager_admin_username | default(rhem_admin_username, true) }}"
     enrollment_flightctl_password_effective: "{{ edge_manager_admin_password | default(rhem_admin_password, true) }}"
+    enrollment_flightctl_token_effective: "{{ aap_edge_manager_oauth_token | default((hostvars[groups['aap_controllers'][0]].aap_edge_manager_oauth_token_effective | default('')) if ((groups['aap_controllers'] | default([])) | length > 0) else '', true) }}"
     enrollment_labels_effective: "{{ device_enrollment_labels | default(['site=homelab', 'fleet=demo'], true) }}"
     enrollment_wait_for_pending_effective: "{{ enrollment_wait_for_pending | default(false, true) | bool }}"
     enrollment_pending_timeout_seconds_effective: "{{ enrollment_pending_timeout_seconds | default(1800, true) | int }}"
     enrollment_pending_poll_interval_seconds_effective: "{{ enrollment_pending_poll_interval_seconds | default(15, true) | int }}"
     enrollment_pending_retries_effective: "{{ [1, ((enrollment_pending_timeout_seconds_effective | int) // (enrollment_pending_poll_interval_seconds_effective | int))] | max }}"
   tasks:
+    - name: Require an AAP OAuth token when AAP auth is selected
+      ansible.builtin.assert:
+        that:
+          - enrollment_flightctl_token_effective | trim | length > 0
+        fail_msg: "AAP authentication is enabled, but no OAuth token is available for make approve-enrollment."
+      when: rhem_auth_provider_effective == 'aap'
+
     - name: Require a flightctl user before approving enrollments
       ansible.builtin.assert:
         that:
           - enrollment_flightctl_username_effective | trim | length > 0
           - enrollment_flightctl_password_effective | trim | length > 0
         fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make approve-enrollment."
+      when: rhem_auth_provider_effective != 'aap'
 
     - name: Ensure the flightctl config directory exists
       ansible.builtin.file:
@@ -28,7 +40,23 @@
         state: directory
         mode: "0755"
 
-    - name: Authenticate flightctl for enrollment approval
+    - name: Authenticate flightctl for enrollment approval with an AAP token
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - login
+          - "{{ enrollment_rhem_api_url_effective }}"
+          - --config-dir
+          - "{{ enrollment_flightctl_config_dir_effective }}"
+          - --token
+          - "{{ enrollment_flightctl_token_effective }}"
+          - --insecure-skip-tls-verify
+      register: _enrollment_login
+      changed_when: true
+      no_log: true
+      when: rhem_auth_provider_effective == 'aap'
+
+    - name: Authenticate flightctl for enrollment approval with username and password
       ansible.builtin.command:
         argv:
           - flightctl
@@ -44,6 +72,7 @@
       register: _enrollment_login
       changed_when: true
       no_log: true
+      when: rhem_auth_provider_effective != 'aap'
 
     - name: Get the list of pending enrollment requests
       ansible.builtin.command:

@@ -5,6 +5,7 @@
   vars_files:
     - ../group_vars/all.yml
   vars:
+    rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
     keycloak_effective_public_url: "{{ keycloak_public_url | default('http://' ~ fqdn ~ ':8080', true) }}"
     rhem_enable_keycloak_effective: "{{ rhem_enable_keycloak | default(true, true) | bool }}"
     keycloak_local_probe_url: "http://127.0.0.1:8080"
@@ -40,6 +41,10 @@
           - flightctl-admin
           - offline_access
   tasks:
+    - name: Skip Keycloak integration when Keycloak auth is not selected
+      ansible.builtin.meta: end_host
+      when: rhem_auth_provider_effective != 'keycloak'
+
     - name: Ensure required packages
       ansible.builtin.dnf:
         name:
@@ -352,12 +357,17 @@
   vars_files:
     - ../group_vars/all.yml
   vars:
+    rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
     keycloak_effective_public_url: "{{ keycloak_public_url | default('http://' ~ hostvars[groups['keycloak_hosts'][0]].fqdn ~ ':8080', true) }}"
     rhem_effective_base_domain: "{{ rhem_base_domain | default(fqdn, true) }}"
     rhem_effective_ui_url: "{{ rhem_ui_url | default('https://' ~ fqdn, true) }}"
     rhem_effective_api_url: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
     rhem_enable_keycloak_effective: "{{ rhem_enable_keycloak | default(true, true) | bool }}"
   tasks:
+    - name: Skip RHEM Keycloak configuration when Keycloak auth is not selected
+      ansible.builtin.meta: end_host
+      when: rhem_auth_provider_effective != 'keycloak'
+
     - name: Backup existing flightctl service config
       ansible.builtin.copy:
         src: /etc/flightctl/service-config.yaml

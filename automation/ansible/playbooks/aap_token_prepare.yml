@@ -1,0 +1,95 @@
+---
+- name: Prepare an AAP OAuth token for Edge Manager automation
+  hosts: aap_controllers
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
+    aap_admin_username_effective: "{{ aap_admin_username | default('admin', true) }}"
+    aap_admin_password_effective: "{{ aap_admin_password | default('', true) }}"
+    aap_edge_manager_oauth_token_from_vars_effective: "{{ aap_edge_manager_oauth_token | default('', true) }}"
+    aap_edge_manager_oauth_token_file_effective: "{{ aap_edge_manager_oauth_token_file | default('/etc/ansible-automation-platform/edge-manager-oauth-token', true) }}"
+    aap_insecure_skip_tls_verify_effective: "{{ aap_insecure_skip_tls_verify | default(true, true) | bool }}"
+    aap_token_api_url_effective: "{{ aap_token_api_url | default('https://127.0.0.1/api/gateway/v1/tokens/', true) }}"
+  tasks:
+    - name: Skip AAP token preparation when AAP auth is not selected
+      ansible.builtin.meta: end_host
+      when: rhem_auth_provider_effective != 'aap'
+
+    - name: Reuse the configured AAP OAuth token when provided explicitly
+      ansible.builtin.set_fact:
+        aap_edge_manager_oauth_token_effective: "{{ aap_edge_manager_oauth_token_from_vars_effective | trim }}"
+      when: aap_edge_manager_oauth_token_from_vars_effective | trim | length > 0
+
+    - name: End token preparation when an explicit token was provided
+      ansible.builtin.meta: end_host
+      when: aap_edge_manager_oauth_token_from_vars_effective | trim | length > 0
+
+    - name: Wait for AAP SSH to become ready
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+        sleep: 10
+
+    - name: Check whether the cached AAP OAuth token file already exists
+      ansible.builtin.stat:
+        path: "{{ aap_edge_manager_oauth_token_file_effective }}"
+      register: _aap_oauth_token_file
+
+    - name: Require AAP admin credentials when a cached or explicit token is not available
+      ansible.builtin.assert:
+        that:
+          - aap_admin_username_effective | trim | length > 0
+          - aap_admin_password_effective | trim | length > 0
+        fail_msg: "Set aap_admin_username and aap_admin_password in automation/ansible/group_vars/all.yml, or provide aap_edge_manager_oauth_token explicitly."
+      when: not _aap_oauth_token_file.stat.exists
+
+    - name: Ensure the cached token directory exists
+      ansible.builtin.file:
+        path: "{{ aap_edge_manager_oauth_token_file_effective | dirname }}"
+        state: directory
+        mode: "0700"
+
+    - name: Create a new AAP OAuth token for the automation user through the platform gateway API
+      ansible.builtin.uri:
+        url: "{{ aap_token_api_url_effective }}"
+        method: POST
+        user: "{{ aap_admin_username_effective }}"
+        password: "{{ aap_admin_password_effective }}"
+        force_basic_auth: true
+        validate_certs: "{{ not aap_insecure_skip_tls_verify_effective }}"
+        status_code:
+          - 200
+          - 201
+        return_content: true
+      register: _aap_oauth_token_create
+      changed_when: true
+      no_log: true
+      when: not _aap_oauth_token_file.stat.exists
+
+    - name: Require the token response from AAP
+      ansible.builtin.assert:
+        that:
+          - _aap_oauth_token_create.json.token | default('') | trim | length > 0
+        fail_msg: "AAP did not return a token. Check aap_token_api_url, aap_admin_username, aap_admin_password, and whether platform gateway basic auth is enabled."
+      when: not _aap_oauth_token_file.stat.exists
+
+    - name: Persist the generated AAP OAuth token on the controller host
+      ansible.builtin.copy:
+        dest: "{{ aap_edge_manager_oauth_token_file_effective }}"
+        content: "{{ _aap_oauth_token_create.json.token | trim ~ '\n' }}"
+        mode: "0600"
+      no_log: true
+      when: not _aap_oauth_token_file.stat.exists
+
+    - name: Read the cached AAP OAuth token from disk
+      ansible.builtin.slurp:
+        src: "{{ aap_edge_manager_oauth_token_file_effective }}"
+      register: _aap_oauth_token_slurp
+      no_log: true
+
+    - name: Persist the effective AAP OAuth token fact
+      ansible.builtin.set_fact:
+        aap_edge_manager_oauth_token_effective: "{{ _aap_oauth_token_slurp.content | b64decode | trim }}"
+      no_log: true

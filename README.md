@@ -13,10 +13,17 @@ If you want this repo to create and configure the demo environment for you, star
 
 ## Manual labs
 
-Follow these in order:
+Start with:
 
 1. [`labs/01-edge-manager-installation.md`](labs/01-edge-manager-installation.md) — Install Red Hat Edge Manager on RHEL
-2. [`labs/02-keycloak-integration.md`](labs/02-keycloak-integration.md) — Configure an existing Keycloak realm, users, and external OIDC integration
+
+Then choose one authentication integration path:
+
+- [`labs/02-keycloak-integration.md`](labs/02-keycloak-integration.md) — Configure an existing Keycloak realm, users, and external OIDC integration
+- [`labs/02a-aap-integration.md`](labs/02a-aap-integration.md) — Configure Edge Manager to use Ansible Automation Platform for authentication
+
+Then continue with:
+
 3. [`labs/03-bootc-images.md`](labs/03-bootc-images.md) — Build the bootc image, publish it through Satellite, and generate the installer artifact
 4. [`labs/04-enroll-device.md`](labs/04-enroll-device.md) — Boot a fresh device, approve enrollment, and verify the device is online
 5. [`labs/05-fleet-join.md`](labs/05-fleet-join.md) — Create a fleet and assign the device to it

@@ -2,6 +2,8 @@
 
 **Goal:** connect Edge Manager to an existing Keycloak instance and use Keycloak for login and authorization.
 
+If you want to use Ansible Automation Platform for authentication instead, use [02a-aap-integration.md](02a-aap-integration.md).
+
 ## Before you start
 
 - Lab 1 is already complete and Edge Manager is working.

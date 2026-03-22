@@ -1,4 +1,6 @@
 ---
+- import_playbook: aap_token_prepare.yml
+
 - name: Look up Satellite registry identifiers for the fleet image reference
   hosts: satellite_hosts
   become: true
@@ -72,6 +74,7 @@
   vars_files:
     - ../group_vars/all.yml
   vars:
+    rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
     fleet_workspace_dir_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}"
     fleet_flightctl_config_dir_effective: "{{ fleet_workspace_dir_effective }}/flightctl"
     demo_fleet_name_effective: "{{ demo_fleet_name | default('demo', true) }}"
@@ -80,6 +83,7 @@
     fleet_rhem_api_url_effective: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
     fleet_flightctl_username_effective: "{{ edge_manager_admin_username | default(rhem_admin_username, true) }}"
     fleet_flightctl_password_effective: "{{ edge_manager_admin_password | default(rhem_admin_password, true) }}"
+    fleet_flightctl_token_effective: "{{ aap_edge_manager_oauth_token | default((hostvars[groups['aap_controllers'][0]].aap_edge_manager_oauth_token_effective | default('')) if ((groups['aap_controllers'] | default([])) | length > 0) else '', true) }}"
     bootc_use_satellite_registry_effective: "{{ (bootc_use_satellite_registry | default(true, true) | bool) and ((groups['satellite_hosts'] | default([])) | length > 0) }}"
     bootc_satellite_registry_host_effective: "{{ satellite_registry_host | default((hostvars[groups['satellite_hosts'][0]].fqdn | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
     bootc_satellite_org_id_effective: "{{ satellite_registry_org_id | default((hostvars[groups['satellite_hosts'][0]].satellite_bootc_org_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
@@ -108,12 +112,20 @@
           )
       }}
   tasks:
+    - name: Require an AAP OAuth token for fleet management when AAP auth is selected
+      ansible.builtin.assert:
+        that:
+          - fleet_flightctl_token_effective | trim | length > 0
+        fail_msg: "AAP authentication is enabled, but no OAuth token is available for make fleet-apply."
+      when: rhem_auth_provider_effective == 'aap'
+
     - name: Require a flightctl user for fleet management
       ansible.builtin.assert:
         that:
           - fleet_flightctl_username_effective | trim | length > 0
           - fleet_flightctl_password_effective | trim | length > 0
         fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make fleet-apply."
+      when: rhem_auth_provider_effective != 'aap'
 
     - name: Require a non-local bootc image reference for the fleet
       ansible.builtin.assert:
@@ -127,7 +139,23 @@
         state: directory
         mode: "0755"
 
-    - name: Authenticate flightctl for fleet management
+    - name: Authenticate flightctl for fleet management with an AAP token
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - login
+          - "{{ fleet_rhem_api_url_effective }}"
+          - --config-dir
+          - "{{ fleet_flightctl_config_dir_effective }}"
+          - --token
+          - "{{ fleet_flightctl_token_effective }}"
+          - --insecure-skip-tls-verify
+      register: _fleet_login
+      changed_when: true
+      no_log: true
+      when: rhem_auth_provider_effective == 'aap'
+
+    - name: Authenticate flightctl for fleet management with username and password
       ansible.builtin.command:
         argv:
           - flightctl
@@ -143,6 +171,7 @@
       register: _fleet_login
       changed_when: true
       no_log: true
+      when: rhem_auth_provider_effective != 'aap'
 
     - name: Render the fleet manifest
       ansible.builtin.template:

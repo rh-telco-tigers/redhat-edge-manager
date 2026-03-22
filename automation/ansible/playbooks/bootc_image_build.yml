@@ -1,4 +1,6 @@
 ---
+- import_playbook: aap_token_prepare.yml
+
 - name: Prepare the Satellite container registry for bootc images
   hosts: satellite_hosts
   become: true
@@ -126,6 +128,7 @@
   vars_files:
     - ../group_vars/all.yml
   vars:
+    rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
     bootc_workspace_dir_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}"
     bootc_flightctl_config_dir: "{{ bootc_workspace_dir_effective }}/flightctl"
     bootc_output_dir_effective: "{{ bootc_workspace_dir_effective }}/output"
@@ -168,6 +171,7 @@
     bootc_qcow2_remote_path_effective: "{{ bootc_output_dir_effective }}/qcow2/disk.qcow2"
     bootc_flightctl_username_effective: "{{ bootc_flightctl_username | default(edge_manager_admin_username | default(rhem_admin_username, true), true) }}"
     bootc_flightctl_password_effective: "{{ bootc_flightctl_password | default(edge_manager_admin_password | default(rhem_admin_password, true), true) }}"
+    bootc_flightctl_token_effective: "{{ aap_edge_manager_oauth_token | default((hostvars[groups['aap_controllers'][0]].aap_edge_manager_oauth_token_effective | default('')) if ((groups['aap_controllers'] | default([])) | length > 0) else '', true) }}"
     bootc_rhem_api_url_effective: "{{ bootc_rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
     bootc_rhem_api_host_effective: "{{ bootc_rhem_api_url_effective | regex_replace('^https?://([^/:]+).*$','\\1') }}"
     bootc_rhem_agent_api_url_effective: "https://{{ bootc_rhem_api_host_effective }}:7443/"
@@ -187,12 +191,20 @@
           )
       }}
   tasks:
+    - name: Require an AAP OAuth token when AAP auth is selected
+      ansible.builtin.assert:
+        that:
+          - bootc_flightctl_token_effective | trim | length > 0
+        fail_msg: "AAP authentication is enabled, but no OAuth token is available for make bootc-build."
+      when: rhem_auth_provider_effective == 'aap'
+
     - name: Require a flightctl user for the bootc build
       ansible.builtin.assert:
         that:
           - bootc_flightctl_username_effective | trim | length > 0
           - bootc_flightctl_password_effective | trim | length > 0
         fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make bootc-build."
+      when: rhem_auth_provider_effective != 'aap'
 
     - name: Require Satellite registry details when using Satellite as the bootc registry
       ansible.builtin.assert:
@@ -297,7 +309,23 @@
         - bootc_registry_redhat_io_username_effective | trim | length > 0
         - bootc_registry_redhat_io_password_effective | trim | length > 0
 
-    - name: Authenticate flightctl in an isolated config directory
+    - name: Authenticate flightctl in an isolated config directory with an AAP token
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - login
+          - "{{ bootc_rhem_api_url_effective }}"
+          - --config-dir
+          - "{{ bootc_flightctl_config_dir }}"
+          - --token
+          - "{{ bootc_flightctl_token_effective }}"
+          - --insecure-skip-tls-verify
+      register: _bootc_flightctl_login
+      changed_when: true
+      no_log: true
+      when: rhem_auth_provider_effective == 'aap'
+
+    - name: Authenticate flightctl in an isolated config directory with username and password
       ansible.builtin.command:
         argv:
           - flightctl
@@ -313,6 +341,7 @@
       register: _bootc_flightctl_login
       changed_when: true
       no_log: true
+      when: rhem_auth_provider_effective != 'aap'
 
     - name: Request an embedded enrollment config for early binding
       ansible.builtin.command:

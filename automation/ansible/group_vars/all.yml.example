@@ -20,6 +20,7 @@ powerdns_auth_repo_url: https://repo.powerdns.com/repo-files/el-auth-50.repo
 rhem_edge_manager_repo: edge-manager-1.0-for-rhel-9-x86_64-rpms
 rhem_admin_username: edgemanager-admin
 rhem_admin_password: CHANGEME-edgemanager-admin-password
+rhem_auth_provider: keycloak
 rhem_enable_keycloak: true
 rhem_insecure_skip_tls_verify: true
 
@@ -53,8 +54,18 @@ rhem_api_url: ""
 aap_install_enabled: false
 aap_bundle_tar: /path/to/ansible-automation-platform-setup-bundle.tar.gz
 aap_install_dir: /opt/aap-setup
+aap_admin_username: admin
 aap_admin_password: CHANGEME-aap-admin-password
 aap_pg_password: CHANGEME-aap-pg-password
+aap_api_url: ""
+aap_external_api_url: ""
+aap_insecure_skip_tls_verify: true
+# Leave blank to use the default gateway token endpoint on the AAP host itself.
+# Override this for older AAP controller-only deployments if needed.
+aap_token_api_url: ""
+aap_oauth_application_client_id: ""
+aap_edge_manager_oauth_token: ""
+aap_edge_manager_oauth_token_file: /etc/ansible-automation-platform/edge-manager-oauth-token
 
 # Satellite (enabled in the full automation stack by default)
 satellite_install_enabled: true

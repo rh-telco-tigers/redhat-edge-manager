@@ -1,0 +1,77 @@
+global:
+  baseDomain: {{ rhem_effective_base_domain | to_json }}
+  generateCertificates: builtin
+  auth:
+    type: aap
+    insecureSkipTlsVerify: {{ aap_insecure_skip_tls_verify_effective | ternary('true', 'false') }}
+    aap:
+      apiUrl: {{ aap_api_url_effective | to_json }}
+      externalApiUrl: {{ aap_external_api_url_effective | to_json }}
+      oAuthApplicationClientId: {{ aap_oauth_application_client_id_effective | to_json }}
+      oAuthToken: {{ aap_oauth_token_effective | to_json }}
+    oidc:
+      clientId:
+      clientSecret:
+      enabled: false
+      issuer:
+      externalOidcAuthority:
+      organizationAssignment:
+        type: static
+        organizationName: default
+      usernameClaim:
+      roleAssignment:
+        type: static
+        roleName: admin
+    pamOidcIssuer:
+      enabled: false
+      issuer:
+      clientId:
+      clientSecret:
+      scopes:
+        - openid
+      pamService: flightctl
+
+db:
+  name: flightctl
+  type: builtin
+
+service:
+  rateLimit:
+    enabled: true
+    requests: 300
+    window: 1m
+    authRequests: 20
+    authWindow: 1h
+    trustedProxies: []
+
+observability:
+  grafana:
+    image:
+    published_port:
+    oauth:
+      enabled:
+      provider_type:
+      auth_url:
+      token_url:
+      api_url:
+      scopes:
+      client_id:
+    local_admin_user:
+    local_admin_password:
+    root_url:
+  prometheus:
+    image:
+  telemetry_gateway:
+    image:
+    prometheus_port:
+    grpc_port:
+    config:
+      telemetryGateway:
+        export:
+          prometheus:
+        forward:
+          endpoint:
+  userinfo_proxy:
+    image:
+    upstream_url:
+    skip_tls_verify:

@@ -5,3 +5,4 @@
 - import_playbook: keycloak_integration.yml
 - import_playbook: satellite_install.yml
 - import_playbook: aap_install.yml
+- import_playbook: aap_integration.yml

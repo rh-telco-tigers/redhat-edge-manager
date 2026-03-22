@@ -11,7 +11,7 @@ The full automation path can:
 - create the management VMs on Proxmox
 - configure DNS for the demo domain
 - install Red Hat Edge Manager on RHEL
-- install Keycloak and connect Edge Manager to it
+- install Keycloak and connect Edge Manager to it, or switch Edge Manager to AAP authentication
 - install Red Hat Satellite
 - optionally install Ansible Automation Platform
 - build the bootc device image
@@ -75,6 +75,17 @@ AAP is optional and is only installed when `aap_install_enabled: true` is set in
 
 Put your Proxmox API credentials in `automation/terraform/environments/demo/.env`, or export them in your shell before you run `make up`.
 
+The default auth path is Keycloak. If you want the full automation path to use AAP authentication instead, set these in `automation/ansible/group_vars/all.yml` before you run `make up`:
+
+- `rhem_auth_provider: aap`
+- `aap_install_enabled: true`
+- `aap_bundle_tar: /path/to/your/aap-setup-bundle.tar.gz`
+- `aap_admin_password: CHANGEME-aap-admin-password`
+
+Leave `aap_oauth_application_client_id` empty if you want Edge Manager to create the OAuth application automatically by using a write-scoped AAP token. The automation will generate that token through the AAP gateway API by default.
+
+If your AAP deployment needs a non-default token endpoint, set `aap_token_api_url`. The default token endpoint used by the automation is `https://127.0.0.1/api/gateway/v1/tokens/` on the AAP host.
+
 ### Base RHEL VMs only
 
 Use this when you want the labs to stay manual, but you still want Terraform to create the base RHEL VMs for Edge Manager and Keycloak.
@@ -126,6 +137,36 @@ Supported `ROLE` presets:
 - `dns`
 - `aap`
 - `generic`
+
+## AAP helpers
+
+Use these when you want to install or integrate Ansible Automation Platform separately from the rest of the stack.
+
+### Install AAP on the AAP host
+
+```bash
+make aap-install
+```
+
+This uses `automation/ansible/playbooks/aap_install.yml`.
+
+### Configure Edge Manager to use AAP authentication
+
+```bash
+make aap-integrate
+```
+
+This uses `automation/ansible/playbooks/aap_integration.yml`.
+
+### Run both steps together
+
+```bash
+make aap-setup
+```
+
+If you want the AAP integration path, set `rhem_auth_provider: aap` in `automation/ansible/group_vars/all.yml` first.
+
+If you leave `aap_oauth_application_client_id` empty, this path uses a write-scoped AAP token and lets Edge Manager create the OAuth application automatically.
 
 ## Device workflow helpers
 
@@ -249,4 +290,5 @@ This runs:
 - `make up` bootstraps a repo-local Ansible virtual environment in `automation/.venv`, so you do not need a separate global Ansible install.
 - The demo Terraform environments treat the configured VM IDs as automation-owned. Pick free VM IDs before you apply.
 - If `registry_redhat_io_username` and `registry_redhat_io_password` are left blank, the automation reuses `rhsm_username` and `rhsm_password` for `registry.redhat.io`.
+- `rhem_auth_provider: keycloak` is the default. Set `rhem_auth_provider: aap` if you want Edge Manager to use Ansible Automation Platform authentication instead.
 - Run `make help` from the repo root to see the supported targets.
