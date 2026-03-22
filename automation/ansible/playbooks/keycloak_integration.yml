@@ -11,6 +11,19 @@
     rhem_effective_ui_url: "{{ rhem_ui_url | default('https://' ~ hostvars[groups['rhem_hosts'][0]].fqdn, true) }}"
     rhem_effective_ui_url_with_default_https_port: "{{ rhem_effective_ui_url | regex_replace('^https://([^/:]+)$', 'https://\\1:443') }}"
     keycloak_redirect_uris_effective: "{{ [rhem_effective_ui_url ~ '/*', rhem_effective_ui_url_with_default_https_port ~ '/*', 'http://localhost:8080/*'] | unique }}"
+    keycloak_client_protocol_mappers:
+      - name: realm roles in userinfo
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-realm-role-mapper
+        config:
+          user.attribute: foo
+          introspection.token.claim: "true"
+          access.token.claim: "true"
+          id.token.claim: "true"
+          userinfo.token.claim: "true"
+          claim.name: realm_access.roles
+          jsonType.label: String
+          multivalued: "true"
     keycloak_seed_users:
       - username: "{{ edge_manager_admin_username }}"
         firstName: "{{ edge_manager_admin_first_name | default('Edge', true) }}"
@@ -127,6 +140,19 @@
         - rhem_enable_keycloak_effective
         - (_flightctl_clients.json | length) > 0
 
+    - name: Read current Edge Manager client protocol mappers from Keycloak
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/clients/{{ _flightctl_client.json.id }}/protocol-mappers/models"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        status_code: 200
+      register: _flightctl_client_protocol_mappers
+      no_log: true
+      when:
+        - rhem_enable_keycloak_effective
+        - _flightctl_client is defined
+
     - name: Look up Keycloak client scopes
       ansible.builtin.uri:
         url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/client-scopes"
@@ -191,6 +217,50 @@
         - rhem_enable_keycloak_effective
         - _flightctl_client is defined
         - (_keycloak_client_scopes.json | selectattr('name', 'equalto', 'offline_access') | list | length) > 0
+
+    - name: Create missing protocol mappers for the Edge Manager client
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/clients/{{ _flightctl_client.json.id }}/protocol-mappers/models"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        body_format: json
+        body: "{{ item }}"
+        status_code:
+          - 200
+          - 201
+          - 204
+      loop: "{{ keycloak_client_protocol_mappers }}"
+      changed_when: true
+      no_log: true
+      when:
+        - rhem_enable_keycloak_effective
+        - _flightctl_client is defined
+        - (_flightctl_client_protocol_mappers.json | default([]) | selectattr('name', 'equalto', item.name) | list | length) == 0
+
+    - name: Update protocol mappers for the Edge Manager client
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/clients/{{ _flightctl_client.json.id }}/protocol-mappers/models/{{ (_flightctl_client_protocol_mappers.json | selectattr('name', 'equalto', item.name) | map(attribute='id') | first) }}"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        body_format: json
+        body: "{{ item | combine({'id': (_flightctl_client_protocol_mappers.json | selectattr('name', 'equalto', item.name) | map(attribute='id') | first)}, recursive=True) }}"
+        status_code: 204
+      loop: "{{ keycloak_client_protocol_mappers }}"
+      changed_when: >-
+        (
+          ((_flightctl_client_protocol_mappers.json | selectattr('name', 'equalto', item.name) | first).protocolMapper | default('')) != item.protocolMapper
+        ) or (
+          ((_flightctl_client_protocol_mappers.json | selectattr('name', 'equalto', item.name) | first).protocol | default('')) != item.protocol
+        ) or (
+          ((_flightctl_client_protocol_mappers.json | selectattr('name', 'equalto', item.name) | first).config | default({})) != item.config
+        )
+      no_log: true
+      when:
+        - rhem_enable_keycloak_effective
+        - _flightctl_client is defined
+        - (_flightctl_client_protocol_mappers.json | default([]) | selectattr('name', 'equalto', item.name) | list | length) > 0
 
     - name: Update seeded Edge Manager user profile defaults
       ansible.builtin.uri:

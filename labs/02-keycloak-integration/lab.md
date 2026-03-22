@@ -146,4 +146,7 @@ flightctl login "$RHEM_API_URL" -k --username edgemanager-admin --password 'CHAN
 flightctl whoami
 ```
 
-If login works but the user is not authorized, check the Keycloak realm role assignment. The `flightctl-admin` realm role must be present, and Edge Manager expects it at `realm_access.roles`.
+If login works but the user is not authorized, check two things in Keycloak:
+
+- the user has the `flightctl-admin` realm role
+- the OIDC client exposes that realm role at `realm_access.roles` in the claims Edge Manager reads, not just in the access token
