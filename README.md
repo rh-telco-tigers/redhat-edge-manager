@@ -13,24 +13,16 @@ If you want this repo to create and configure the demo environment for you, star
 
 ## Manual labs
 
-Start with:
-
 1. [`labs/01-edge-manager-installation.md`](labs/01-edge-manager-installation.md) — Install Red Hat Edge Manager on RHEL
-
-Then choose one authentication integration path:
-
-- [`labs/02-keycloak-integration.md`](labs/02-keycloak-integration.md) — Configure an existing Keycloak realm, users, and external OIDC integration
-- [`labs/02a-aap-integration.md`](labs/02a-aap-integration.md) — Configure Edge Manager to use Ansible Automation Platform for authentication
-
-Then continue with:
-
+2. [`labs/02-keycloak-integration.md`](labs/02-keycloak-integration.md) — Configure an existing Keycloak realm, users, and external OIDC integration
 3. [`labs/03-bootc-images.md`](labs/03-bootc-images.md) — Build the bootc image, publish it through Satellite, and generate the installer artifact
 4. [`labs/04-enroll-device.md`](labs/04-enroll-device.md) — Boot a fresh device, approve enrollment, and verify the device is online
 5. [`labs/05-fleet-join.md`](labs/05-fleet-join.md) — Create a fleet and assign the device to it
 6. [`labs/06-managing-applications.md`](labs/06-managing-applications.md) — Build and deploy an application through Edge Manager
 7. [`labs/07-monitoring-support.md`](labs/07-monitoring-support.md) — Review monitoring and collect support data
 8. [`labs/08-security-compliance.md`](labs/08-security-compliance.md) — Review access, TLS, image sources, and patch posture
-9. [`labs/09-performance-optimization.md`](labs/09-performance-optimization.md) — Capture a baseline, tune the deployed application, and compare results
+9. [`labs/09-aap-integration.md`](labs/09-aap-integration.md) — Optional: configure Edge Manager to use Ansible Automation Platform for authentication instead of Keycloak
+10. [`labs/10-performance-optimization.md`](labs/10-performance-optimization.md) — Capture a baseline, tune the deployed application, and compare results
 
 These labs are written as manual product walkthroughs. Replace placeholders such as `CHANGEME`, hostnames, registry paths, and passwords with values from your own environment before you run the commands.
 
