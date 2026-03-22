@@ -47,6 +47,10 @@ Common entry points:
 - `make device-demo` — run the Labs 3 to 5 device flow after the stack is up
 - `make app-demo` — run the Lab 6 application flow after the device is enrolled
 
+## Troubleshooting
+
+If you hit a known issue while following the labs or running the automation, start with [`troubleshooting.md`](troubleshooting.md).
+
 ## Reference notes
 
 [`prereqs/`](prereqs/README.md) contains supporting reference material for optional infrastructure notes and alternate deployment paths.
