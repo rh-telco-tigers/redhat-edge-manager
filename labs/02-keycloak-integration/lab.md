@@ -1,92 +1,35 @@
 # Keycloak integration
 
-**Goal:** run a lightweight Keycloak on a separate RHEL VM, create a dedicated realm and users for Edge Manager, and switch RHEM from the built-in PAM issuer to Keycloak.
+**Goal:** connect Edge Manager to an existing Keycloak instance and use Keycloak for login and authorization.
 
-## Step 1 — Prepare a separate RHEL VM for Keycloak
+## Before you start
 
-Use a second RHEL 9 VM for Keycloak so the identity provider stays separate from the RHEM host.
+- Lab 1 is already complete and Edge Manager is working.
+- You already have an existing Keycloak instance you can administer.
+- In this repo's demo environment, the common values are:
+  - RHEM UI: `https://rhem-prereq-rhel-01.rhem-eap.lan/`
+  - RHEM API: `https://rhem-prereq-rhel-01.rhem-eap.lan:3443`
+  - Keycloak URL: `http://keycloak.rhem-eap.lan:8080`
+- `make rhel-vms-up` can create base RHEL VMs for the manual labs, but this lab does not install or run Keycloak for you.
 
-If you are using the repo’s manual-demo Terraform path, this VM is created by `make rhel-vms-up`. Use the hostnames, IPs, and VM sizes from `automation/terraform/environments/manual-demo/terraform.tfvars`.
+## Step 1 — Pick the integration values
 
-Suggested sizing:
-
-- Hostname: `keycloak.rhem-eap.lan`
-- Size: `2 vCPU / 4 GB RAM / 40 GB disk`
-- Network: same network as the RHEM VM
-
-Make sure the RHEM host can resolve and reach this VM by name before you continue.
-
-## Step 2 — Install Podman on the Keycloak VM
+Use values like these for the lab:
 
 ```bash
-sudo subscription-manager status
-
-# Register first if needed:
-sudo subscription-manager register --username YOUR_RHSM_USER --password YOUR_RHSM_PASSWORD
-sudo subscription-manager attach --auto
-sudo subscription-manager refresh
-
-sudo dnf install -y podman curl
-podman --version
+export RHEM_HOST_FQDN="rhem-prereq-rhel-01.rhem-eap.lan"
+export RHEM_UI_URL="https://${RHEM_HOST_FQDN}"
+export RHEM_API_URL="https://${RHEM_HOST_FQDN}:3443"
+export KEYCLOAK_URL="http://keycloak.rhem-eap.lan:8080"
+export KEYCLOAK_REALM="edge-manager"
+export FLIGHTCTL_CLIENT_ID="flightctl-client"
 ```
 
-## Step 3 — Start Keycloak in Podman
+Adjust the values if your hostnames are different.
 
-Set the Keycloak admin credentials and container image:
-
-```bash
-export KEYCLOAK_ADMIN=admin
-export KEYCLOAK_ADMIN_PASSWORD='CHANGEME-keycloak-admin-password'
-export KEYCLOAK_IMAGE='quay.io/keycloak/keycloak:26.0.7'
-```
-
-Create the import directory:
-
-```bash
-sudo mkdir -p /opt/keycloak/import
-sudo chown root:root /opt/keycloak/import
-```
-
-Start Keycloak:
-
-```bash
-sudo podman run -d \
-  --name keycloak \
-  --replace \
-  -p 8080:8080 \
-  -e KC_BOOTSTRAP_ADMIN_USERNAME="$KEYCLOAK_ADMIN" \
-  -e KC_BOOTSTRAP_ADMIN_PASSWORD="$KEYCLOAK_ADMIN_PASSWORD" \
-  -v /opt/keycloak/import:/opt/keycloak/data/import:Z \
-  "$KEYCLOAK_IMAGE" \
-  start-dev --hostname=http://keycloak.rhem-eap.lan:8080
-```
-
-Verify:
-
-```bash
-sudo podman ps
-curl -s http://keycloak.rhem-eap.lan:8080/ | head
-```
-
-This `start-dev` mode is fine for a lab or demo. It is not a production deployment.
-
-## Step 4 — Create the Edge Manager realm, client, and users
+## Step 2 — Create the Keycloak realm, roles, and users
 
 Create a new realm named `edge-manager`.
-
-Create a confidential client:
-
-- Client ID: `flightctl-client`
-- Client authentication: enabled
-- Standard flow: enabled
-- Direct access grants: enabled
-
-Set a client secret and save it. You will need the same value on the RHEM host.
-
-Add these redirect URIs:
-
-- `https://rhem.rhem-eap.lan/*`
-- `http://localhost:8080/*`
 
 Create a realm role:
 
@@ -97,13 +40,75 @@ Create at least these users:
 - `edgemanager-admin`
 - `edgemanager-ops`
 
+Set these fields when you create the users so first login does not stop on the profile-update screen:
+
+- First name
+- Last name
+- Email
+
+Example values are fine for the lab:
+
+- `edgemanager-admin@example.com`
+- `edgemanager-ops@example.com`
+
 For each user:
 
 1. Set a password.
 2. Mark it non-temporary.
 3. Add the `flightctl-admin` realm role.
+4. Add the built-in `offline_access` realm role.
 
-## Step 5 — Update RHEM to use Keycloak
+Do not create a new `offline_access` role. Keycloak already includes it.
+
+## Step 3 — Create the Edge Manager OIDC client
+
+Create a confidential client for Edge Manager with these settings:
+
+- Client ID: `flightctl-client`
+- Client authentication: enabled
+- Standard flow: enabled
+- Direct access grants: enabled
+- Service accounts: disabled
+
+Set a client secret and save it. You will use the same secret on the RHEM host.
+
+Add these redirect URIs:
+
+- `https://rhem-prereq-rhel-01.rhem-eap.lan/*`
+- `https://rhem-prereq-rhel-01.rhem-eap.lan:443/*`
+- `http://localhost:8080/*`
+
+Set web origins to:
+
+- `+`
+
+Make sure the client has:
+
+- default client scopes: `profile`, `email`, `roles`, `web-origins`
+- optional client scope: `offline_access`
+
+## Step 4 — Expose realm roles in the claims Edge Manager reads
+
+This is the part that controls authorization inside Edge Manager.
+
+If this is missing, login can succeed but the UI will still show `Restricted Access`.
+
+Add a protocol mapper to the `flightctl-client` client with these values:
+
+- Name: `realm roles in userinfo`
+- Mapper type: `User Realm Role`
+- Token claim name: `realm_access.roles`
+- Claim JSON type: `String`
+- Multivalued: enabled
+- Add to access token: enabled
+- Add to ID token: enabled
+- Add to userinfo: enabled
+
+After this change, the Keycloak claims that Edge Manager reads should include:
+
+- `realm_access.roles`
+
+## Step 5 — Update Edge Manager to use Keycloak
 
 On the RHEM host, back up the current config:
 
@@ -111,16 +116,37 @@ On the RHEM host, back up the current config:
 sudo cp /etc/flightctl/service-config.yaml /etc/flightctl/service-config.yaml.pre-keycloak
 ```
 
-Edit `/etc/flightctl/service-config.yaml` and replace the auth section so it uses your Keycloak realm.
+Edit `/etc/flightctl/service-config.yaml` and update the auth section so it uses your Keycloak realm.
 
-Use these values:
+Use values like these:
 
-- issuer: `http://keycloak.rhem-eap.lan:8080/realms/edge-manager`
-- client ID: `flightctl-client`
-- client secret: the secret from the Keycloak client
-- role claim path: `realm_access.roles`
+```yaml
+global:
+  auth:
+    type: oidc
+    insecureSkipTlsVerify: true
+    oidc:
+      enabled: true
+      issuer: http://keycloak.rhem-eap.lan:8080/realms/edge-manager
+      externalOidcAuthority: http://keycloak.rhem-eap.lan:8080/realms/edge-manager
+      clientId: flightctl-client
+      clientSecret: CHANGEME-flightctl-client-secret
+      organizationAssignment:
+        type: static
+        organizationName: default
+      usernameClaim:
+        - preferred_username
+      roleAssignment:
+        type: dynamic
+        separator: ":"
+        claimPath:
+          - realm_access
+          - roles
+    pamOidcIssuer:
+      enabled: false
+```
 
-Make sure `pamOidcIssuer.enabled` is set to `false`.
+If your Keycloak server uses trusted HTTPS, set `insecureSkipTlsVerify: false`.
 
 Then restart RHEM:
 
@@ -133,20 +159,21 @@ sudo systemctl restart flightctl.target
 Open the RHEM UI:
 
 ```text
-https://rhem.rhem-eap.lan/
+https://rhem-prereq-rhel-01.rhem-eap.lan/
 ```
 
 Sign in with the Keycloak user you created, for example `edgemanager-admin`.
 
-Then test the CLI:
+If you just changed roles or claim mappers, fully log out first and then log back in with a fresh browser session.
+
+Optional: test the CLI from your workstation using the browser-based OIDC flow:
 
 ```bash
-export RHEM_API_URL="https://rhem.rhem-eap.lan:3443"
-flightctl login "$RHEM_API_URL" -k --username edgemanager-admin --password 'CHANGEME-admin-password'
-flightctl whoami
+flightctl login "$RHEM_API_URL" -k
 ```
 
-If login works but the user is not authorized, check two things in Keycloak:
+If login works but the user is still not authorized inside Edge Manager, check all of these:
 
 - the user has the `flightctl-admin` realm role
-- the OIDC client exposes that realm role at `realm_access.roles` in the claims Edge Manager reads, not just in the access token
+- the user has the built-in `offline_access` realm role
+- the `flightctl-client` client exposes `realm_access.roles` in `userinfo`, not just in the access token
