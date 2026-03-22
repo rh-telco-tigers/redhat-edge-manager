@@ -11,6 +11,15 @@
     rhem_effective_ui_url: "{{ rhem_ui_url | default('https://' ~ hostvars[groups['rhem_hosts'][0]].fqdn, true) }}"
     rhem_effective_ui_url_with_default_https_port: "{{ rhem_effective_ui_url | regex_replace('^https://([^/:]+)$', 'https://\\1:443') }}"
     keycloak_redirect_uris_effective: "{{ [rhem_effective_ui_url ~ '/*', rhem_effective_ui_url_with_default_https_port ~ '/*', 'http://localhost:8080/*'] | unique }}"
+    keycloak_seed_users:
+      - username: "{{ edge_manager_admin_username }}"
+        firstName: "{{ edge_manager_admin_first_name | default('Edge', true) }}"
+        lastName: "{{ edge_manager_admin_last_name | default('Manager Admin', true) }}"
+        email: "{{ edge_manager_admin_email | default(edge_manager_admin_username ~ '@example.com', true) }}"
+      - username: "{{ edge_manager_ops_username }}"
+        firstName: "{{ edge_manager_ops_first_name | default('Edge', true) }}"
+        lastName: "{{ edge_manager_ops_last_name | default('Manager Ops', true) }}"
+        email: "{{ edge_manager_ops_email | default(edge_manager_ops_username ~ '@example.com', true) }}"
   tasks:
     - name: Ensure required packages
       ansible.builtin.dnf:
@@ -123,6 +132,18 @@
       no_log: true
       when: rhem_enable_keycloak_effective
 
+    - name: Look up seeded Edge Manager users in Keycloak
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/users?exact=true&username={{ item.username | urlencode }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        status_code: 200
+      loop: "{{ keycloak_seed_users }}"
+      register: _keycloak_seed_user_lookups
+      no_log: true
+      when: rhem_enable_keycloak_effective
+
     - name: Update allowed redirect URIs for the Edge Manager client
       ansible.builtin.uri:
         url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/clients/{{ _flightctl_client.json.id }}"
@@ -152,6 +173,26 @@
         - rhem_enable_keycloak_effective
         - _flightctl_client is defined
         - (_keycloak_client_scopes.json | selectattr('name', 'equalto', 'offline_access') | list | length) > 0
+
+    - name: Update seeded Edge Manager user profile defaults
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/users/{{ (item.json | first).id }}"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        body_format: json
+        body: "{{ (item.json | first) | combine({'firstName': item.item.firstName, 'lastName': item.item.lastName, 'email': item.item.email, 'emailVerified': true, 'requiredActions': []}, recursive=True) }}"
+        status_code: 204
+      loop: "{{ _keycloak_seed_user_lookups.results | default([]) }}"
+      changed_when: >-
+        ((item.json | first).firstName | default('')) != item.item.firstName or
+        ((item.json | first).lastName | default('')) != item.item.lastName or
+        ((item.json | first).email | default('')) != item.item.email or
+        (((item.json | first).requiredActions | default([])) | length) > 0
+      no_log: true
+      when:
+        - rhem_enable_keycloak_effective
+        - (item.json | default([]) | length) > 0
 
 - name: Configure RHEM to use Keycloak for OIDC
   hosts: rhem_hosts

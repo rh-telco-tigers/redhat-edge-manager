@@ -35,8 +35,14 @@ flightctl_client_id: flightctl-client
 flightctl_client_secret: CHANGEME-flightctl-client-secret
 edge_manager_admin_username: edgemanager-admin
 edge_manager_admin_password: CHANGEME-admin-password
+edge_manager_admin_first_name: Edge
+edge_manager_admin_last_name: Manager Admin
+edge_manager_admin_email: edgemanager-admin@example.com
 edge_manager_ops_username: edgemanager-ops
 edge_manager_ops_password: CHANGEME-ops-password
+edge_manager_ops_first_name: Edge
+edge_manager_ops_last_name: Manager Ops
+edge_manager_ops_email: edgemanager-ops@example.com
 
 # RHEM OIDC URL overrides.
 # Leave blank to derive values from the generated inventory.

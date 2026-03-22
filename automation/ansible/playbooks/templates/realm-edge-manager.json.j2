@@ -44,7 +44,11 @@
     {
       "username": "{{ edge_manager_admin_username }}",
       "enabled": true,
+      "firstName": "{{ edge_manager_admin_first_name | default('Edge', true) }}",
+      "lastName": "{{ edge_manager_admin_last_name | default('Manager Admin', true) }}",
+      "email": "{{ edge_manager_admin_email | default(edge_manager_admin_username ~ '@example.com', true) }}",
       "emailVerified": true,
+      "requiredActions": [],
       "credentials": [
         {
           "type": "password",
@@ -59,7 +63,11 @@
     {
       "username": "{{ edge_manager_ops_username }}",
       "enabled": true,
+      "firstName": "{{ edge_manager_ops_first_name | default('Edge', true) }}",
+      "lastName": "{{ edge_manager_ops_last_name | default('Manager Ops', true) }}",
+      "email": "{{ edge_manager_ops_email | default(edge_manager_ops_username ~ '@example.com', true) }}",
       "emailVerified": true,
+      "requiredActions": [],
       "credentials": [
         {
           "type": "password",
