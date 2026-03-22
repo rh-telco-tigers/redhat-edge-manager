@@ -70,7 +70,9 @@ get_workspace_name() {
 
 workspace_exists() {
   local workspace_name="$1"
-  terraform -chdir="$env_dir" workspace list -no-color | sed 's/^[* ]*//' | grep -Fxq "$workspace_name"
+  local workspace_list
+  workspace_list="$(terraform -chdir="$env_dir" workspace list -no-color 2>/dev/null || true)"
+  printf '%s\n' "$workspace_list" | sed 's/^[* ]*//' | grep -Fxq "$workspace_name"
 }
 
 select_workspace() {
@@ -91,14 +93,18 @@ select_workspace() {
 
 read_workspace_output() {
   local output_name="$1"
-  terraform -chdir="$env_dir" output -json 2>/dev/null | python3 - "$output_name" <<'PY'
+  local output_json
+  output_json="$(terraform -chdir="$env_dir" output -json 2>/dev/null || true)"
+
+  python3 - "$output_name" "$output_json" <<'PY'
 import json
 import sys
 
 output_name = sys.argv[1]
+raw_json = sys.argv[2]
 
 try:
-    payload = json.load(sys.stdin)
+    payload = json.loads(raw_json) if raw_json else {}
 except json.JSONDecodeError:
     sys.exit(0)
 
