@@ -2,7 +2,7 @@
 
 This is an optional reference for the single-node AAP path used by the automation stack.
 
-If you want the end-user manual integration steps, use [../../labs/02a-aap-integration.md](../../labs/02a-aap-integration.md). That lab covers both the automatic token-based setup and the manual OAuth application setup.
+If you want the end-user manual integration steps, use [../labs/02a-aap-integration.md](../labs/02a-aap-integration.md). That lab covers both the automatic token-based setup and the manual OAuth application setup.
 
 Source of truth:
 [Installing AAP components on a single machine](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/)

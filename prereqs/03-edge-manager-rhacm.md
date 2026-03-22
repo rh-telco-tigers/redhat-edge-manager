@@ -37,4 +37,4 @@ You should see the Edge Manager API pod running.
 
 If you want to use this repo to apply the enablement patch from a prepared control node, use:
 
-[`automation/ansible/playbooks/rhem_enable_rhacm.yml`](../../automation/ansible/playbooks/rhem_enable_rhacm.yml)
+[`automation/ansible/playbooks/rhem_enable_rhacm.yml`](../automation/ansible/playbooks/rhem_enable_rhacm.yml)

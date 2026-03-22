@@ -2,11 +2,11 @@
 
 Use this page only if you are using the supported Proxmox-based automation path. Manual lab readers do not need this document.
 
-The supported entry points are described in [`automation/README.md`](../../automation/README.md).
+The supported entry points are described in [`automation/README.md`](../automation/README.md).
 
 ## What the Proxmox Terraform path does
 
-The Terraform environments under [`automation/terraform/environments/`](../../automation/terraform/environments/) create RHEL 9 virtual machines on Proxmox by:
+The Terraform environments under [`automation/terraform/environments/`](../automation/terraform/environments/) create RHEL 9 virtual machines on Proxmox by:
 
 - cloning from a RHEL 9 KVM guest image
 - injecting cloud-init user data
