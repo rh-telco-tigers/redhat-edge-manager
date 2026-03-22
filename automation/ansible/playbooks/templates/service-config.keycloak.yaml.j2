@@ -11,7 +11,7 @@ global:
       oAuthToken:
     oidc:
       clientId: {{ flightctl_client_id }}
-      clientSecret: {{ flightctl_client_secret }}
+      clientSecret:
       enabled: true
       issuer: {{ keycloak_effective_public_url }}/realms/{{ keycloak_realm }}
       externalOidcAuthority: {{ keycloak_effective_public_url }}/realms/{{ keycloak_realm }}

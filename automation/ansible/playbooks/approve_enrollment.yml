@@ -1,0 +1,82 @@
+---
+- name: Approve pending Edge Manager enrollment requests
+  hosts: rhem_hosts
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    enrollment_flightctl_config_dir_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}/flightctl"
+    enrollment_rhem_api_url_effective: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
+    enrollment_flightctl_username_effective: "{{ edge_manager_admin_username | default(rhem_admin_username, true) }}"
+    enrollment_flightctl_password_effective: "{{ edge_manager_admin_password | default(rhem_admin_password, true) }}"
+    enrollment_labels_effective: "{{ device_enrollment_labels | default([], true) }}"
+  tasks:
+    - name: Require a flightctl user before approving enrollments
+      ansible.builtin.assert:
+        that:
+          - enrollment_flightctl_username_effective | trim | length > 0
+          - enrollment_flightctl_password_effective | trim | length > 0
+        fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make approve-enrollment."
+
+    - name: Ensure the flightctl config directory exists
+      ansible.builtin.file:
+        path: "{{ enrollment_flightctl_config_dir_effective }}"
+        state: directory
+        mode: "0755"
+
+    - name: Authenticate flightctl for enrollment approval
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - login
+          - "{{ enrollment_rhem_api_url_effective }}"
+          - --config-dir
+          - "{{ enrollment_flightctl_config_dir_effective }}"
+          - --username
+          - "{{ enrollment_flightctl_username_effective }}"
+          - --password
+          - "{{ enrollment_flightctl_password_effective }}"
+          - --insecure-skip-tls-verify
+      register: _enrollment_login
+      changed_when: true
+      no_log: true
+
+    - name: Get the list of pending enrollment requests
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - get
+          - enrollmentrequests
+          - --config-dir
+          - "{{ enrollment_flightctl_config_dir_effective }}"
+          - --field-selector=status.approval.approved != true
+          - -o
+          - json
+      register: _pending_enrollment_requests
+      changed_when: false
+
+    - name: Extract pending enrollment request names
+      ansible.builtin.set_fact:
+        _pending_enrollment_response: "{{ _pending_enrollment_requests.stdout | from_json }}"
+        _pending_enrollment_names: "{{ ((_pending_enrollment_requests.stdout | from_json)['items'] | default([])) | map(attribute='metadata.name') | list }}"
+
+    - name: Approve each pending enrollment request
+      ansible.builtin.command:
+        cmd: >-
+          flightctl approve enrollmentrequest/{{ item }}
+          --config-dir {{ enrollment_flightctl_config_dir_effective }}
+          {% for label in enrollment_labels_effective %}-l {{ label | quote }} {% endfor %}
+      loop: "{{ _pending_enrollment_names }}"
+      register: _approved_enrollments
+      changed_when: true
+      when: _pending_enrollment_names | length > 0
+
+    - name: Report when there are no pending enrollment requests
+      ansible.builtin.debug:
+        msg: "No pending enrollment requests were found."
+      when: _pending_enrollment_names | length == 0
+
+    - name: Show the approved enrollment request names
+      ansible.builtin.debug:
+        var: _pending_enrollment_names
+      when: _pending_enrollment_names | length > 0

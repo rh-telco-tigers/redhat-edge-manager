@@ -14,7 +14,7 @@ ANSIBLE_STAMP := $(ANSIBLE_VENV_DIR)/.ansible-ready
 .PHONY: help init-files automation-init-files ansible-bootstrap
 .PHONY: plan up down configure
 .PHONY: rhel-vms-init rhel-vms-plan rhel-vms-up rhel-vms-down
-.PHONY: create-rhel9
+.PHONY: create-rhel9 bootc-build approve-enrollment
 .PHONY: tf-init tf-plan tf-up tf-down
 
 help:
@@ -28,7 +28,9 @@ help:
 	"  make configure        Run only the Ansible configuration phase" \
 	"  make rhel-vms-up      Create only the manual-demo RHEL 9 VMs" \
 	"  make rhel-vms-down    Destroy only the manual-demo RHEL 9 VMs" \
-	"  make create-rhel9     Create one standalone RHEL 9 VM"
+	"  make create-rhel9     Create one standalone RHEL 9 VM" \
+	"  make bootc-build      Build the demo bootc image + ISO on the RHEM host" \
+	"  make approve-enrollment Approve pending Edge Manager enrollment requests"
 
 init-files: automation-init-files
 
@@ -79,3 +81,9 @@ down: tf-down
 
 create-rhel9:
 	$(AUTOMATION_DIR)/scripts/create-rhel9.sh
+
+bootc-build: automation-init-files ansible-bootstrap
+	$(AUTOMATION_DIR)/scripts/bootc-build.sh
+
+approve-enrollment: automation-init-files ansible-bootstrap
+	$(AUTOMATION_DIR)/scripts/approve-enrollment.sh

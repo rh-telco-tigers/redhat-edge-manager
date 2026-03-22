@@ -25,6 +25,10 @@
 
 `make up` bootstraps a repo-local Ansible environment in `automation/.venv` automatically, so you do not need a separate global `ansible-playbook` install on your Mac.
 
+`make bootc-build` builds an early-bound bootc image and ISO on the RHEM host and fetches the ISO back to `automation/artifacts/bootc/`.
+
+`make approve-enrollment` approves pending device enrollment requests by using `flightctl` on the RHEM host.
+
 ## Full automation
 
 Use this when you want Terraform plus Ansible to stand up the fully automated stack.
@@ -136,3 +140,37 @@ Optional make variables:
 - `DNS_SERVERS=192.168.4.30,1.1.1.1`
 - `VM_TAGS=service-demo,owner-bk`
 - `ACTION=plan|apply|destroy`
+
+## Device image helpers
+
+Use these after `make up` when you want a real image for Labs 3 and 4:
+
+```bash
+make bootc-build
+make approve-enrollment
+```
+
+`make bootc-build` does the following on the RHEM host:
+
+- logs in to Edge Manager with the lab admin account
+- requests an early-binding enrollment config
+- renders a real bootc Containerfile with `flightctl-agent`
+- builds the image in local Podman storage
+- runs `bootc-image-builder` for an ISO
+- fetches the ISO back to this repo
+
+By default the fetched ISO lands here:
+
+```text
+automation/artifacts/bootc/rhem-prereq-rhel-01/install.iso
+```
+
+If you want signed pushes to an OCI registry as part of the same flow, set these in `automation/ansible/group_vars/all.yml` first:
+
+- `bootc_image_repo`
+- `bootc_publish_enabled: true`
+- `bootc_registry`
+- `bootc_registry_username`
+- `bootc_registry_password`
+
+`make approve-enrollment` stays separate because a device still has to boot from the ISO before an enrollment request exists.

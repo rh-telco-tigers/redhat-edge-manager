@@ -1,0 +1,12 @@
+FROM {{ bootc_base_image_effective }}
+
+RUN dnf -y install 'dnf-command(config-manager)' && \
+    dnf config-manager --set-enabled {{ bootc_edge_manager_repo_effective }} && \
+    dnf -y install flightctl-agent && \
+    dnf -y clean all && \
+    systemctl enable flightctl-agent.service && \
+    systemctl mask bootc-fetch-apply-updates.timer
+{% if bootc_include_enrollment_config_effective %}
+
+ADD config.yaml /etc/flightctl/
+{% endif %}

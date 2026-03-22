@@ -1,39 +1,64 @@
 # Enroll (onboard) device
 
-**Prereqs:** bootc **base** image with enrollment config; device reaches RHEM **HTTPS/443**.
+**Goal:** boot the ISO from Lab 3, let the device create an enrollment request, then approve it in Edge Manager.
+
+**Prereqs:** Lab 3 is complete. You have a bootable ISO with the embedded `config.yaml`, and the device can reach Edge Manager on `HTTPS/443`.
 
 ## Step 1 — CLI context
 
 ```bash
-export RHEM_URL="https://CHANGEME-rhem.example.com"
-flightctl login --url "$RHEM_URL"
+export RHEM_API_URL="https://rhem-prereq-rhel-01.rhem-eap.lan:3443"
+flightctl login "$RHEM_API_URL" \
+  --username edgemanager-admin \
+  --password 'CHANGEME-edgemanager-password' \
+  --insecure-skip-tls-verify
 ```
 
-## Step 2 — Boot device
+## Step 2 — Boot the device from the ISO
 
-- Boot from USB/ISO with **base** image.  
-- Confirm network (DHCP per assumptions).
+- If you used the automation path in Lab 3, the ISO is here:
+
+```text
+automation/artifacts/bootc/rhem-prereq-rhel-01/install.iso
+```
+
+- Write that ISO to USB or attach it as virtual media.
+- Boot the device.
+- Confirm the device gets network connectivity and can reach `rhem-prereq-rhel-01.rhem-eap.lan`.
+
+Because the image already includes `/etc/flightctl/config.yaml`, the agent should create an enrollment request automatically on first boot.
 
 ## Step 3 — List pending enrollment
 
 ```bash
-flightctl get enrollmentrequests
-# or per your CLI version:
-# flightctl enrollmentrequest list
+flightctl get enrollmentrequests \
+  --field-selector="status.approval.approved != true"
 ```
 
-## Step 4 — Approve enrollment (UI or CLI)
+You should see a pending request for the newly booted device.
 
-**UI:** Edge Manager → enrollments → approve.
+## Step 4 — Approve the enrollment request
 
-**CLI (adjust resource name to match output):**
+Approve it manually:
 
 ```bash
-flightctl approve enrollmentrequest CHANGEME_REQUEST_NAME
+flightctl approve enrollmentrequest/CHANGEME_REQUEST_NAME \
+  -l site=homelab \
+  -l fleet=demo
 ```
 
-## Step 5 — Verify device registered
+Or approve everything that is pending by using the repo automation:
 
 ```bash
-flightctl get devices
+make approve-enrollment
 ```
+
+That automation uses the same `flightctl` CLI on the RHEM host and applies the default labels from `automation/ansible/group_vars/all.yml.example`.
+
+## Step 5 — Verify the device is registered
+
+```bash
+flightctl get devices -o wide
+```
+
+At this point the device is onboarded and ready for the next labs.

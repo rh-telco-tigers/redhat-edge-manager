@@ -1,0 +1,255 @@
+---
+- name: Build the demo bootc image and ISO on the RHEM host
+  hosts: rhem_hosts
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    bootc_workspace_dir_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}"
+    bootc_flightctl_config_dir: "{{ bootc_workspace_dir_effective }}/flightctl"
+    bootc_output_dir_effective: "{{ bootc_workspace_dir_effective }}/output"
+    bootc_config_file_effective: "{{ bootc_workspace_dir_effective }}/config.yaml"
+    bootc_containerfile_effective: "{{ bootc_workspace_dir_effective }}/Containerfile"
+    bootc_base_image_effective: "{{ bootc_base_image | default('registry.redhat.io/rhel9/rhel-bootc:9.7', true) }}"
+    bootc_edge_manager_repo_effective: "{{ bootc_edge_manager_repo | default(rhem_edge_manager_repo | default('edge-manager-1.0-for-rhel-9-x86_64-rpms', true), true) }}"
+    bootc_image_repo_effective: "{{ bootc_image_repo | default('localhost/rhem-demo/device-os', true) }}"
+    bootc_image_tag_effective: "{{ bootc_image_tag | default('v1', true) }}"
+    bootc_image_ref_effective: "{{ bootc_image_repo_effective }}:{{ bootc_image_tag_effective }}"
+    bootc_registry_effective: "{{ bootc_registry | default((bootc_image_repo_effective.split('/'))[0] if '/' in bootc_image_repo_effective else '', true) }}"
+    bootc_registry_username_effective: "{{ bootc_registry_username | default('', true) }}"
+    bootc_registry_password_effective: "{{ bootc_registry_password | default('', true) }}"
+    bootc_publish_enabled_effective: "{{ bootc_publish_enabled | default(false, true) | bool }}"
+    bootc_publish_disk_image_enabled_effective: "{{ bootc_publish_disk_image_enabled | default(bootc_publish_enabled_effective, true) | bool }}"
+    bootc_force_rebuild_effective: "{{ bootc_force_rebuild | default(false, true) | bool }}"
+    bootc_disk_image_repo_effective: "{{ bootc_disk_image_repo | default(bootc_image_repo_effective ~ '/diskimage-iso', true) }}"
+    bootc_disk_image_ref_effective: "{{ bootc_disk_image_repo_effective }}:{{ bootc_image_tag_effective }}"
+    bootc_enrollment_signer_effective: "{{ bootc_enrollment_signer | default('enrollment', true) }}"
+    bootc_enrollment_expiration_effective: "{{ bootc_enrollment_expiration | default('365d', true) }}"
+    bootc_include_enrollment_config_effective: "{{ bootc_include_enrollment_config | default(true, true) | bool }}"
+    bootc_iso_remote_path_effective: "{{ bootc_output_dir_effective }}/bootiso/install.iso"
+    bootc_flightctl_username_effective: "{{ bootc_flightctl_username | default(edge_manager_admin_username | default(rhem_admin_username, true), true) }}"
+    bootc_flightctl_password_effective: "{{ bootc_flightctl_password | default(edge_manager_admin_password | default(rhem_admin_password, true), true) }}"
+    bootc_rhem_api_url_effective: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
+    bootc_registry_redhat_io_username_effective: "{{ registry_redhat_io_username | default(rhsm_username | default('', true), true) }}"
+    bootc_registry_redhat_io_password_effective: "{{ registry_redhat_io_password | default(rhsm_password | default('', true), true) }}"
+  tasks:
+    - name: Require a flightctl user for the bootc build
+      ansible.builtin.assert:
+        that:
+          - bootc_flightctl_username_effective | trim | length > 0
+          - bootc_flightctl_password_effective | trim | length > 0
+        fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make bootc-build."
+
+    - name: Require registry coordinates when publishing bootc artifacts
+      ansible.builtin.assert:
+        that:
+          - bootc_registry_effective | trim | length > 0
+          - bootc_registry_username_effective | trim | length > 0
+          - bootc_registry_password_effective | trim | length > 0
+          - not (bootc_image_repo_effective is match('^localhost/'))
+        fail_msg: "Set bootc_registry, bootc_registry_username, bootc_registry_password, and a non-local bootc_image_repo before enabling publish."
+      when: bootc_publish_enabled_effective or bootc_publish_disk_image_enabled_effective
+
+    - name: Install build prerequisites on the RHEM host
+      ansible.builtin.dnf:
+        name:
+          - podman
+          - skopeo
+        state: present
+
+    - name: Create the bootc workspace
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ bootc_workspace_dir_effective }}"
+        - "{{ bootc_flightctl_config_dir }}"
+        - "{{ bootc_output_dir_effective }}"
+
+    - name: Log in to registry.redhat.io for bootc image pulls
+      ansible.builtin.command:
+        argv:
+          - podman
+          - login
+          - registry.redhat.io
+          - --username
+          - "{{ bootc_registry_redhat_io_username_effective }}"
+          - --password
+          - "{{ bootc_registry_redhat_io_password_effective }}"
+      register: _bootc_registry_redhat_login
+      changed_when: "'Login Succeeded' in (_bootc_registry_redhat_login.stdout | default(''))"
+      no_log: true
+      when:
+        - bootc_registry_redhat_io_username_effective | trim | length > 0
+        - bootc_registry_redhat_io_password_effective | trim | length > 0
+
+    - name: Authenticate flightctl in an isolated config directory
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - login
+          - "{{ bootc_rhem_api_url_effective }}"
+          - --config-dir
+          - "{{ bootc_flightctl_config_dir }}"
+          - --username
+          - "{{ bootc_flightctl_username_effective }}"
+          - --password
+          - "{{ bootc_flightctl_password_effective }}"
+          - --insecure-skip-tls-verify
+      register: _bootc_flightctl_login
+      changed_when: true
+      no_log: true
+
+    - name: Request an embedded enrollment config for early binding
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - certificate
+          - request
+          - --config-dir
+          - "{{ bootc_flightctl_config_dir }}"
+          - --signer
+          - "{{ bootc_enrollment_signer_effective }}"
+          - --expiration
+          - "{{ bootc_enrollment_expiration_effective }}"
+          - --output
+          - embedded
+      register: _bootc_enrollment_config
+      changed_when: true
+      no_log: true
+
+    - name: Persist the generated enrollment config in the build workspace
+      ansible.builtin.copy:
+        dest: "{{ bootc_config_file_effective }}"
+        content: "{{ _bootc_enrollment_config.stdout }}"
+        mode: "0600"
+      no_log: true
+
+    - name: Render the bootc Containerfile
+      ansible.builtin.template:
+        src: templates/bootc.Containerfile.j2
+        dest: "{{ bootc_containerfile_effective }}"
+        mode: "0644"
+
+    - name: Check whether the bootc ISO already exists
+      ansible.builtin.stat:
+        path: "{{ bootc_iso_remote_path_effective }}"
+      register: _bootc_existing_iso
+
+    - name: Build the bootc operating system image
+      ansible.builtin.command:
+        argv:
+          - podman
+          - build
+          - -t
+          - "{{ bootc_image_ref_effective }}"
+          - .
+        chdir: "{{ bootc_workspace_dir_effective }}"
+      register: _bootc_build
+      changed_when: true
+      async: 7200
+      poll: 15
+      when: bootc_force_rebuild_effective or not _bootc_existing_iso.stat.exists
+
+    - name: Generate a Sigstore key pair when publish is enabled
+      ansible.builtin.command:
+        argv:
+          - skopeo
+          - generate-sigstore-key
+          - --output-prefix
+          - "{{ bootc_workspace_dir_effective }}/signingkey"
+      args:
+        creates: "{{ bootc_workspace_dir_effective }}/signingkey.private"
+      when: bootc_publish_enabled_effective or bootc_publish_disk_image_enabled_effective
+
+    - name: Configure Sigstore attachments for the OCI registry
+      ansible.builtin.template:
+        src: templates/bootc.sigstore-registry.yaml.j2
+        dest: "/etc/containers/registries.d/{{ bootc_registry_effective }}.yaml"
+        mode: "0644"
+      when: bootc_publish_enabled_effective or bootc_publish_disk_image_enabled_effective
+
+    - name: Log in to the OCI registry for image publishing
+      ansible.builtin.command:
+        argv:
+          - podman
+          - login
+          - "{{ bootc_registry_effective }}"
+          - --username
+          - "{{ bootc_registry_username_effective }}"
+          - --password
+          - "{{ bootc_registry_password_effective }}"
+      register: _bootc_registry_login
+      changed_when: "'Login Succeeded' in (_bootc_registry_login.stdout | default(''))"
+      no_log: true
+      when: bootc_publish_enabled_effective or bootc_publish_disk_image_enabled_effective
+
+    - name: Push the signed bootc image to the OCI registry
+      ansible.builtin.command:
+        argv:
+          - podman
+          - push
+          - --sign-by-sigstore-private-key
+          - "{{ bootc_workspace_dir_effective }}/signingkey.private"
+          - "{{ bootc_image_ref_effective }}"
+      register: _bootc_push
+      changed_when: true
+      when: bootc_publish_enabled_effective
+
+    - name: Build the bootc ISO with bootc-image-builder
+      ansible.builtin.command:
+        argv:
+          - podman
+          - run
+          - --rm
+          - --privileged
+          - --pull=newer
+          - --security-opt
+          - label=type:unconfined_t
+          - -v
+          - "{{ bootc_output_dir_effective }}:/output"
+          - -v
+          - /var/lib/containers/storage:/var/lib/containers/storage
+          - registry.redhat.io/rhel9/bootc-image-builder:latest
+          - --type
+          - iso
+          - "{{ bootc_image_ref_effective }}"
+      register: _bootc_iso_build
+      changed_when: true
+      async: 7200
+      poll: 15
+      when: bootc_force_rebuild_effective or not _bootc_existing_iso.stat.exists
+
+    - name: Verify that the bootc ISO exists
+      ansible.builtin.stat:
+        path: "{{ bootc_iso_remote_path_effective }}"
+      register: _bootc_iso_file
+
+    - name: Assert the bootc ISO was created
+      ansible.builtin.assert:
+        that:
+          - _bootc_iso_file.stat.exists
+        fail_msg: "bootc-image-builder did not produce {{ bootc_iso_remote_path_effective }}."
+
+    - name: Report the remote ISO path
+      ansible.builtin.debug:
+        msg: "bootc ISO is available on {{ inventory_hostname }} at {{ bootc_iso_remote_path_effective }}"
+
+    - name: Publish the ISO artifact to the OCI registry
+      ansible.builtin.shell: >-
+        set -euo pipefail &&
+        podman manifest create {{ bootc_disk_image_ref_effective | quote }} &&
+        podman manifest add --artifact --artifact-type application/vnd.diskimage.iso
+        --arch=amd64 --os=linux
+        {{ bootc_disk_image_ref_effective | quote }}
+        {{ bootc_iso_remote_path_effective | quote }} &&
+        podman manifest push --all
+        --sign-by-sigstore-private-key {{ (bootc_workspace_dir_effective ~ '/signingkey.private') | quote }}
+        {{ bootc_disk_image_ref_effective | quote }}
+        docker://{{ bootc_disk_image_ref_effective | quote }}
+      args:
+        executable: /bin/bash
+      register: _bootc_iso_publish
+      changed_when: true
+      when: bootc_publish_disk_image_enabled_effective

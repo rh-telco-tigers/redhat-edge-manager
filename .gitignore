@@ -6,6 +6,7 @@ terraform.tfvars
 automation/ansible/group_vars/all.yml
 automation/ansible/inventory/hosts.generated.yml
 automation/.venv/
+automation/artifacts/
 automation/terraform/environments/demo/.env
 automation/terraform/environments/demo/terraform.tfvars
 automation/terraform/environments/manual-demo/.env

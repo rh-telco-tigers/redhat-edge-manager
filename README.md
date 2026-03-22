@@ -15,8 +15,8 @@ The full automation path now also includes a dedicated Satellite VM in the demo 
 
 1. [`labs/01-edge-manager-installation`](labs/01-edge-manager-installation) — Install RHEM on RHEL
 2. [`labs/02-keycloak-integration`](labs/02-keycloak-integration) — Configure an existing Keycloak realm, users, and external OIDC integration
-3. [`labs/03-bootc-images`](labs/03-bootc-images) — Prepare a dedicated Satellite content source and continue into bootc image work
-4. [`labs/04-enroll-device`](labs/04-enroll-device) — Onboard a device
+3. [`labs/03-bootc-images`](labs/03-bootc-images) — Prepare Satellite content, build the bootc image, and generate the install ISO
+4. [`labs/04-enroll-device`](labs/04-enroll-device) — Boot the ISO and approve the device enrollment request
 5. [`labs/05-fleet-join`](labs/05-fleet-join) — Create a fleet and roll a device onto the app image
 6. [`labs/06-managing-applications`](labs/06-managing-applications) — Deploy application workloads
 7. [`labs/07-monitoring-support`](labs/07-monitoring-support) — Review monitoring and collect support data

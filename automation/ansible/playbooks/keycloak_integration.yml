@@ -195,7 +195,21 @@
         headers:
           Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
         body_format: json
-        body: "{{ _flightctl_client.json | combine({'redirectUris': keycloak_redirect_uris_effective, 'webOrigins': ['+']}, recursive=True) }}"
+        body: >-
+          {{
+            _flightctl_client.json
+            | combine(
+                {
+                  'publicClient': true,
+                  'standardFlowEnabled': true,
+                  'directAccessGrantsEnabled': true,
+                  'serviceAccountsEnabled': false,
+                  'redirectUris': keycloak_redirect_uris_effective,
+                  'webOrigins': ['+']
+                },
+                recursive=True
+              )
+          }}
         status_code: 204
       no_log: true
       when:
