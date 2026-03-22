@@ -7,7 +7,7 @@
 ## Step 1 — Create the CLI context and confirm the target device
 
 ```bash
-export EDGE_MANAGER_HOST="edge-manager.example.com"
+export EDGE_MANAGER_HOST="rhem-prereq-rhel-01.rhem-eap.lan"
 export EDGE_MANAGER_API_URL="https://${EDGE_MANAGER_HOST}:3443"
 
 flightctl login "${EDGE_MANAGER_API_URL}" \
@@ -28,10 +28,10 @@ flightctl delete device/CHANGEME_OLD_DEVICE_ID
 ## Step 2 — Define the Satellite image paths
 
 ```bash
-export SATELLITE_HOST="satellite.example.com"
+export SATELLITE_HOST="satellite.rhem-eap.lan"
 export SATELLITE_ORG_ID="CHANGEME_ORG_ID"
 export SATELLITE_PRODUCT_ID="CHANGEME_PRODUCT_ID"
-export APP_TAG="v1"
+export APP_TAG="v3"
 
 export DEMO_RUNTIME_IMAGE_REPO="${SATELLITE_HOST}/id/${SATELLITE_ORG_ID}/${SATELLITE_PRODUCT_ID}/hello-web-runtime"
 export DEMO_PACKAGE_IMAGE_REPO="${SATELLITE_HOST}/id/${SATELLITE_ORG_ID}/${SATELLITE_PRODUCT_ID}/hello-web-package"

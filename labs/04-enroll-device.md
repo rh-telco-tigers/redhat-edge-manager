@@ -7,7 +7,7 @@
 ## Step 1 — Create the CLI context
 
 ```bash
-export EDGE_MANAGER_HOST="edge-manager.example.com"
+export EDGE_MANAGER_HOST="rhem-prereq-rhel-01.rhem-eap.lan"
 export EDGE_MANAGER_API_URL="https://${EDGE_MANAGER_HOST}:3443"
 
 flightctl login "${EDGE_MANAGER_API_URL}" \

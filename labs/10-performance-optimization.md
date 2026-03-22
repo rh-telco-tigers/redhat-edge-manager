@@ -7,15 +7,15 @@
 ## Step 1 — Create the working context
 
 ```bash
-export EDGE_MANAGER_HOST="edge-manager.example.com"
+export EDGE_MANAGER_HOST="rhem-prereq-rhel-01.rhem-eap.lan"
 export EDGE_MANAGER_API_URL="https://${EDGE_MANAGER_HOST}:3443"
-export SATELLITE_HOST="satellite.example.com"
+export SATELLITE_HOST="satellite.rhem-eap.lan"
 export SATELLITE_ORG_ID="CHANGEME_ORG_ID"
 export SATELLITE_PRODUCT_ID="CHANGEME_PRODUCT_ID"
 export DEVICE_NAME="CHANGEME_DEVICE_NAME"
 export DEVICE_HOST="CHANGEME_DEVICE_HOST"
-export APP_TAG_BASELINE="v1"
-export APP_TAG_TUNED="v2"
+export APP_TAG_BASELINE="v3"
+export APP_TAG_TUNED="v4"
 
 export DEMO_RUNTIME_IMAGE_REPO="${SATELLITE_HOST}/id/${SATELLITE_ORG_ID}/${SATELLITE_PRODUCT_ID}/hello-web-runtime"
 export DEMO_PACKAGE_IMAGE_REPO="${SATELLITE_HOST}/id/${SATELLITE_ORG_ID}/${SATELLITE_PRODUCT_ID}/hello-web-package"

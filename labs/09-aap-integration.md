@@ -7,10 +7,10 @@ Complete [01-edge-manager-installation.md](01-edge-manager-installation.md) firs
 ## Step 1 — Set the integration values
 
 ```bash
-export RHEM_HOST_FQDN="edge-manager.example.com"
+export RHEM_HOST_FQDN="rhem-prereq-rhel-01.rhem-eap.lan"
 export RHEM_UI_URL="https://${RHEM_HOST_FQDN}"
 export RHEM_API_URL="https://${RHEM_HOST_FQDN}:3443"
-export AAP_URL="https://aap.example.com"
+export AAP_URL="https://aap.rhem-eap.lan"
 ```
 
 Use the Edge Manager certificate hostname for `RHEM_HOST_FQDN`.
@@ -44,11 +44,11 @@ In the AAP web console:
 3. Use values like these:
 
 - Name: `Red Hat Edge Manager`
-- URL: `https://edge-manager.example.com`
+- URL: `https://rhem-prereq-rhel-01.rhem-eap.lan`
 - Organization: `Default`
 - Authorization grant type: `Authorization code`
 - Client: `Public`
-- Redirect URIs: `https://edge-manager.example.com:443/callback http://127.0.0.1/callback`
+- Redirect URIs: `https://rhem-prereq-rhel-01.rhem-eap.lan:443/callback http://127.0.0.1/callback`
 
 Save the application and copy the **Client ID**.
 
@@ -66,13 +66,13 @@ If you are using the automatic setup method, leave `oAuthApplicationClientId` em
 
 ```yaml
 global:
-  baseDomain: edge-manager.example.com
+  baseDomain: rhem-prereq-rhel-01.rhem-eap.lan
   auth:
     type: aap
     insecureSkipTlsVerify: false
     aap:
-      apiUrl: https://aap.example.com
-      externalApiUrl: https://aap.example.com
+      apiUrl: https://aap.rhem-eap.lan
+      externalApiUrl: https://aap.rhem-eap.lan
       oAuthApplicationClientId:
       oAuthToken: CHANGEME_AAP_WRITE_TOKEN
     oidc:
@@ -85,13 +85,13 @@ If you are using the manual setup method, set `oAuthApplicationClientId` and lea
 
 ```yaml
 global:
-  baseDomain: edge-manager.example.com
+  baseDomain: rhem-prereq-rhel-01.rhem-eap.lan
   auth:
     type: aap
     insecureSkipTlsVerify: false
     aap:
-      apiUrl: https://aap.example.com
-      externalApiUrl: https://aap.example.com
+      apiUrl: https://aap.rhem-eap.lan
+      externalApiUrl: https://aap.rhem-eap.lan
       oAuthApplicationClientId: CHANGEME_AAP_CLIENT_ID
       oAuthToken:
     oidc:
@@ -113,7 +113,7 @@ sudo systemctl restart flightctl.target
 Open the Edge Manager web console:
 
 ```text
-https://edge-manager.example.com/
+https://rhem-prereq-rhel-01.rhem-eap.lan/
 ```
 
 You should be redirected to AAP for login.

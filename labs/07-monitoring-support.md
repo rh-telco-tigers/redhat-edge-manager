@@ -9,7 +9,7 @@ Open device in Edge Manager → **monitoring** / resource views (*Monitoring dev
 ## Step 2 — CLI: device status (adjust to your CLI)
 
 ```bash
-export RHEM_URL="https://CHANGEME-rhem.example.com"
+export RHEM_URL="https://rhem-prereq-rhel-01.rhem-eap.lan:3443"
 flightctl login "$RHEM_URL"
 flightctl get devices
 flightctl get device CHANGEME_DEVICE -o yaml

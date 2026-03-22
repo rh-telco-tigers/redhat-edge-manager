@@ -15,10 +15,10 @@ If you want to use Ansible Automation Platform for authentication instead, use [
 Use values like these for the lab:
 
 ```bash
-export RHEM_HOST_FQDN="edge-manager.example.com"
+export RHEM_HOST_FQDN="rhem-prereq-rhel-01.rhem-eap.lan"
 export RHEM_UI_URL="https://${RHEM_HOST_FQDN}"
 export RHEM_API_URL="https://${RHEM_HOST_FQDN}:3443"
-export KEYCLOAK_URL="https://keycloak.example.com"
+export KEYCLOAK_URL="http://keycloak.rhem-eap.lan:8080"
 export KEYCLOAK_REALM="edge-manager"
 export FLIGHTCTL_CLIENT_ID="flightctl-client"
 ```
@@ -71,8 +71,8 @@ Create an OpenID Connect client for Edge Manager with these settings:
 
 Add these redirect URIs:
 
-- `https://edge-manager.example.com/*`
-- `https://edge-manager.example.com:443/*`
+- `https://rhem-prereq-rhel-01.rhem-eap.lan/*`
+- `https://rhem-prereq-rhel-01.rhem-eap.lan:443/*`
 - `http://localhost:8080/*`
 
 Set web origins to:
@@ -124,8 +124,8 @@ global:
     insecureSkipTlsVerify: true
     oidc:
       enabled: true
-      issuer: https://keycloak.example.com/realms/edge-manager
-      externalOidcAuthority: https://keycloak.example.com/realms/edge-manager
+      issuer: http://keycloak.rhem-eap.lan:8080/realms/edge-manager
+      externalOidcAuthority: http://keycloak.rhem-eap.lan:8080/realms/edge-manager
       clientId: flightctl-client
       clientSecret:
       organizationAssignment:
@@ -156,7 +156,7 @@ sudo systemctl restart flightctl.target
 Open the RHEM UI:
 
 ```text
-https://edge-manager.example.com/
+https://rhem-prereq-rhel-01.rhem-eap.lan/
 ```
 
 Sign in with the Keycloak user you created, for example `edgemanager-admin`.

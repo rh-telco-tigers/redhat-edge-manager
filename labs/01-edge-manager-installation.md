@@ -60,7 +60,7 @@ Use this same username and password for both the browser login and the `flightct
 ## Step 4 — Verify the web console
 
 ```bash
-export RHEM_HOST="CHANGEME-rhem.example.com"
+export RHEM_HOST="rhem-prereq-rhel-01.rhem-eap.lan"
 export RHEM_UI_URL="https://${RHEM_HOST}/"
 curl -skI "$RHEM_UI_URL" | head -5
 ```

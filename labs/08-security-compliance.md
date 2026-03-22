@@ -7,10 +7,10 @@
 ## Step 1 — Create the working context
 
 ```bash
-export EDGE_MANAGER_HOST="edge-manager.example.com"
+export EDGE_MANAGER_HOST="rhem-prereq-rhel-01.rhem-eap.lan"
 export EDGE_MANAGER_API_URL="https://${EDGE_MANAGER_HOST}:3443"
-export SATELLITE_HOST="satellite.example.com"
-export KEYCLOAK_HOST="keycloak.example.com"
+export SATELLITE_HOST="satellite.rhem-eap.lan"
+export KEYCLOAK_URL="http://keycloak.rhem-eap.lan:8080"
 export DEVICE_NAME="CHANGEME_DEVICE_NAME"
 export DEVICE_HOST="CHANGEME_DEVICE_HOST"
 
@@ -54,11 +54,10 @@ Check the supporting services:
 openssl s_client -connect "${SATELLITE_HOST}:443" -servername "${SATELLITE_HOST}" </dev/null 2>/dev/null \
   | openssl x509 -noout -subject -issuer -dates
 
-openssl s_client -connect "${KEYCLOAK_HOST}:443" -servername "${KEYCLOAK_HOST}" </dev/null 2>/dev/null \
-  | openssl x509 -noout -subject -issuer -dates
+curl -s "${KEYCLOAK_URL}/realms/edge-manager/.well-known/openid-configuration" | head -20
 ```
 
-Confirm the certificate hostnames, issuers, and expiration dates match what you expect.
+Confirm the certificate hostnames, issuers, and expiration dates match what you expect. For Keycloak, confirm the discovery document responds from the expected realm URL.
 
 ## Step 4 — Verify approved OS and application image sources
 

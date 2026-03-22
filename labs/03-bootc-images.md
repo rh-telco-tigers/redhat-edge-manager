@@ -13,8 +13,8 @@
 ## Step 1 — Set the hostnames you will use in this lab
 
 ```bash
-export EDGE_MANAGER_HOST="edge-manager.example.com"
-export SATELLITE_HOST="satellite.example.com"
+export EDGE_MANAGER_HOST="rhem-prereq-rhel-01.rhem-eap.lan"
+export SATELLITE_HOST="satellite.rhem-eap.lan"
 export EDGE_MANAGER_API_URL="https://${EDGE_MANAGER_HOST}:3443"
 export OCI_IMAGE_TAG="v1"
 ```
@@ -93,9 +93,9 @@ Confirm that `config.yaml` points to the API certificate hostname:
 
 ```yaml
 enrollment-service:
-  enrollment-ui-endpoint: https://edge-manager.example.com:443
+  enrollment-ui-endpoint: https://rhem-prereq-rhel-01.rhem-eap.lan:443
   service:
-    server: https://edge-manager.example.com:7443/
+    server: https://rhem-prereq-rhel-01.rhem-eap.lan:7443/
 ```
 
 If your generated file shows a different host that is not covered by the Edge Manager API certificate, replace those values before building the image.

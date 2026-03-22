@@ -7,7 +7,7 @@
 ## Step 1 — Create the CLI context
 
 ```bash
-export EDGE_MANAGER_HOST="edge-manager.example.com"
+export EDGE_MANAGER_HOST="rhem-prereq-rhel-01.rhem-eap.lan"
 export EDGE_MANAGER_API_URL="https://${EDGE_MANAGER_HOST}:3443"
 
 flightctl login "${EDGE_MANAGER_API_URL}" \
@@ -19,7 +19,7 @@ flightctl login "${EDGE_MANAGER_API_URL}" \
 ## Step 2 — Reuse the image reference from Lab 3
 
 ```bash
-export SATELLITE_HOST="satellite.example.com"
+export SATELLITE_HOST="satellite.rhem-eap.lan"
 export SATELLITE_ORG_ID="CHANGEME_ORG_ID"
 export SATELLITE_PRODUCT_ID="CHANGEME_PRODUCT_ID"
 export OCI_IMAGE_TAG="v1"
