@@ -2,9 +2,14 @@
 - name: Install Red Hat Edge Manager on the RHEM host
   hosts: rhem_hosts
   become: true
+  vars_files:
+    - ../group_vars/all.yml
   vars:
     _registry_username: "{{ registry_redhat_io_username if (registry_redhat_io_username | default('') | length > 0) else (rhsm_username | default('')) }}"
     _registry_password: "{{ registry_redhat_io_password if (registry_redhat_io_password | default('') | length > 0) else (rhsm_password | default('')) }}"
+    rhem_edge_manager_repo_effective: "{{ rhem_edge_manager_repo | default('edge-manager-1.0-for-rhel-9-x86_64-rpms', true) }}"
+    rhem_admin_username_effective: "{{ rhem_admin_username | default(edge_manager_admin_username | default('edgemanager-admin', true), true) }}"
+    rhem_admin_password_effective: "{{ rhem_admin_password | default(edge_manager_admin_password | default('CHANGEME-edgemanager-admin-password', true), true) }}"
   tasks:
     - name: Ensure Podman is installed
       ansible.builtin.dnf:
@@ -29,7 +34,7 @@
           - subscription-manager
           - repos
           - --enable
-          - "{{ rhem_edge_manager_repo }}"
+          - "{{ rhem_edge_manager_repo_effective }}"
       register: _rhem_repo_enable
       changed_when: "'enabled' in (_rhem_repo_enable.stdout | default('') | lower)"
       failed_when: _rhem_repo_enable.rc != 0
@@ -65,7 +70,7 @@
           - flightctl-pam-issuer
           - sh
           - -lc
-          - id -u {{ rhem_admin_username }} >/dev/null 2>&1 || adduser {{ rhem_admin_username }}
+          - id -u {{ rhem_admin_username_effective }} >/dev/null 2>&1 || adduser {{ rhem_admin_username_effective }}
 
     - name: Set the first local admin password
       ansible.builtin.command:
@@ -76,7 +81,7 @@
           - flightctl-pam-issuer
           - sh
           - -lc
-          - echo '{{ rhem_admin_username }}:{{ rhem_admin_password }}' | chpasswd
+          - echo '{{ rhem_admin_username_effective }}:{{ rhem_admin_password_effective }}' | chpasswd
       no_log: true
 
     - name: Ensure the first local admin is in flightctl-admin
@@ -88,7 +93,7 @@
           - usermod
           - -aG
           - flightctl-admin
-          - "{{ rhem_admin_username }}"
+          - "{{ rhem_admin_username_effective }}"
 
     - name: Wait for the Edge Manager UI port
       ansible.builtin.wait_for:

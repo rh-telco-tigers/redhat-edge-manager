@@ -1,4 +1,4 @@
-zone "{{ demo_dns_zone }}" {
+zone "{{ demo_dns_zone_effective }}" {
   type master;
-  file "/var/lib/powerdns/zones/{{ demo_dns_zone }}.zone";
+  file "/etc/pdns/zones/{{ demo_dns_zone_effective }}.zone";
 };

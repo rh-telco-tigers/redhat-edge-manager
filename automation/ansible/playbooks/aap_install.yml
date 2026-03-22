@@ -2,8 +2,10 @@
 - name: Install Ansible Automation Platform (optional)
   hosts: aap_controllers
   become: true
+  vars_files:
+    - ../group_vars/all.yml
   vars:
-    _aap_enabled: "{{ aap_install_enabled | bool }}"
+    _aap_enabled: "{{ aap_install_enabled | default(false, true) | bool }}"
   tasks:
     - name: Skip AAP when disabled
       ansible.builtin.meta: end_host

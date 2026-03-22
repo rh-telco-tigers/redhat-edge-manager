@@ -2,12 +2,36 @@
 - name: Install and configure PowerDNS
   hosts: dns_hosts
   become: true
+  vars_files:
+    - ../group_vars/all.yml
   vars:
-    pdns_zone_path: "/var/lib/powerdns/zones/{{ demo_dns_zone }}.zone"
+    demo_dns_zone_effective: "{{ demo_dns_zone | default('rhem-eap.lan', true) }}"
+    demo_dns_api_key_effective: "{{ demo_dns_api_key | default('CHANGEME-pdns-api-key', true) }}"
+    powerdns_auth_repo_url_effective: "{{ powerdns_auth_repo_url | default('https://repo.powerdns.com/repo-files/el-auth-50.repo', true) }}"
+    epel_release_rpm_url: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm"
+    pdns_zone_dir: /etc/pdns/zones
+    pdns_zone_path: "{{ pdns_zone_dir }}/{{ demo_dns_zone_effective }}.zone"
   tasks:
+    - name: Enable CodeReady Builder for EPEL dependencies
+      ansible.builtin.command:
+        argv:
+          - subscription-manager
+          - repos
+          - --enable
+          - codeready-builder-for-rhel-9-x86_64-rpms
+      register: _crb_enable
+      changed_when: "'enabled' in (_crb_enable.stdout | default('') | lower)"
+      failed_when: false
+
+    - name: Install EPEL release package
+      ansible.builtin.dnf:
+        name:
+          - "{{ epel_release_rpm_url }}"
+        state: present
+
     - name: Add PowerDNS repository
       ansible.builtin.get_url:
-        url: "{{ powerdns_auth_repo_url }}"
+        url: "{{ powerdns_auth_repo_url_effective }}"
         dest: /etc/yum.repos.d/powerdns-auth.repo
         mode: "0644"
 
@@ -17,17 +41,9 @@
           - pdns
         state: present
 
-    - name: Install bind backend when packaged separately
-      ansible.builtin.dnf:
-        name:
-          - pdns-backend-bind
-        state: present
-      register: _pdns_bind_backend
-      failed_when: false
-
     - name: Create PowerDNS zone directory
       ansible.builtin.file:
-        path: /var/lib/powerdns/zones
+        path: "{{ pdns_zone_dir }}"
         state: directory
         owner: root
         group: root
@@ -50,6 +66,10 @@
         src: "{{ playbook_dir }}/templates/pdns.zone.j2"
         dest: "{{ pdns_zone_path }}"
         mode: "0644"
+
+    - name: Restore SELinux labels for PowerDNS config
+      ansible.builtin.command: restorecon -RF /etc/pdns
+      changed_when: false
 
     - name: Gather service facts
       ansible.builtin.service_facts:

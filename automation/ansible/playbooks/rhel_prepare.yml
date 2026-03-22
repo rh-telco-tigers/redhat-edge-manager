@@ -2,9 +2,8 @@
 - name: Prepare all managed RHEL hosts
   hosts: managed_rhel_hosts
   become: true
-  vars:
-    _rhsm_has_userpass: "{{ rhsm_username | default('') | length > 0 and rhsm_password | default('') | length > 0 }}"
-    _rhsm_has_activationkey: "{{ rhsm_org | default('') | length > 0 and rhsm_activation_key | default('') | length > 0 }}"
+  vars_files:
+    - ../group_vars/all.yml
   tasks:
     - name: Check RHSM registration state
       ansible.builtin.command: subscription-manager identity
@@ -15,7 +14,16 @@
     - name: Require RHSM credentials if host is not registered
       ansible.builtin.assert:
         that:
-          - _rhsm_identity.rc == 0 or _rhsm_has_userpass or _rhsm_has_activationkey
+          - >-
+            _rhsm_identity.rc == 0 or
+            (
+              (rhsm_username | default('') | trim | length > 0) and
+              (rhsm_password | default('') | trim | length > 0)
+            ) or
+            (
+              (rhsm_org | default('') | trim | length > 0) and
+              (rhsm_activation_key | default('') | trim | length > 0)
+            )
         fail_msg: "Provide RHSM credentials in automation/ansible/group_vars/all.yml before running make up."
 
     - name: Register host with activation key
@@ -30,7 +38,8 @@
           - --force
       when:
         - _rhsm_identity.rc != 0
-        - _rhsm_has_activationkey
+        - rhsm_org | default('') | trim | length > 0
+        - rhsm_activation_key | default('') | trim | length > 0
       no_log: true
 
     - name: Register host with username and password
@@ -45,14 +54,16 @@
           - --force
       when:
         - _rhsm_identity.rc != 0
-        - _rhsm_has_userpass
+        - rhsm_username | default('') | trim | length > 0
+        - rhsm_password | default('') | trim | length > 0
       no_log: true
 
     - name: Auto-attach subscription when using username/password
       ansible.builtin.command: subscription-manager attach --auto
       when:
         - _rhsm_identity.rc != 0
-        - _rhsm_has_userpass
+        - rhsm_username | default('') | trim | length > 0
+        - rhsm_password | default('') | trim | length > 0
       register: _rhsm_attach
       changed_when: _rhsm_attach.rc == 0
       failed_when: false
