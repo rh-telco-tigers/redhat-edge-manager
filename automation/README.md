@@ -1,94 +1,85 @@
 # Automation
 
-`labs/` are the manual walkthroughs. `automation/` is the runnable path for the demo environment.
+This folder contains the runnable automation for this repo.
 
-## What lives here
+Use it when you want the repo to create and configure the demo environment for you instead of following the product labs by hand.
 
-- `terraform/` creates the management VMs on Proxmox.
-- `ansible/` configures the management stack on those VMs.
-- `scripts/` bootstraps local files and wraps common tasks.
+## What this automation covers
 
-## Current scope
+The full automation path can:
 
-`make up` uses the demo Terraform environment plus the Ansible site playbook to:
+- create the management VMs on Proxmox
+- configure DNS for the demo domain
+- install Red Hat Edge Manager on RHEL
+- install Keycloak and connect Edge Manager to it
+- install Red Hat Satellite
+- optionally install Ansible Automation Platform
+- build the bootc device image
+- create a demo device VM from that image
+- approve device enrollment
+- create the demo fleet
+- build and deploy the demo application
 
-- create the demo VM set from `automation/terraform/environments/demo/terraform.tfvars`
-- configure PowerDNS for the lab zone
-- install Red Hat Edge Manager on the RHEM VM
-- install Keycloak in Podman and switch RHEM to external OIDC
-- install Red Hat Satellite on a dedicated Satellite VM
-- optionally install AAP when `aap_install_enabled: true`
+## Before you start
 
-`make down` destroys the Terraform-managed demo VMs.
+Have these ready before your first run:
 
-`make create-rhel9` provisions one standalone RHEL 9 VM using role-based defaults.
+- access to a Proxmox server
+- a RHEL 9 KVM guest image available to Proxmox
+- Red Hat subscription credentials for RHEL registration
+- `registry.redhat.io` credentials, or RHSM credentials that can also be used there
+- a machine with `python3` available locally
 
-`make up` bootstraps a repo-local Ansible environment in `automation/.venv` automatically, so you do not need a separate global `ansible-playbook` install on your Mac.
+If you are using the full automation path, also make sure you have enough free IPs and VM IDs for the management VMs.
 
-`make bootc-build` builds the early-bound bootc image on the RHEM host, pushes it to Satellite by default, and fetches the bootable qcow2 disk image back to `automation/artifacts/bootc/`.
+If you need details about the Proxmox image requirement, see [../prereqs/docs/rhel-guest-image-proxmox.md](../prereqs/docs/rhel-guest-image-proxmox.md).
 
-`make approve-enrollment` approves pending device enrollment requests by using `flightctl` on the RHEM host.
+## Main workflows
 
-`make device-vm-up` uploads the generated bootable qcow2 disk image to Proxmox, creates a fresh device VM, and boots the VM directly from that imported disk.
+### Full demo environment
 
-`make fleet-apply` creates or updates the demo Edge Manager fleet that points at the Satellite-hosted bootc image.
+Use this when you want the repo to build and configure the whole management stack.
 
-`make app-build` builds two application images on the RHEM host:
-
-- the runtime image the device actually runs
-- the small quadlet package image that Edge Manager references in the fleet
-
-`make app-deploy` updates the demo fleet so Edge Manager deploys that application package to the enrolled device and waits for the application to report `Running`.
-
-## Full automation
-
-Use this when you want Terraform plus Ansible to stand up the fully automated stack.
-
-1. Create the local files:
+1. Initialize local config files:
 
 ```bash
 make init-files
 ```
 
-This also creates a dedicated SSH keypair for the demo at `~/.ssh/redhat-edge-manager-demo` if it does not already exist, and the Terraform examples use `~/.ssh/redhat-edge-manager-demo.pub`.
+2. Edit these files:
 
-2. Edit:
-
+- `automation/terraform/environments/demo/.env`
 - `automation/terraform/environments/demo/terraform.tfvars`
 - `automation/ansible/group_vars/all.yml`
 
-Pick free `vm_id` values and unused IPs in `automation/terraform/environments/demo/terraform.tfvars`. The demo environment treats those VM IDs as Terraform-owned and may replace an existing VM if you point it at an ID that is already in use.
-
-In `automation/ansible/group_vars/all.yml`, set one RHSM auth method before running `make up`:
-
-- `rhsm_username` and `rhsm_password`, or
-- `rhsm_org` and `rhsm_activation_key`
-
-If `registry_redhat_io_username` and `registry_redhat_io_password` are left blank, the automation reuses the RHSM username and password for `registry.redhat.io`.
-
-3. Run:
+3. Run the full stack:
 
 ```bash
 make up
 ```
 
-If Terraform already succeeded and you only need to retry the Ansible phase, run:
+Useful related commands:
 
-```bash
-make configure
-```
+- `make plan` — preview Terraform changes for the full stack
+- `make configure` — rerun only the Ansible configuration phase
+- `make down` — destroy the full stack
 
-4. Tear down:
+What `make up` installs by default:
 
-```bash
-make down
-```
+- PowerDNS
+- Red Hat Edge Manager
+- Keycloak
+- Red Hat Satellite
 
-## Manual demo VMs
+AAP is optional and is only installed when `aap_install_enabled: true` is set in `automation/ansible/group_vars/all.yml`.
+
+Put your Proxmox API credentials in `automation/terraform/environments/demo/.env`, or export them in your shell before you run `make up`.
+
+### Base RHEL VMs only
 
 Use this when you want the labs to stay manual, but you still want Terraform to create the base RHEL VMs for Edge Manager and Keycloak.
 
-1. Create the local files:
+1. Initialize local config files:
 
 ```bash
 make init-files
@@ -96,28 +87,28 @@ make init-files
 
 2. Edit:
 
+- `automation/terraform/environments/manual-demo/.env`
 - `automation/terraform/environments/manual-demo/terraform.tfvars`
 
-The manual demo environment is Terraform-only. It does not run Ansible, and it currently creates only the RHEM and Keycloak RHEL 9 VMs for Labs 1 and 2.
-
-If you need an additional standalone VM for a later manual lab, such as a dedicated Satellite host, use `make create-rhel9`.
-
-3. Run:
+3. Create the VMs:
 
 ```bash
 make rhel-vms-up
 ```
 
-4. Tear down:
+4. Remove them later if needed:
 
 ```bash
 make rhel-vms-down
 ```
 
-## First run
-Use either the full automation path above or the manual-demo Terraform-only path, depending on whether you want the repo to configure services for you or whether you want to walk the labs by hand.
+This path is Terraform-only. It does not install or configure services inside those VMs.
 
-## Single VM helper
+Put your Proxmox API credentials in `automation/terraform/environments/manual-demo/.env`, or export them in your shell before you run `make rhel-vms-up`.
+
+### One standalone RHEL VM
+
+Use this when you need one extra host, for example a dedicated Satellite host.
 
 Examples:
 
@@ -127,7 +118,7 @@ make create-rhel9 ROLE=edge-manager VM_ID=122 IPV4_CIDR=192.168.4.122/22 VM_NAME
 make create-rhel9 ROLE=satellite VM_ID=123 IPV4_CIDR=192.168.4.123/22
 ```
 
-Accepted `ROLE` presets:
+Supported `ROLE` presets:
 
 - `edge-manager`
 - `keycloak`
@@ -136,127 +127,126 @@ Accepted `ROLE` presets:
 - `aap`
 - `generic`
 
-Use `ROLE=satellite` only for a fresh, dedicated VM. Do not install Satellite on the existing Edge Manager or Keycloak hosts.
+## Device workflow helpers
 
-Optional make variables:
+Use these after the management stack is already up.
 
-- `VM_NAME`
-- `DNS_NAME`
-- `VM_CORES`
-- `VM_MEMORY_MB`
-- `VM_DISK_GB`
-- `IPV4_MODE=dhcp`
-- `IPV4_CIDR`
-- `IPV4_GATEWAY`
-- `DNS_SERVERS=192.168.4.30,1.1.1.1`
-- `VM_TAGS=service-demo,owner-bk`
-- `ACTION=plan|apply|destroy`
-
-## Device image helpers
-
-Use these after `make up` when you want the end-to-end Labs 3, 4, and 5 flow:
+### Build the device image
 
 ```bash
 make bootc-build
-make device-vm-up
-make approve-enrollment
-make fleet-apply
 ```
 
-`make bootc-build` does the following on the RHEM host:
+This builds the bootc image on the Edge Manager host, pushes it to Satellite by default, and fetches the generated artifacts back to this repo.
 
-- logs in to Edge Manager with the lab admin account
-- requests an early-binding enrollment config
-- prepares a Satellite registry path for the bootc image
-- renders a real bootc Containerfile with `flightctl-agent`
-- embeds the Satellite CA into the image
-- leaves Podman available in the device OS image for the later application-management lab
-- seeds a demo `cloud-user` with the local repo SSH key
-- builds the image and pushes it to Satellite
-- stages the same image into local container storage and uses `bootc-image-builder --local`
-- runs `bootc-image-builder` for the bootable qcow2 disk image
-- fetches the generated artifacts back to this repo
-
-By default the fetched artifacts land here:
+Fetched artifacts are stored under:
 
 ```text
-automation/artifacts/bootc/rhem-prereq-rhel-01/disk.qcow2
+automation/artifacts/bootc/<rhem-host>/
 ```
 
-If you explicitly want the optional ISO as well:
+Optional ISO build:
 
 ```bash
 BOOTC_BUILD_ISO=true BOOTC_FETCH_ISO=true make bootc-build
 ```
 
-`make device-vm-up` uses the fetched `disk.qcow2` artifact to create one fresh demo device VM on Proxmox from the bootable disk image. That keeps the VM demo aligned with the practical "boot the OS disk image" workflow instead of simulating a manual install.
-
-The demo device image includes the local `~/.ssh/redhat-edge-manager-demo.pub` key for `cloud-user`, so you can inspect the running device over SSH if needed.
-
-`make approve-enrollment` can also wait until a pending request exists:
-
-```bash
-WAIT_FOR_PENDING=true make approve-enrollment
-```
-
-`make fleet-apply` creates a `Fleet` resource that selects devices labeled `fleet=demo` and points them at the same Satellite image reference used in Lab 3.
-
-If you want the repo to run the practical Labs 3 to 5 path in one shot, use:
-
-```bash
-make device-demo
-```
-
-`make device-demo` uses the same qcow2-first path as `make bootc-build`.
-
-## Application helpers
-
-Use these after the device is already online and selected by `Fleet/demo`:
-
-```bash
-make app-build
-make app-deploy
-```
-
-`make app-build` pushes the default `hello-web` demo application into Satellite:
-
-- `hello-web-runtime:v3`
-- `hello-web-package:v3`
-
-The package image uses a quadlet wrapper, so Edge Manager manages one container from an `application.container` file while Satellite continues to host both the runtime image and the wrapper image.
-
-Both images land in the same Satellite product family used by the earlier device image flow unless you override the app repository names in `automation/ansible/group_vars/all.yml`.
-
-`make app-deploy` updates `Fleet/demo` so the selected device keeps the same OS image and now also gets:
-
-- application name `hello-web`
-- application image `satellite.../hello-web-package:v3`
-
-If you want the repo to run the practical Lab 6 path in one shot after Labs 3 to 5 are complete, use:
-
-```bash
-make app-demo
-```
-
-If you need to rebuild the artifacts after changing the bootc build inputs, force a new image and qcow2 build:
+Force a rebuild:
 
 ```bash
 BOOTC_FORCE_REBUILD=true make bootc-build
 ```
 
-The optional ISO path uses a minimal Kickstart-backed installer config so the device can install non-interactively and reboot out of the ISO. If you enable that path and need different installer-time DNS, adjust:
+### Create the demo device VM
 
-- `bootc_installer_nameservers`
+```bash
+make device-vm-up
+```
 
-If you want to disable that automation and handle the installer manually, set:
+This uses the latest fetched `disk.qcow2` artifact and creates one fresh demo device VM on Proxmox.
 
-- `bootc_installer_config_enabled: false`
+Remove that device VM later with:
 
-If you want signed pushes to an OCI registry instead of the default Satellite path, set these in `automation/ansible/group_vars/all.yml` first:
+```bash
+make device-vm-down
+```
 
-- `bootc_image_repo`
-- `bootc_publish_enabled: true`
-- `bootc_registry`
-- `bootc_registry_username`
-- `bootc_registry_password`
-- `bootc_sign_with_sigstore: true`
+### Approve enrollment
+
+```bash
+make approve-enrollment
+```
+
+If you want the command to wait until a pending request exists:
+
+```bash
+WAIT_FOR_PENDING=true make approve-enrollment
+```
+
+### Create or update the demo fleet
+
+```bash
+make fleet-apply
+```
+
+### Run the Labs 3 to 5 flow in one command
+
+```bash
+make device-demo
+```
+
+This runs:
+
+- `make bootc-build`
+- `make device-vm-up`
+- `make approve-enrollment`
+- `make fleet-apply`
+
+## Application workflow helpers
+
+Use these after the device is online and already selected by `Fleet/demo`.
+
+### Build the demo application images
+
+```bash
+make app-build
+```
+
+This builds and pushes:
+
+- the runtime image the device actually runs
+- the quadlet package image referenced by Edge Manager
+
+### Deploy the application through Edge Manager
+
+```bash
+make app-deploy
+```
+
+This updates the demo fleet and waits for the application to report `Running` on the target device.
+
+### Run the full Lab 6 application flow
+
+```bash
+make app-demo
+```
+
+This runs:
+
+- `make app-build`
+- `make app-deploy`
+
+## Files you will edit most often
+
+- `automation/terraform/environments/demo/terraform.tfvars`
+- `automation/terraform/environments/demo/.env`
+- `automation/terraform/environments/manual-demo/terraform.tfvars`
+- `automation/terraform/environments/manual-demo/.env`
+- `automation/ansible/group_vars/all.yml`
+
+## Notes
+
+- `make up` bootstraps a repo-local Ansible virtual environment in `automation/.venv`, so you do not need a separate global Ansible install.
+- The demo Terraform environments treat the configured VM IDs as automation-owned. Pick free VM IDs before you apply.
+- If `registry_redhat_io_username` and `registry_redhat_io_password` are left blank, the automation reuses `rhsm_username` and `rhsm_password` for `registry.redhat.io`.
+- Run `make help` from the repo root to see the supported targets.
