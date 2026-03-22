@@ -9,6 +9,8 @@
     demo_dns_api_key_effective: "{{ demo_dns_api_key | default('CHANGEME-pdns-api-key', true) }}"
     powerdns_auth_repo_url_effective: "{{ powerdns_auth_repo_url | default('https://repo.powerdns.com/repo-files/el-auth-50.repo', true) }}"
     epel_release_rpm_url: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm"
+    epel_rpm_gpg_key_url: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9"
+    epel_rpm_gpg_key_path: "/etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-9"
     pdns_zone_dir: /etc/pdns/zones
     pdns_zone_path: "{{ pdns_zone_dir }}/{{ demo_dns_zone_effective }}.zone"
   tasks:
@@ -22,6 +24,17 @@
       register: _crb_enable
       changed_when: "'enabled' in (_crb_enable.stdout | default('') | lower)"
       failed_when: false
+
+    - name: Download EPEL RPM GPG key
+      ansible.builtin.get_url:
+        url: "{{ epel_rpm_gpg_key_url }}"
+        dest: "{{ epel_rpm_gpg_key_path }}"
+        mode: "0644"
+
+    - name: Import EPEL RPM GPG key
+      ansible.builtin.rpm_key:
+        key: "{{ epel_rpm_gpg_key_path }}"
+        state: present
 
     - name: Install EPEL release package
       ansible.builtin.dnf:

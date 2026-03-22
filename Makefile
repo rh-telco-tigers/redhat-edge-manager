@@ -32,8 +32,8 @@ help:
 	"  make rhel-vms-up      Create only the manual-demo RHEL 9 VMs" \
 	"  make rhel-vms-down    Destroy only the manual-demo RHEL 9 VMs" \
 	"  make create-rhel9     Create one standalone RHEL 9 VM" \
-	"  make bootc-build      Build the demo bootc image, push it to Satellite, and fetch the installer artifacts" \
-	"  make device-vm-up     Create one blank demo device VM and attach the bootc installer ISO" \
+	"  make bootc-build      Build the demo bootc image, push it to Satellite, and fetch the bootable qcow2" \
+	"  make device-vm-up     Create one demo device VM from the bootc qcow2 disk image" \
 	"  make device-vm-down   Destroy the demo device VM" \
 	"  make approve-enrollment Approve pending Edge Manager enrollment requests" \
 	"  make fleet-apply      Create or update the demo Edge Manager fleet" \
@@ -110,6 +110,8 @@ approve-enrollment: automation-init-files ansible-bootstrap
 fleet-apply: automation-init-files ansible-bootstrap
 	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
 
-device-demo: automation-init-files ansible-bootstrap bootc-build device-vm-up
+device-demo: automation-init-files ansible-bootstrap
+	$(AUTOMATION_DIR)/scripts/bootc-build.sh
+	ACTION=apply $(AUTOMATION_DIR)/scripts/device-vm.sh
 	WAIT_FOR_PENDING=true WAIT_TIMEOUT_SECONDS=1800 $(AUTOMATION_DIR)/scripts/approve-enrollment.sh
 	$(AUTOMATION_DIR)/scripts/fleet-apply.sh

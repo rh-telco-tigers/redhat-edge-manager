@@ -13,16 +13,16 @@ locals {
   ], var.vm_tags))
 }
 
-resource "proxmox_virtual_environment_file" "bootc_iso" {
-  content_type   = "iso"
+resource "proxmox_virtual_environment_file" "bootc_qcow2" {
+  content_type   = "import"
   datastore_id   = var.import_datastore_id
   node_name      = var.proxmox_node
   overwrite      = true
   timeout_upload = var.timeout_upload
 
   source_file {
-    path      = abspath(pathexpand(var.bootc_install_iso_path))
-    file_name = var.uploaded_iso_file_name
+    path      = abspath(pathexpand(var.bootc_qcow2_path))
+    file_name = var.uploaded_qcow2_file_name
   }
 }
 
@@ -39,7 +39,7 @@ resource "proxmox_virtual_environment_vm" "device" {
   started         = true
   on_boot         = true
   stop_on_destroy = true
-  boot_order      = [var.disk_interface, var.cdrom_interface]
+  boot_order      = [var.disk_interface]
 
   cpu {
     cores   = var.vm_cores
@@ -53,17 +53,12 @@ resource "proxmox_virtual_environment_vm" "device" {
 
   disk {
     datastore_id = var.disk_storage
+    import_from  = proxmox_virtual_environment_file.bootc_qcow2.id
     interface    = var.disk_interface
     size         = var.vm_disk_gb
     discard      = "on"
     iothread     = var.disk_iothread
     ssd          = var.disk_ssd
-  }
-
-  cdrom {
-    enabled   = true
-    file_id   = proxmox_virtual_environment_file.bootc_iso.id
-    interface = var.cdrom_interface
   }
 
   efi_disk {
@@ -77,6 +72,13 @@ resource "proxmox_virtual_environment_vm" "device" {
     bridge   = var.network_bridge
     model    = "virtio"
     firewall = false
+  }
+
+  agent {
+    enabled = true
+    timeout = "15m"
+    trim    = false
+    type    = "virtio"
   }
 
   operating_system {

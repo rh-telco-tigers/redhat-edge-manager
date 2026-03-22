@@ -14,6 +14,7 @@
     satellite_answers_file: /etc/foreman-installer/scenarios.d/satellite-answers.yaml
     satellite_prerequisite_packages:
       - firewalld
+      - openssh-server
       - tmux
       - mod_ssl
       - podman
@@ -30,6 +31,7 @@
       - 8000/tcp
       - 9090/tcp
     satellite_firewall_services:
+      - ssh
       - dns
       - dhcp
       - tftp
@@ -86,6 +88,12 @@
     - name: Enable and start firewalld
       ansible.builtin.systemd:
         name: firewalld
+        state: started
+        enabled: true
+
+    - name: Ensure sshd is enabled and started before Satellite install
+      ansible.builtin.systemd:
+        name: sshd
         state: started
         enabled: true
 
@@ -170,6 +178,12 @@
       register: _satellite_firewall_reload
       changed_when: _satellite_firewall_reload.rc == 0
       failed_when: false
+
+    - name: Ensure sshd remains enabled and started after Satellite install
+      ansible.builtin.systemd:
+        name: sshd
+        state: started
+        enabled: true
 
     - name: Wait for Satellite HTTPS port
       ansible.builtin.wait_for:

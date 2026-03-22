@@ -25,11 +25,11 @@
 
 `make up` bootstraps a repo-local Ansible environment in `automation/.venv` automatically, so you do not need a separate global `ansible-playbook` install on your Mac.
 
-`make bootc-build` builds the early-bound bootc image on the RHEM host, pushes it to Satellite by default, and fetches the installer artifacts back to `automation/artifacts/bootc/`.
+`make bootc-build` builds the early-bound bootc image on the RHEM host, pushes it to Satellite by default, and fetches the bootable qcow2 disk image back to `automation/artifacts/bootc/`.
 
 `make approve-enrollment` approves pending device enrollment requests by using `flightctl` on the RHEM host.
 
-`make device-vm-up` creates a blank Proxmox device VM, uploads the generated installer ISO, and boots the VM through the same unattended installer flow described in the manual labs.
+`make device-vm-up` uploads the generated bootable qcow2 disk image to Proxmox, creates a fresh device VM, and boots the VM directly from that imported disk.
 
 `make fleet-apply` creates or updates the demo Edge Manager fleet that points at the Satellite-hosted bootc image.
 
@@ -163,19 +163,27 @@ make fleet-apply
 - prepares a Satellite registry path for the bootc image
 - renders a real bootc Containerfile with `flightctl-agent`
 - embeds the Satellite CA into the image
+- seeds a demo `cloud-user` with the local repo SSH key
 - builds the image and pushes it to Satellite
 - stages the same image into local container storage and uses `bootc-image-builder --local`
-- runs `bootc-image-builder` for the unattended installer ISO and also fetches the optional `qcow2`
+- runs `bootc-image-builder` for the bootable qcow2 disk image
 - fetches the generated artifacts back to this repo
 
 By default the fetched artifacts land here:
 
 ```text
-automation/artifacts/bootc/rhem-prereq-rhel-01/install.iso
 automation/artifacts/bootc/rhem-prereq-rhel-01/disk.qcow2
 ```
 
-`make device-vm-up` uses the fetched `install.iso` artifact to create one fresh demo device VM on Proxmox with a blank disk. That keeps the automated device path aligned with the manual lab.
+If you explicitly want the optional ISO as well:
+
+```bash
+BOOTC_BUILD_ISO=true BOOTC_FETCH_ISO=true make bootc-build
+```
+
+`make device-vm-up` uses the fetched `disk.qcow2` artifact to create one fresh demo device VM on Proxmox from the bootable disk image. That keeps the VM demo aligned with the practical "boot the OS disk image" workflow instead of simulating a manual install.
+
+The demo device image includes the local `~/.ssh/redhat-edge-manager-demo.pub` key for `cloud-user`, so you can inspect the running device over SSH if needed.
 
 `make approve-enrollment` can also wait until a pending request exists:
 
@@ -191,16 +199,21 @@ If you want the repo to run the practical Labs 3 to 5 path in one shot, use:
 make device-demo
 ```
 
-If you need to rebuild the installer after changing the bootc build inputs, force a new image and ISO build:
+`make device-demo` uses the same qcow2-first path as `make bootc-build`.
+
+If you need to rebuild the artifacts after changing the bootc build inputs, force a new image and qcow2 build:
 
 ```bash
 BOOTC_FORCE_REBUILD=true make bootc-build
 ```
 
-If your environment needs installer-time DNS overrides, enable the optional Kickstart-backed installer config in `automation/ansible/group_vars/all.yml` by setting:
+The optional ISO path uses a minimal Kickstart-backed installer config so the device can install non-interactively and reboot out of the ISO. If you enable that path and need different installer-time DNS, adjust:
 
-- `bootc_installer_config_enabled: true`
 - `bootc_installer_nameservers`
+
+If you want to disable that automation and handle the installer manually, set:
+
+- `bootc_installer_config_enabled: false`
 
 If you want signed pushes to an OCI registry instead of the default Satellite path, set these in `automation/ansible/group_vars/all.yml` first:
 

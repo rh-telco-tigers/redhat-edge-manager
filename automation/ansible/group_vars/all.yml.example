@@ -66,10 +66,14 @@ satellite_admin_password: CHANGEME-satellite-admin-password
 satellite_bootc_product_name: bootc
 satellite_bootc_product_label: bootc
 satellite_bootc_repository_name: device-os
+# Optional: set these once if you want to avoid SSH lookups on the Satellite host
+# during later bootc or fleet runs. In the demo they are typically both 1.
+satellite_registry_org_id: ""
+satellite_registry_product_id: ""
 
 # bootc image build + device enrollment demo
 # The bootc build runs on the RHEM host, pushes the image to Satellite by default,
-# and fetches the generated installer ISO plus an optional qcow2 back to automation/artifacts/.
+# and generates a bootable qcow2 disk image for the Proxmox device demo path.
 bootc_workspace_dir: /var/lib/rhem-demo/bootc
 bootc_base_image: registry.redhat.io/rhel9/rhel-bootc:9.7
 bootc_use_satellite_registry: true
@@ -80,13 +84,19 @@ bootc_image_tag: v1
 bootc_publish_enabled: true
 bootc_publish_disk_image_enabled: false
 bootc_sign_with_sigstore: false
+bootc_build_iso: false
+bootc_build_qcow2: true
 bootc_registry: ""
 bootc_registry_username: ""
 bootc_registry_password: ""
 bootc_enrollment_signer: enrollment
 bootc_enrollment_expiration: 365d
-bootc_installer_config_enabled: false
+# Leave blank to use the RHEM inventory FQDN, for example https://rhem.rhem-eap.lan:3443.
+bootc_rhem_api_url: ""
+bootc_installer_config_enabled: true
 bootc_installer_nameservers: []
+# Leave blank to use ~/.ssh/redhat-edge-manager-demo.pub from the machine running Ansible.
+bootc_demo_ssh_public_key_path: ""
 device_enrollment_labels:
   - site=homelab
   - fleet=demo

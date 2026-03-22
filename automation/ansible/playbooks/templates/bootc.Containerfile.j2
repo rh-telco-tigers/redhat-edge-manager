@@ -2,14 +2,21 @@ FROM {{ bootc_base_image_effective }}
 
 RUN dnf -y install 'dnf-command(config-manager)' && \
     dnf config-manager --set-enabled {{ bootc_edge_manager_repo_effective }} && \
-    dnf -y install flightctl-agent && \
+    dnf -y install flightctl-agent qemu-guest-agent sudo && \
     dnf -y clean all && \
     systemctl enable flightctl-agent.service && \
+    systemctl enable qemu-guest-agent.service && \
     systemctl mask bootc-fetch-apply-updates.timer
 
+ADD demo-authorized-key.pub /tmp/demo-authorized-key.pub
 ADD rhem-demo-hosts.sh /usr/local/libexec/rhem-demo-hosts.sh
 ADD rhem-demo-hosts.service /usr/lib/systemd/system/rhem-demo-hosts.service
-RUN chmod 0755 /usr/local/libexec/rhem-demo-hosts.sh && \
+RUN getent passwd cloud-user >/dev/null 2>&1 || useradd -m -G wheel cloud-user && \
+    mkdir -p /home/cloud-user/.ssh && \
+    install -m 0600 -o cloud-user -g cloud-user /tmp/demo-authorized-key.pub /home/cloud-user/.ssh/authorized_keys && \
+    printf 'cloud-user ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/90-cloud-user && \
+    chmod 0440 /etc/sudoers.d/90-cloud-user && \
+    chmod 0755 /usr/local/libexec/rhem-demo-hosts.sh && \
     systemctl enable rhem-demo-hosts.service
 
 {% if bootc_use_satellite_registry_effective %}

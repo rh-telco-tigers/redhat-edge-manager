@@ -2,16 +2,41 @@
 - name: Look up Satellite registry identifiers for the fleet image reference
   hosts: satellite_hosts
   become: true
+  gather_facts: false
   vars_files:
     - ../group_vars/all.yml
   vars:
     satellite_bootc_registry_enabled_effective: "{{ (satellite_install_enabled | default(true, true) | bool) and (bootc_use_satellite_registry | default(true, true) | bool) }}"
     satellite_initial_organization_effective: "{{ satellite_initial_organization | default('RHEM Demo', true) }}"
     satellite_bootc_product_name_effective: "{{ satellite_bootc_product_name | default('bootc', true) }}"
+    satellite_registry_org_id_effective: "{{ satellite_registry_org_id | default('', true) }}"
+    satellite_registry_product_id_effective: "{{ satellite_registry_product_id | default('', true) }}"
   tasks:
     - name: Skip Satellite lookup when the bootc image does not use Satellite
       ansible.builtin.meta: end_host
       when: not satellite_bootc_registry_enabled_effective
+
+    - name: Skip Satellite lookup when explicit registry IDs are already set
+      ansible.builtin.set_fact:
+        satellite_bootc_org_id_effective: "{{ satellite_registry_org_id_effective | trim }}"
+        satellite_bootc_product_id_effective: "{{ satellite_registry_product_id_effective | trim }}"
+      when:
+        - satellite_registry_org_id_effective | trim | length > 0
+        - satellite_registry_product_id_effective | trim | length > 0
+
+    - name: End the Satellite lookup play when explicit registry IDs are already set
+      ansible.builtin.meta: end_host
+      when:
+        - satellite_registry_org_id_effective | trim | length > 0
+        - satellite_registry_product_id_effective | trim | length > 0
+
+    - name: Wait for Satellite SSH to become ready
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+        sleep: 10
+
+    - name: Gather Satellite facts after SSH is ready
+      ansible.builtin.setup:
 
     - name: Look up the Satellite organization ID
       ansible.builtin.shell: |

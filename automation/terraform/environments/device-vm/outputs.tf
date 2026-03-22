@@ -8,7 +8,7 @@ output "vm_name" {
   description = "VM name in Proxmox"
 }
 
-output "bootc_iso_file_id" {
-  value       = proxmox_virtual_environment_file.bootc_iso.id
-  description = "Uploaded bootc ISO file ID"
+output "bootc_qcow2_file_id" {
+  value       = proxmox_virtual_environment_file.bootc_qcow2.id
+  description = "Uploaded bootc qcow2 file ID"
 }

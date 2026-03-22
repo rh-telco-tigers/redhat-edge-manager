@@ -21,4 +21,8 @@ if [[ -n "${WAIT_POLL_INTERVAL_SECONDS:-}" ]]; then
 fi
 
 cd "${ANSIBLE_DIR}"
-"${ANSIBLE_PLAYBOOK}" playbooks/approve_enrollment.yml "${extra_vars[@]}"
+if (( ${#extra_vars[@]} > 0 )); then
+  "${ANSIBLE_PLAYBOOK}" playbooks/approve_enrollment.yml "${extra_vars[@]}"
+else
+  "${ANSIBLE_PLAYBOOK}" playbooks/approve_enrollment.yml
+fi

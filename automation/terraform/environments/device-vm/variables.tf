@@ -34,19 +34,13 @@ variable "disk_storage" {
 variable "import_datastore_id" {
   type        = string
   default     = "local"
-  description = "Datastore that supports ISO content"
+  description = "Datastore that supports imported qcow2 content"
 }
 
 variable "disk_interface" {
   type        = string
   default     = "scsi0"
   description = "Disk bus"
-}
-
-variable "cdrom_interface" {
-  type        = string
-  default     = "ide2"
-  description = "CD-ROM bus"
 }
 
 variable "disk_iothread" {
@@ -85,15 +79,15 @@ variable "efi_disk_type" {
   description = "EFI vars disk type for OVMF"
 }
 
-variable "bootc_install_iso_path" {
+variable "bootc_qcow2_path" {
   type        = string
-  description = "Local path to the bootc installer ISO artifact"
+  description = "Local path to the bootc qcow2 artifact"
 }
 
-variable "uploaded_iso_file_name" {
+variable "uploaded_qcow2_file_name" {
   type        = string
-  default     = "rhem-demo-device.iso"
-  description = "Filename to use on the Proxmox ISO datastore"
+  default     = "rhem-demo-device.qcow2"
+  description = "Filename to use on the Proxmox import datastore"
 }
 
 variable "timeout_upload" {

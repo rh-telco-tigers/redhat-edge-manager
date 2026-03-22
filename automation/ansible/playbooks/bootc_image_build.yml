@@ -2,6 +2,7 @@
 - name: Prepare the Satellite container registry for bootc images
   hosts: satellite_hosts
   become: true
+  gather_facts: false
   vars_files:
     - ../group_vars/all.yml
   vars:
@@ -9,10 +10,34 @@
     satellite_initial_organization_effective: "{{ satellite_initial_organization | default('RHEM Demo', true) }}"
     satellite_bootc_product_name_effective: "{{ satellite_bootc_product_name | default('bootc', true) }}"
     satellite_bootc_product_label_effective: "{{ satellite_bootc_product_label | default('bootc', true) }}"
+    satellite_registry_org_id_effective: "{{ satellite_registry_org_id | default('', true) }}"
+    satellite_registry_product_id_effective: "{{ satellite_registry_product_id | default('', true) }}"
   tasks:
     - name: Skip Satellite registry preparation when disabled
       ansible.builtin.meta: end_host
       when: not satellite_bootc_registry_enabled_effective
+
+    - name: Skip Satellite registry preparation when explicit registry IDs are already set
+      ansible.builtin.set_fact:
+        satellite_bootc_org_id_effective: "{{ satellite_registry_org_id_effective | trim }}"
+        satellite_bootc_product_id_effective: "{{ satellite_registry_product_id_effective | trim }}"
+      when:
+        - satellite_registry_org_id_effective | trim | length > 0
+        - satellite_registry_product_id_effective | trim | length > 0
+
+    - name: End the Satellite registry preparation play when explicit registry IDs are already set
+      ansible.builtin.meta: end_host
+      when:
+        - satellite_registry_org_id_effective | trim | length > 0
+        - satellite_registry_product_id_effective | trim | length > 0
+
+    - name: Wait for Satellite SSH to become ready
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+        sleep: 10
+
+    - name: Gather Satellite facts after SSH is ready
+      ansible.builtin.setup:
 
     - name: Look up the Satellite organization ID
       ansible.builtin.shell: |
@@ -107,6 +132,8 @@
     bootc_config_file_effective: "{{ bootc_workspace_dir_effective }}/config.yaml"
     bootc_containerfile_effective: "{{ bootc_workspace_dir_effective }}/Containerfile"
     bootc_installer_config_file_effective: "{{ bootc_workspace_dir_effective }}/config.toml"
+    bootc_demo_ssh_public_key_path_effective: "{{ bootc_demo_ssh_public_key_path | default(lookup('env', 'HOME') ~ '/.ssh/redhat-edge-manager-demo.pub', true) }}"
+    bootc_demo_ssh_public_key_file_effective: "{{ bootc_workspace_dir_effective }}/demo-authorized-key.pub"
     bootc_demo_hosts_script_effective: "{{ bootc_workspace_dir_effective }}/rhem-demo-hosts.sh"
     bootc_demo_hosts_service_effective: "{{ bootc_workspace_dir_effective }}/rhem-demo-hosts.service"
     bootc_base_image_effective: "{{ bootc_base_image | default('registry.redhat.io/rhel9/rhel-bootc:9.7', true) }}"
@@ -129,17 +156,19 @@
     bootc_sign_with_sigstore_effective: "{{ bootc_sign_with_sigstore | default(false, true) | bool }}"
     bootc_publish_disk_image_enabled_effective: "{{ bootc_publish_disk_image_enabled | default(false, true) | bool }}"
     bootc_force_rebuild_effective: "{{ bootc_force_rebuild | default(false, true) | bool }}"
+    bootc_build_iso_effective: "{{ bootc_build_iso | default(false, true) | bool }}"
+    bootc_build_qcow2_effective: "{{ bootc_build_qcow2 | default(true, true) | bool }}"
     bootc_disk_image_repo_effective: "{{ bootc_disk_image_repo | default(bootc_image_repo_effective ~ '/diskimage-iso', true) }}"
     bootc_disk_image_ref_effective: "{{ bootc_disk_image_repo_effective }}:{{ bootc_image_tag_effective }}"
     bootc_enrollment_signer_effective: "{{ bootc_enrollment_signer | default('enrollment', true) }}"
     bootc_enrollment_expiration_effective: "{{ bootc_enrollment_expiration | default('365d', true) }}"
     bootc_include_enrollment_config_effective: "{{ bootc_include_enrollment_config | default(true, true) | bool }}"
-    bootc_installer_config_enabled_effective: "{{ bootc_installer_config_enabled | default(false, true) | bool }}"
+    bootc_installer_config_enabled_effective: "{{ bootc_installer_config_enabled | default(true, true) | bool }}"
     bootc_iso_remote_path_effective: "{{ bootc_output_dir_effective }}/bootiso/install.iso"
     bootc_qcow2_remote_path_effective: "{{ bootc_output_dir_effective }}/qcow2/disk.qcow2"
     bootc_flightctl_username_effective: "{{ bootc_flightctl_username | default(edge_manager_admin_username | default(rhem_admin_username, true), true) }}"
     bootc_flightctl_password_effective: "{{ bootc_flightctl_password | default(edge_manager_admin_password | default(rhem_admin_password, true), true) }}"
-    bootc_rhem_api_url_effective: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
+    bootc_rhem_api_url_effective: "{{ bootc_rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
     bootc_registry_redhat_io_username_effective: "{{ registry_redhat_io_username | default(rhsm_username | default('', true), true) }}"
     bootc_registry_redhat_io_password_effective: "{{ registry_redhat_io_password | default(rhsm_password | default('', true), true) }}"
     bootc_satellite_ca_filename_effective: "satellite-ca.crt"
@@ -199,6 +228,18 @@
         - "{{ bootc_workspace_dir_effective }}"
         - "{{ bootc_flightctl_config_dir }}"
         - "{{ bootc_output_dir_effective }}"
+
+    - name: Require the local demo SSH public key for the device image
+      ansible.builtin.assert:
+        that:
+          - lookup('file', bootc_demo_ssh_public_key_path_effective) | trim | length > 0
+        fail_msg: "The demo SSH public key was not found at {{ bootc_demo_ssh_public_key_path_effective }}."
+
+    - name: Copy the local demo SSH public key into the bootc workspace
+      ansible.builtin.copy:
+        dest: "{{ bootc_demo_ssh_public_key_file_effective }}"
+        content: "{{ lookup('file', bootc_demo_ssh_public_key_path_effective) | trim ~ '\n' }}"
+        mode: "0644"
 
     - name: Download the Satellite CA certificate for the demo image and builder host
       ansible.builtin.get_url:
@@ -324,6 +365,7 @@
       ansible.builtin.stat:
         path: "{{ bootc_iso_remote_path_effective }}"
       register: _bootc_existing_iso
+      when: bootc_build_iso_effective
 
     - name: Check whether the bootc qcow2 already exists
       ansible.builtin.stat:
@@ -332,9 +374,13 @@
 
     - name: Decide whether bootc artifacts need to be rebuilt
       ansible.builtin.set_fact:
-        bootc_iso_needs_rebuild: "{{ bootc_force_rebuild_effective or (not _bootc_existing_iso.stat.exists) }}"
-        bootc_qcow2_needs_rebuild: "{{ bootc_force_rebuild_effective or (not _bootc_existing_qcow2.stat.exists) }}"
-        bootc_artifacts_need_rebuild: "{{ bootc_force_rebuild_effective or (not _bootc_existing_iso.stat.exists) or (not _bootc_existing_qcow2.stat.exists) }}"
+        bootc_iso_needs_rebuild: "{{ bootc_build_iso_effective and (bootc_force_rebuild_effective or (not _bootc_existing_iso.stat.exists)) }}"
+        bootc_qcow2_needs_rebuild: "{{ bootc_build_qcow2_effective and (bootc_force_rebuild_effective or (not _bootc_existing_qcow2.stat.exists)) }}"
+        bootc_artifacts_need_rebuild: >-
+          {{
+            (bootc_build_iso_effective and (bootc_force_rebuild_effective or (not _bootc_existing_iso.stat.exists))) or
+            (bootc_build_qcow2_effective and (bootc_force_rebuild_effective or (not _bootc_existing_qcow2.stat.exists)))
+          }}
 
     - name: Build the bootc operating system image
       ansible.builtin.command:
@@ -446,7 +492,7 @@
       changed_when: true
       async: 7200
       poll: 15
-      when: bootc_iso_needs_rebuild
+      when: bootc_build_iso_effective and bootc_iso_needs_rebuild
 
     - name: Build the bootc qcow2 artifact
       ansible.builtin.command:
@@ -477,23 +523,27 @@
       ansible.builtin.stat:
         path: "{{ bootc_iso_remote_path_effective }}"
       register: _bootc_iso_file
+      when: bootc_build_iso_effective
 
     - name: Assert the bootc ISO was created
       ansible.builtin.assert:
         that:
           - _bootc_iso_file.stat.exists
         fail_msg: "bootc-image-builder did not produce {{ bootc_iso_remote_path_effective }}."
+      when: bootc_build_iso_effective
 
     - name: Verify that the bootc qcow2 exists
       ansible.builtin.stat:
         path: "{{ bootc_qcow2_remote_path_effective }}"
       register: _bootc_qcow2_file
+      when: bootc_build_qcow2_effective
 
     - name: Assert the bootc qcow2 was created
       ansible.builtin.assert:
         that:
           - _bootc_qcow2_file.stat.exists
         fail_msg: "bootc-image-builder did not produce {{ bootc_qcow2_remote_path_effective }}."
+      when: bootc_build_qcow2_effective
 
     - name: Publish the ISO artifact to the OCI registry
       ansible.builtin.shell: >-
@@ -517,11 +567,13 @@
         executable: /bin/bash
       register: _bootc_iso_publish
       changed_when: true
-      when: bootc_publish_disk_image_enabled_effective
+      when:
+        - bootc_build_iso_effective
+        - bootc_publish_disk_image_enabled_effective
 
     - name: Report the bootc artifact locations
       ansible.builtin.debug:
         msg:
           image_ref: "{{ bootc_image_ref_effective }}"
           iso_path: "{{ bootc_iso_remote_path_effective }}"
-          qcow2_path: "{{ bootc_qcow2_remote_path_effective }}"
+          qcow2_path: "{{ bootc_qcow2_remote_path_effective if bootc_build_qcow2_effective else '' }}"

@@ -9,7 +9,7 @@
     enrollment_rhem_api_url_effective: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
     enrollment_flightctl_username_effective: "{{ edge_manager_admin_username | default(rhem_admin_username, true) }}"
     enrollment_flightctl_password_effective: "{{ edge_manager_admin_password | default(rhem_admin_password, true) }}"
-    enrollment_labels_effective: "{{ device_enrollment_labels | default([], true) }}"
+    enrollment_labels_effective: "{{ device_enrollment_labels | default(['site=homelab', 'fleet=demo'], true) }}"
     enrollment_wait_for_pending_effective: "{{ enrollment_wait_for_pending | default(false, true) | bool }}"
     enrollment_pending_timeout_seconds_effective: "{{ enrollment_pending_timeout_seconds | default(1800, true) | int }}"
     enrollment_pending_poll_interval_seconds_effective: "{{ enrollment_pending_poll_interval_seconds | default(15, true) | int }}"

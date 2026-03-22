@@ -1,6 +1,6 @@
 # Build the bootc image and publish it through Satellite
 
-**Goal:** build the Edge Manager device OS image, store it in Satellite's registry, and generate the unattended installer ISO that you will use to onboard a fresh device in the next lab.
+**Goal:** build the Edge Manager device OS image, store it in Satellite's registry, and generate the bootable disk image that you will use to onboard a fresh device in the next lab.
 
 **Important:** this lab is still about Edge Manager. Satellite is only the customer-like supporting environment here:
 
@@ -83,7 +83,7 @@ ssh cloud-user@192.168.4.35
 ```
 
 ```bash
-export RHEM_API_URL="https://rhem-prereq-rhel-01.rhem-eap.lan:3443"
+export RHEM_API_URL="https://rhem.rhem-eap.lan:3443"
 
 flightctl login "$RHEM_API_URL" \
   --username edgemanager-admin \
@@ -97,6 +97,8 @@ flightctl certificate request \
 ```
 
 That `config.yaml` is what makes the installed system enroll automatically in Lab 4.
+
+Use the short certified API hostname here. The browser UI may still be at `https://rhem-prereq-rhel-01.rhem-eap.lan/`, but the embedded device config must use the RHEM API certificate name.
 
 ## Step 5 — Build the actual bootc image
 
@@ -114,9 +116,10 @@ FROM registry.redhat.io/rhel9/rhel-bootc:9.7
 
 RUN dnf -y install 'dnf-command(config-manager)' && \
     dnf config-manager --set-enabled edge-manager-1.0-for-rhel-9-x86_64-rpms && \
-    dnf -y install flightctl-agent && \
+    dnf -y install flightctl-agent qemu-guest-agent && \
     dnf -y clean all && \
     systemctl enable flightctl-agent.service && \
+    systemctl enable qemu-guest-agent.service && \
     systemctl mask bootc-fetch-apply-updates.timer
 
 RUN mkdir -p /etc/containers/certs.d/satellite.rhem-eap.lan
@@ -145,9 +148,9 @@ sudo podman tag \
   "localhost/rhem-demo/device-os:${OCI_IMAGE_TAG}"
 ```
 
-## Step 6 — Generate the unattended installer ISO
+## Step 6 — Generate the bootable disk image
 
-If your environment already provides working DNS for the demo domain, you can build the ISO without any extra installer customization:
+For the Proxmox demo path, build the bootable qcow2 disk image from the same bootc container image:
 
 ```bash
 mkdir -p output
@@ -157,52 +160,33 @@ sudo podman run --rm -it --privileged --pull=newer \
   -v "${PWD}/output":/output \
   -v /var/lib/containers/storage:/var/lib/containers/storage \
   registry.redhat.io/rhel9/bootc-image-builder:latest \
-  --type iso \
+  --type qcow2 \
   --local \
-  "localhost/rhem-demo/device-os:${OCI_IMAGE_TAG}"
-```
-
-If you need to override installer-time DNS or force `reboot --eject`, use an optional `config.toml`:
-
-```bash
-cat > config.toml <<'EOF'
-[customizations.installer.kickstart]
-contents = """
-network --bootproto=dhcp --device=link --activate --onboot=on --nameserver=192.168.4.30
-reboot --eject
-"""
-EOF
-
-mkdir -p output
-
-sudo podman run --rm -it --privileged --pull=newer \
-  --security-opt label=type:unconfined_t \
-  -v "${PWD}/config.toml":/config.toml \
-  -v "${PWD}/output":/output \
-  -v /var/lib/containers/storage:/var/lib/containers/storage \
-  registry.redhat.io/rhel9/bootc-image-builder:latest \
-  --type iso \
-  --local \
-  --config /config.toml \
   "localhost/rhem-demo/device-os:${OCI_IMAGE_TAG}"
 ```
 
 Main artifact:
 
 ```text
-output/bootiso/install.iso
+output/qcow2/disk.qcow2
 ```
 
-That ISO is the artifact you use for both:
+The local `localhost/rhem-demo/device-os:${OCI_IMAGE_TAG}` tag is intentional. Current RHEL `bootc-image-builder` has a documented limitation with private registries, so the practical workaround is to keep Satellite as the hosted registry of record, then stage the same image into local container storage and build the bootable artifact with `--local`.
 
-- the manual Lab 4 device boot path
-- the repo-managed Proxmox device VM path in `make device-vm-up`
+If you explicitly need an ISO for a physical-device or USB-style path, you can still build one, but it is optional in this repo flow:
 
-The optional `config.toml` matters only when the installer must resolve your management environment differently than the default network provides. Point the installer DNS at your demo DNS VM, not at a public resolver. Keep this Kickstart fragment minimal; `bootc-image-builder` already carries the install logic, and here you are only overriding the network/DNS behavior and post-install eject.
+```bash
+mkdir -p output
 
-The local `localhost/rhem-demo/device-os:${OCI_IMAGE_TAG}` tag is intentional. Current RHEL `bootc-image-builder` has a documented limitation with private registries, so the practical workaround is to keep Satellite as the hosted registry of record, then stage the same image into local container storage and build the ISO with `--local`.
-
-If you want a secondary virtualization artifact for side experiments, the repo automation also fetches a `qcow2`, but it is not the main onboarding path in this lab flow.
+sudo podman run --rm -it --privileged --pull=newer \
+  --security-opt label=type:unconfined_t \
+  -v "${PWD}/output":/output \
+  -v /var/lib/containers/storage:/var/lib/containers/storage \
+  registry.redhat.io/rhel9/bootc-image-builder:latest \
+  --type iso \
+  --local \
+  "localhost/rhem-demo/device-os:${OCI_IMAGE_TAG}"
+```
 
 ## Step 7 — Use the repo automation for the same flow
 
@@ -219,13 +203,17 @@ By default that automation:
 - stages the same image locally for `bootc-image-builder --local`
 - embeds the Edge Manager enrollment config
 - embeds the Satellite CA into the image
-- generates the unattended installer ISO
-- also fetches an optional `qcow2` for secondary experiments
-- fetches the artifacts back to this repo
+- generates the bootable qcow2 disk image used by the Proxmox demo device flow
+- fetches the qcow2 back to this repo
 
 Local artifacts:
 
 ```text
-automation/artifacts/bootc/rhem-prereq-rhel-01/install.iso
 automation/artifacts/bootc/rhem-prereq-rhel-01/disk.qcow2
+```
+
+If you explicitly want the optional ISO too:
+
+```bash
+BOOTC_BUILD_ISO=true BOOTC_FETCH_ISO=true make bootc-build
 ```

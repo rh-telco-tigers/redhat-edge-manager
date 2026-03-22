@@ -7,7 +7,7 @@
 ## Step 1 — Create CLI context
 
 ```bash
-export RHEM_API_URL="https://rhem-prereq-rhel-01.rhem-eap.lan:3443"
+export RHEM_API_URL="https://rhem.rhem-eap.lan:3443"
 
 flightctl login "$RHEM_API_URL" \
   --username edgemanager-admin \

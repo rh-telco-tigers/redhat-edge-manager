@@ -13,8 +13,20 @@ if [[ -n "${BOOTC_FORCE_REBUILD:-}" ]]; then
   extra_vars+=(-e "bootc_force_rebuild=${BOOTC_FORCE_REBUILD}")
 fi
 
+if [[ -n "${BOOTC_BUILD_QCOW2:-}" ]]; then
+  extra_vars+=(-e "bootc_build_qcow2=${BOOTC_BUILD_QCOW2}")
+fi
+
+if [[ -n "${BOOTC_BUILD_ISO:-}" ]]; then
+  extra_vars+=(-e "bootc_build_iso=${BOOTC_BUILD_ISO}")
+fi
+
 cd "${ANSIBLE_DIR}"
-"${ANSIBLE_PLAYBOOK}" playbooks/bootc_image_build.yml "${extra_vars[@]}"
+if (( ${#extra_vars[@]} > 0 )); then
+  "${ANSIBLE_PLAYBOOK}" playbooks/bootc_image_build.yml "${extra_vars[@]}"
+else
+  "${ANSIBLE_PLAYBOOK}" playbooks/bootc_image_build.yml
+fi
 
 BOOTC_WORKSPACE_DIR="/var/lib/rhem-demo/bootc"
 if [[ -f "${GROUP_VARS_FILE}" ]]; then
@@ -35,40 +47,23 @@ mkdir -p "${ARTIFACT_DIR}"
 fetch_remote_artifact() {
   local remote_path="$1"
   local local_path="$2"
-  local remote_size
-  local local_size
-
-  remote_size="$(
-    ssh \
-      -i "${HOME}/.ssh/redhat-edge-manager-demo" \
-      -o StrictHostKeyChecking=no \
-      -o UserKnownHostsFile=/dev/null \
-      "cloud-user@${RHEM_ADDR}" \
-      "stat -c '%s' ${remote_path@Q}"
-  )"
-
-  if [[ -f "${local_path}" ]]; then
-    local_size="$(stat -f '%z' "${local_path}")"
-  else
-    local_size=""
-  fi
-
-  if [[ -n "${local_size}" && "${local_size}" == "${remote_size}" ]]; then
-    return 0
-  fi
-
-  scp \
-    -i "${HOME}/.ssh/redhat-edge-manager-demo" \
-    -o StrictHostKeyChecking=no \
-    -o UserKnownHostsFile=/dev/null \
+  rsync \
+    -a \
+    --partial \
+    --inplace \
+    -e "ssh -i ${HOME}/.ssh/redhat-edge-manager-demo -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
     "cloud-user@${RHEM_ADDR}:${remote_path}" \
     "${local_path}"
 }
 
-fetch_remote_artifact \
-  "${BOOTC_WORKSPACE_DIR}/output/bootiso/install.iso" \
-  "${ARTIFACT_DIR}/install.iso"
+if [[ "${BOOTC_FETCH_ISO:-false}" == "true" ]]; then
+  fetch_remote_artifact \
+    "${BOOTC_WORKSPACE_DIR}/output/bootiso/install.iso" \
+    "${ARTIFACT_DIR}/install.iso"
+fi
 
-fetch_remote_artifact \
-  "${BOOTC_WORKSPACE_DIR}/output/qcow2/disk.qcow2" \
-  "${ARTIFACT_DIR}/disk.qcow2"
+if [[ "${BOOTC_FETCH_QCOW2:-true}" == "true" ]]; then
+  fetch_remote_artifact \
+    "${BOOTC_WORKSPACE_DIR}/output/qcow2/disk.qcow2" \
+    "${ARTIFACT_DIR}/disk.qcow2"
+fi

@@ -48,8 +48,8 @@ migrate_device_vm_tfvars() {
 
   [[ -f "$tfvars_file" ]] || return 0
 
-  perl -0pi -e 's/^bootc_qcow2_path\s*=.*$/bootc_install_iso_path = "..\/..\/..\/artifacts\/bootc\/rhem-prereq-rhel-01\/install.iso"/mg' "$tfvars_file"
-  perl -0pi -e 's/^uploaded_qcow2_file_name\s*=.*$/uploaded_iso_file_name = "rhem-demo-device.iso"/mg' "$tfvars_file"
+  perl -0pi -e 's/^bootc_install_iso_path\s*=.*$/bootc_qcow2_path = "..\/..\/..\/artifacts\/bootc\/rhem-prereq-rhel-01\/disk.qcow2"/mg' "$tfvars_file"
+  perl -0pi -e 's/^uploaded_iso_file_name\s*=.*$/uploaded_qcow2_file_name = "rhem-demo-device.qcow2"/mg' "$tfvars_file"
 }
 
 ensure_demo_ssh_key
