@@ -12,6 +12,15 @@
     satellite_admin_username_effective: "{{ satellite_admin_username | default('admin', true) }}"
     satellite_admin_password_effective: "{{ satellite_admin_password | default('CHANGEME-satellite-admin-password', true) }}"
     satellite_answers_file: /etc/foreman-installer/scenarios.d/satellite-answers.yaml
+    satellite_prerequisite_packages:
+      - firewalld
+      - tmux
+      - mod_ssl
+      - podman
+      - skopeo
+      - podman-docker
+      - systemd-container
+      - postgresql-server
     satellite_required_repos:
       - rhel-9-for-x86_64-baseos-rpms
       - rhel-9-for-x86_64-appstream-rpms
@@ -61,11 +70,16 @@
       register: _satellite_repo_enable
       changed_when: "'enabled' in (_satellite_repo_enable.stdout | default('') | lower)"
 
-    - name: Install Satellite prerequisites and package
+    - name: Install Satellite prerequisite packages
+      ansible.builtin.dnf:
+        name: "{{ satellite_prerequisite_packages }}"
+        state: present
+        disable_plugin:
+          - foreman-protector
+
+    - name: Install Satellite package
       ansible.builtin.dnf:
         name:
-          - firewalld
-          - tmux
           - satellite
         state: present
 
@@ -80,6 +94,38 @@
         path: "{{ satellite_answers_file }}"
       register: _satellite_answers
 
+    - name: Read current Satellite answers file
+      ansible.builtin.slurp:
+        path: "{{ satellite_answers_file }}"
+      register: _satellite_answers_content
+      when: _satellite_answers.stat.exists
+
+    - name: Probe Satellite login page before reconfiguration
+      ansible.builtin.uri:
+        url: "https://{{ fqdn }}/users/login"
+        method: GET
+        validate_certs: false
+        status_code:
+          - 200
+          - 302
+        timeout: 10
+      register: _satellite_ui_probe
+      failed_when: false
+      changed_when: false
+      delegate_to: localhost
+      become: false
+
+    - name: Decide whether Satellite installer must run
+      ansible.builtin.set_fact:
+        _satellite_answers_text: "{{ (_satellite_answers_content.content | default('') | b64decode) if _satellite_answers.stat.exists else '' }}"
+        _satellite_installer_required: >-
+          {{
+            (not _satellite_answers.stat.exists) or
+            (('initial_organization: ' ~ satellite_initial_organization_effective) not in ((_satellite_answers_content.content | default('') | b64decode) if _satellite_answers.stat.exists else '')) or
+            (('initial_location: ' ~ satellite_initial_location_effective) not in ((_satellite_answers_content.content | default('') | b64decode) if _satellite_answers.stat.exists else '')) or
+            (_satellite_ui_probe.status | default(0) not in [200, 302])
+          }}
+
     - name: Run satellite-installer for initial deployment
       ansible.builtin.command:
         cmd: >-
@@ -93,7 +139,9 @@
       no_log: true
       async: 14400
       poll: 60
-      when: not _satellite_answers.stat.exists
+      environment:
+        TERM: dumb
+      when: _satellite_installer_required
 
     - name: Open required Satellite ports in firewalld
       ansible.builtin.command:
