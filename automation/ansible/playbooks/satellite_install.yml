@@ -135,21 +135,38 @@
           }}
 
     - name: Run satellite-installer for initial deployment
-      ansible.builtin.command:
-        cmd: >-
-          satellite-installer --scenario satellite
-          --foreman-initial-organization {{ satellite_initial_organization_effective | quote }}
-          --foreman-initial-location {{ satellite_initial_location_effective | quote }}
-          --foreman-initial-admin-username {{ satellite_admin_username_effective | quote }}
-          --foreman-initial-admin-password {{ satellite_admin_password_effective | quote }}
-      register: _satellite_installer
-      changed_when: true
-      no_log: true
-      async: 14400
-      poll: 60
-      environment:
-        TERM: dumb
       when: _satellite_installer_required
+      block:
+        - name: Start satellite-installer
+          ansible.builtin.command:
+            cmd: >-
+              satellite-installer --scenario satellite
+              --foreman-initial-organization {{ satellite_initial_organization_effective | quote }}
+              --foreman-initial-location {{ satellite_initial_location_effective | quote }}
+              --foreman-initial-admin-username {{ satellite_admin_username_effective | quote }}
+              --foreman-initial-admin-password {{ satellite_admin_password_effective | quote }}
+          register: _satellite_installer
+          changed_when: true
+          no_log: true
+          async: 14400
+          poll: 60
+          environment:
+            TERM: dumb
+      rescue:
+        - name: Read Satellite installer log after failure
+          ansible.builtin.command: tail -n 120 /var/log/foreman-installer/satellite.log
+          register: _satellite_log_excerpt
+          changed_when: false
+          failed_when: false
+
+        - name: Fail with Satellite installer log excerpt
+          ansible.builtin.fail:
+            msg: >-
+              satellite-installer failed on {{ inventory_hostname }}.
+              {{
+                (_satellite_log_excerpt.stdout | default('No installer log output was captured.'))
+                | regex_replace(satellite_admin_password_effective | regex_escape, 'REDACTED')
+              }}
 
     - name: Open required Satellite ports in firewalld
       ansible.builtin.command:

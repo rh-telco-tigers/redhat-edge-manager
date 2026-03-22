@@ -13,6 +13,13 @@
     epel_rpm_gpg_key_path: "/etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-9"
     pdns_zone_dir: /etc/pdns/zones
     pdns_zone_path: "{{ pdns_zone_dir }}/{{ demo_dns_zone_effective }}.zone"
+    demo_dns_reverse_zone_effective: >-
+      {{
+        (ansible_host.split('.')[2]) ~ '.' ~
+        (ansible_host.split('.')[1]) ~ '.' ~
+        (ansible_host.split('.')[0]) ~ '.in-addr.arpa'
+      }}
+    pdns_reverse_zone_path: "{{ pdns_zone_dir }}/{{ demo_dns_reverse_zone_effective }}.zone"
   tasks:
     - name: Enable CodeReady Builder for EPEL dependencies
       ansible.builtin.command:
@@ -78,6 +85,12 @@
       ansible.builtin.template:
         src: "{{ playbook_dir }}/templates/pdns.zone.j2"
         dest: "{{ pdns_zone_path }}"
+        mode: "0644"
+
+    - name: Render PowerDNS reverse zone file
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/pdns.reverse.zone.j2"
+        dest: "{{ pdns_reverse_zone_path }}"
         mode: "0644"
 
     - name: Restore SELinux labels for PowerDNS config

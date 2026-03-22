@@ -1,0 +1,15 @@
+$TTL 300
+@ IN SOA ns1.{{ demo_dns_zone_effective }}. hostmaster.{{ demo_dns_zone_effective }}. (
+  {{ ansible_date_time.epoch }}
+  3600
+  900
+  1209600
+  300
+)
+@ IN NS ns1.{{ demo_dns_zone_effective }}.
+{% for host in (groups['dns_hosts'] + groups['managed_rhel_hosts']) | unique | sort %}
+{% set octets = hostvars[host].ansible_host.split('.') %}
+{% if octets | length == 4 %}
+{{ octets[3] }} IN PTR {{ hostvars[host].fqdn }}.
+{% endif %}
+{% endfor %}

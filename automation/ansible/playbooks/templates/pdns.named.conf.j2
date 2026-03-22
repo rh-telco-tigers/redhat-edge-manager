@@ -2,3 +2,8 @@ zone "{{ demo_dns_zone_effective }}" {
   type master;
   file "/etc/pdns/zones/{{ demo_dns_zone_effective }}.zone";
 };
+
+zone "{{ demo_dns_reverse_zone_effective }}" {
+  type master;
+  file "/etc/pdns/zones/{{ demo_dns_reverse_zone_effective }}.zone";
+};
