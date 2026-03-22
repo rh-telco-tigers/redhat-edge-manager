@@ -10,4 +10,7 @@ $TTL 300
 ns1 IN A {{ hostvars[groups['dns_hosts'][0]].ansible_host }}
 {% for host in groups['managed_rhel_hosts'] | sort %}
 {{ hostvars[host].dns_name }} IN A {{ hostvars[host].ansible_host }}
+{% if host != hostvars[host].dns_name %}
+{{ host }} IN CNAME {{ hostvars[host].dns_name }}
+{% endif %}
 {% endfor %}
