@@ -56,3 +56,11 @@ aap_bundle_tar: /path/to/ansible-automation-platform-setup-bundle.tar.gz
 aap_install_dir: /opt/aap-setup
 aap_admin_password: CHANGEME-aap-admin-password
 aap_pg_password: CHANGEME-aap-pg-password
+
+# Satellite (enabled in the full automation stack by default)
+satellite_install_enabled: true
+satellite_version: "6.17"
+satellite_initial_organization: "RHEM Demo"
+satellite_initial_location: "Homelab"
+satellite_admin_username: admin
+satellite_admin_password: CHANGEME-satellite-admin-password

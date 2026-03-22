@@ -16,6 +16,7 @@
 - configure PowerDNS for the lab zone
 - install Red Hat Edge Manager on the RHEM VM
 - install Keycloak in Podman and switch RHEM to external OIDC
+- install Red Hat Satellite on a dedicated Satellite VM
 - optionally install AAP when `aap_install_enabled: true`
 
 `make down` destroys the Terraform-managed demo VMs.

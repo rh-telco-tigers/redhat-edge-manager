@@ -1,0 +1,145 @@
+---
+- name: Install Red Hat Satellite on the dedicated VM
+  hosts: satellite_hosts
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    _satellite_enabled: "{{ satellite_install_enabled | default(true, true) | bool }}"
+    satellite_version_effective: "{{ satellite_version | default('6.17', true) }}"
+    satellite_initial_organization_effective: "{{ satellite_initial_organization | default('RHEM Demo', true) }}"
+    satellite_initial_location_effective: "{{ satellite_initial_location | default('Homelab', true) }}"
+    satellite_admin_username_effective: "{{ satellite_admin_username | default('admin', true) }}"
+    satellite_admin_password_effective: "{{ satellite_admin_password | default('CHANGEME-satellite-admin-password', true) }}"
+    satellite_answers_file: /etc/foreman-installer/scenarios.d/satellite-answers.yaml
+    satellite_required_repos:
+      - rhel-9-for-x86_64-baseos-rpms
+      - rhel-9-for-x86_64-appstream-rpms
+      - "satellite-{{ satellite_version_effective }}-for-rhel-9-x86_64-rpms"
+      - "satellite-maintenance-{{ satellite_version_effective }}-for-rhel-9-x86_64-rpms"
+    satellite_firewall_ports:
+      - 8000/tcp
+      - 9090/tcp
+    satellite_firewall_services:
+      - dns
+      - dhcp
+      - tftp
+      - http
+      - https
+      - puppetmaster
+  tasks:
+    - name: Skip Satellite install when disabled
+      ansible.builtin.meta: end_host
+      when: not _satellite_enabled
+
+    - name: Require a fully qualified hostname for Satellite
+      ansible.builtin.assert:
+        that:
+          - fqdn is defined
+          - fqdn | length > 0
+          - "'.' in fqdn"
+        fail_msg: "Satellite requires a fully qualified hostname. Check the generated inventory for the satellite host."
+
+    - name: Disable all RHSM repositories on the Satellite host
+      ansible.builtin.command:
+        argv:
+          - subscription-manager
+          - repos
+          - --disable=*
+      register: _satellite_repos_disable
+      changed_when: "'disabled' in (_satellite_repos_disable.stdout | default('') | lower)"
+      failed_when: false
+
+    - name: Enable required Satellite repositories
+      ansible.builtin.command:
+        argv:
+          - subscription-manager
+          - repos
+          - --enable
+          - "{{ item }}"
+      loop: "{{ satellite_required_repos }}"
+      register: _satellite_repo_enable
+      changed_when: "'enabled' in (_satellite_repo_enable.stdout | default('') | lower)"
+
+    - name: Install Satellite prerequisites and package
+      ansible.builtin.dnf:
+        name:
+          - firewalld
+          - tmux
+          - satellite
+        state: present
+
+    - name: Enable and start firewalld
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Check whether Satellite has already been initialized
+      ansible.builtin.stat:
+        path: "{{ satellite_answers_file }}"
+      register: _satellite_answers
+
+    - name: Run satellite-installer for initial deployment
+      ansible.builtin.command:
+        cmd: >-
+          satellite-installer --scenario satellite
+          --foreman-initial-organization {{ satellite_initial_organization_effective | quote }}
+          --foreman-initial-location {{ satellite_initial_location_effective | quote }}
+          --foreman-initial-admin-username {{ satellite_admin_username_effective | quote }}
+          --foreman-initial-admin-password {{ satellite_admin_password_effective | quote }}
+      register: _satellite_installer
+      changed_when: true
+      no_log: true
+      async: 14400
+      poll: 60
+      when: not _satellite_answers.stat.exists
+
+    - name: Open required Satellite ports in firewalld
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - --add-port={{ item }}
+      loop: "{{ satellite_firewall_ports }}"
+      register: _satellite_firewall_ports
+      changed_when: _satellite_firewall_ports.rc == 0
+      failed_when: false
+
+    - name: Open required Satellite services in firewalld
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - --add-service={{ item }}
+      loop: "{{ satellite_firewall_services }}"
+      register: _satellite_firewall_services
+      changed_when: _satellite_firewall_services.rc == 0
+      failed_when: false
+
+    - name: Reload firewalld after Satellite rules change
+      ansible.builtin.command: firewall-cmd --reload
+      register: _satellite_firewall_reload
+      changed_when: _satellite_firewall_reload.rc == 0
+      failed_when: false
+
+    - name: Wait for Satellite HTTPS port
+      ansible.builtin.wait_for:
+        port: 443
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        timeout: 1800
+      delegate_to: localhost
+      become: false
+
+    - name: Wait for Satellite login page
+      ansible.builtin.uri:
+        url: "https://{{ fqdn }}/users/login"
+        method: GET
+        validate_certs: false
+        status_code: 200
+      register: _satellite_ui
+      retries: 30
+      delay: 10
+      until: _satellite_ui.status == 200
+      delegate_to: localhost
+      become: false

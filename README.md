@@ -9,6 +9,8 @@ If you want the fully automated management stack, start with [`automation/README
 
 If you want to follow the labs manually but still have Terraform create the base RHEL VMs for Labs 1 and 2, use `make rhel-vms-up` / `make rhel-vms-down`.
 
+The full automation path now also includes a dedicated Satellite VM in the demo stack.
+
 ## Steps
 
 1. [`labs/01-edge-manager-installation`](labs/01-edge-manager-installation) — Install RHEM on RHEL

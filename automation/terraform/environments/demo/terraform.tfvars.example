@@ -84,4 +84,21 @@ vms = {
     groups         = ["aap_controllers"]
     extra_tags     = ["service-aap"]
   }
+
+  satellite = {
+    enabled        = true
+    role           = "satellite"
+    vm_id          = 103
+    vm_name        = "rhem-satellite-01"
+    vm_description = "Red Hat Satellite server"
+    vm_cores       = 4
+    vm_memory_mb   = 20480
+    vm_disk_gb     = 500
+    dns_name       = "satellite"
+    ipv4_use_dhcp  = false
+    ipv4_cidr      = "192.168.4.38/22"
+    ipv4_gateway   = "192.168.4.1"
+    groups         = ["satellite_hosts"]
+    extra_tags     = ["service-satellite"]
+  }
 }
