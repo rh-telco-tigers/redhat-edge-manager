@@ -7,7 +7,7 @@
 ## Step 1 — Create the working context
 
 ```bash
-export EDGE_MANAGER_HOST="rhem-prereq-rhel-01.rhem-eap.lan"
+export EDGE_MANAGER_HOST="rhem.rhem-eap.lan"
 export EDGE_MANAGER_API_URL="https://${EDGE_MANAGER_HOST}:3443"
 export SATELLITE_HOST="satellite.rhem-eap.lan"
 export SATELLITE_ORG_ID="CHANGEME_ORG_ID"

@@ -15,7 +15,7 @@ If you want to use Ansible Automation Platform for authentication instead, use [
 Use values like these for the lab:
 
 ```bash
-export RHEM_HOST_FQDN="rhem-prereq-rhel-01.rhem-eap.lan"
+export RHEM_HOST_FQDN="rhem.rhem-eap.lan"
 export RHEM_UI_URL="https://${RHEM_HOST_FQDN}"
 export RHEM_API_URL="https://${RHEM_HOST_FQDN}:3443"
 export KEYCLOAK_URL="http://keycloak.rhem-eap.lan:8080"
@@ -71,8 +71,8 @@ Create an OpenID Connect client for Edge Manager with these settings:
 
 Add these redirect URIs:
 
-- `https://rhem-prereq-rhel-01.rhem-eap.lan/*`
-- `https://rhem-prereq-rhel-01.rhem-eap.lan:443/*`
+- `https://rhem.rhem-eap.lan/*`
+- `https://rhem.rhem-eap.lan:443/*`
 - `http://localhost:8080/*`
 
 Set web origins to:
@@ -156,7 +156,7 @@ sudo systemctl restart flightctl.target
 Open the RHEM UI:
 
 ```text
-https://rhem-prereq-rhel-01.rhem-eap.lan/
+https://rhem.rhem-eap.lan/
 ```
 
 Sign in with the Keycloak user you created, for example `edgemanager-admin`.

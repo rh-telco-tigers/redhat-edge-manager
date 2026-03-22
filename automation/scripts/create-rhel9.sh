@@ -26,7 +26,7 @@ case "$role" in
     cores="${cores:-4}"
     memory_mb="${memory_mb:-16384}"
     disk_gb="${disk_gb:-80}"
-    vm_name="${vm_name:-rhem-prereq-rhel-01}"
+    vm_name="${vm_name:-rhem}"
     dns_name="${dns_name:-rhem}"
     description="${description:-Red Hat Edge Manager host}"
     ;;
