@@ -63,20 +63,37 @@ satellite_initial_organization: "RHEM Demo"
 satellite_initial_location: "Homelab"
 satellite_admin_username: admin
 satellite_admin_password: CHANGEME-satellite-admin-password
+satellite_bootc_product_name: bootc
+satellite_bootc_product_label: bootc
+satellite_bootc_repository_name: device-os
 
 # bootc image build + device enrollment demo
-# The bootc build runs on the RHEM host and fetches the generated ISO back to automation/artifacts/.
+# The bootc build runs on the RHEM host, pushes the image to Satellite by default,
+# and fetches the generated installer ISO plus an optional qcow2 back to automation/artifacts/.
 bootc_workspace_dir: /var/lib/rhem-demo/bootc
 bootc_base_image: registry.redhat.io/rhel9/rhel-bootc:9.7
-bootc_image_repo: localhost/rhem-demo/device-os
+bootc_use_satellite_registry: true
+# Leave bootc_image_repo empty to let automation derive the Satellite registry path.
+bootc_image_repo: ""
+bootc_local_build_image_repo: localhost/rhem-demo/device-os
 bootc_image_tag: v1
-bootc_publish_enabled: false
+bootc_publish_enabled: true
 bootc_publish_disk_image_enabled: false
+bootc_sign_with_sigstore: false
 bootc_registry: ""
 bootc_registry_username: ""
 bootc_registry_password: ""
 bootc_enrollment_signer: enrollment
 bootc_enrollment_expiration: 365d
+bootc_installer_config_enabled: false
+bootc_installer_nameservers: []
 device_enrollment_labels:
   - site=homelab
   - fleet=demo
+
+# Demo fleet for Labs 4 and 5
+demo_fleet_name: demo
+demo_fleet_selector_labels:
+  fleet: demo
+demo_fleet_image_repo: ""
+demo_fleet_image_tag: ""

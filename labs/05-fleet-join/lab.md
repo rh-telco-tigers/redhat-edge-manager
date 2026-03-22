@@ -1,56 +1,95 @@
-# Fleet creation and join device
+# Create a fleet and place the device into it
 
-**Prereqs:** Device enrolled. If OS image is **private**, ensure `/etc/ostree/auth.json` on device **before** swap (see *Configuring Container Pull Secrets*). **App image** in AutomationHub per plan.
+**Goal:** create an Edge Manager `Fleet` that targets the enrolled device and points at the Satellite-hosted bootc image from Lab 3.
 
-## Step 1 — CLI login
+**Prereqs:** Lab 4 is complete and the device is online in Edge Manager.
+
+## Step 1 — Create CLI context
 
 ```bash
-export RHEM_URL="https://CHANGEME-rhem.example.com"
-flightctl login --url "$RHEM_URL"
+export RHEM_API_URL="https://rhem-prereq-rhel-01.rhem-eap.lan:3443"
+
+flightctl login "$RHEM_API_URL" \
+  --username edgemanager-admin \
+  --password 'CHANGEME-edgemanager-password' \
+  --insecure-skip-tls-verify
 ```
 
-## Step 2 — Choose device + label (selector)
+## Step 2 — Reuse the same image reference from Lab 3
+
+If you followed the manual Lab 3 path, reuse the same Satellite registry path:
+
+```bash
+export SATELLITE_IMAGE_REPO="satellite.rhem-eap.lan/id/1/CHANGEME_PRODUCT_ID/device-os"
+export OCI_IMAGE_TAG="v1"
+export FLEET_IMAGE_REF="${SATELLITE_IMAGE_REPO}:${OCI_IMAGE_TAG}"
+```
+
+## Step 3 — Confirm the device labels you want the fleet to match
+
+The approval step in Lab 4 used:
+
+- `site=homelab`
+- `fleet=demo`
+
+Check the enrolled device:
 
 ```bash
 flightctl get devices -o wide
 ```
 
-```bash
-export DEVICE_NAME="CHANGEME_DEVICE"
-export FLEET_LABEL_KEY="fleet"
-export FLEET_LABEL_VALUE="rhem-eap"
-flightctl label device "$DEVICE_NAME" "$FLEET_LABEL_KEY=$FLEET_LABEL_VALUE"
-```
+## Step 4 — Create the fleet manifest
 
-## Step 3 — Create fleet + device template (YAML)
-
-Create `fleet.yaml` (replace image + fields per your GitOps / UI workflow):
+Create `fleet.yaml`:
 
 ```yaml
-# CHANGEME — align field names with your RHEM / flightctl API version
-apiVersion: v1alpha1
+apiVersion: flightctl.io/v1alpha1
 kind: Fleet
 metadata:
-  name: rhem-eap-fleet
+  name: demo
 spec:
   selector:
     matchLabels:
-      fleet: rhem-eap
+      fleet: "demo"
   template:
     spec:
       os:
-        image: CHANGEME_REGISTRY/CHANGEME_APP_IMAGE:tag
+        image: "CHANGEME_FLEET_IMAGE_REF"
 ```
 
-Apply (if supported) or create equivalent in UI:
+Apply it:
 
 ```bash
-# flightctl apply -f fleet.yaml
+flightctl apply -f fleet.yaml
 ```
 
-## Step 4 — Confirm fleet membership / rollout
+## Step 5 — Verify the fleet
 
 ```bash
 flightctl get fleets
-flightctl get devices
+flightctl get fleets/demo -o yaml
+flightctl get devices -o wide
 ```
+
+If you want to demonstrate an actual rollout later, build a new image tag such as `v2`, push it to Satellite, update the Fleet manifest to that new tag, and apply it again. Edge Manager remains the rollout and fleet control plane; Satellite is only hosting the bootc image here.
+
+## Step 6 — Use the repo automation for the same flow
+
+Create or update the demo fleet:
+
+```bash
+make fleet-apply
+```
+
+Run the whole Labs 3 to 5 automation path after `make up`:
+
+```bash
+make device-demo
+```
+
+That sequence:
+
+- builds and pushes the bootc image to Satellite
+- creates the demo device VM
+- waits for enrollment and approves it
+- applies the demo fleet

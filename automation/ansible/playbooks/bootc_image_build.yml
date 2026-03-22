@@ -1,5 +1,101 @@
 ---
-- name: Build the demo bootc image and ISO on the RHEM host
+- name: Prepare the Satellite container registry for bootc images
+  hosts: satellite_hosts
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    satellite_bootc_registry_enabled_effective: "{{ (satellite_install_enabled | default(true, true) | bool) and (bootc_use_satellite_registry | default(true, true) | bool) }}"
+    satellite_initial_organization_effective: "{{ satellite_initial_organization | default('RHEM Demo', true) }}"
+    satellite_bootc_product_name_effective: "{{ satellite_bootc_product_name | default('bootc', true) }}"
+    satellite_bootc_product_label_effective: "{{ satellite_bootc_product_label | default('bootc', true) }}"
+  tasks:
+    - name: Skip Satellite registry preparation when disabled
+      ansible.builtin.meta: end_host
+      when: not satellite_bootc_registry_enabled_effective
+
+    - name: Look up the Satellite organization ID
+      ansible.builtin.shell: |
+        set -euo pipefail
+        hammer --output csv organization list | python3 -c 'import csv, os, sys; target = os.environ["SATELLITE_ORG"]; print(next((row["Id"] for row in csv.DictReader(sys.stdin) if row["Title"] == target or row["Name"] == target or row["Label"] == target), ""))'
+      args:
+        executable: /bin/bash
+      environment:
+        SATELLITE_ORG: "{{ satellite_initial_organization_effective }}"
+      register: _satellite_org_id
+      changed_when: false
+
+    - name: Require a Satellite organization ID for the bootc flow
+      ansible.builtin.assert:
+        that:
+          - _satellite_org_id.stdout | trim | length > 0
+        fail_msg: "Could not determine the Satellite organization ID for {{ satellite_initial_organization_effective }}."
+
+    - name: Allow unauthenticated pull from the Satellite Library lifecycle environment
+      ansible.builtin.command:
+        argv:
+          - hammer
+          - lifecycle-environment
+          - update
+          - --organization-id
+          - "{{ _satellite_org_id.stdout | trim }}"
+          - --name
+          - Library
+          - --registry-unauthenticated-pull
+          - "true"
+      register: _satellite_library_update
+      changed_when: true
+
+    - name: Look up the Satellite bootc product ID
+      ansible.builtin.shell: |
+        set -euo pipefail
+        hammer --output csv product list --organization-id "${SATELLITE_ORG_ID}" | python3 -c 'import csv, os, sys; product_name = os.environ["SATELLITE_PRODUCT_NAME"]; print(next((row["Id"] for row in csv.DictReader(sys.stdin) if row["Name"] == product_name), ""))'
+      args:
+        executable: /bin/bash
+      environment:
+        SATELLITE_ORG_ID: "{{ _satellite_org_id.stdout | trim }}"
+        SATELLITE_PRODUCT_NAME: "{{ satellite_bootc_product_name_effective }}"
+      register: _satellite_product_id_lookup
+      changed_when: false
+
+    - name: Create the Satellite bootc product when missing
+      ansible.builtin.command:
+        argv:
+          - hammer
+          - product
+          - create
+          - --organization-id
+          - "{{ _satellite_org_id.stdout | trim }}"
+          - --name
+          - "{{ satellite_bootc_product_name_effective }}"
+          - --label
+          - "{{ satellite_bootc_product_label_effective }}"
+      when: _satellite_product_id_lookup.stdout | trim | length == 0
+
+    - name: Look up the Satellite bootc product ID after creation
+      ansible.builtin.shell: |
+        set -euo pipefail
+        hammer --output csv product list --organization-id "${SATELLITE_ORG_ID}" | python3 -c 'import csv, os, sys; product_name = os.environ["SATELLITE_PRODUCT_NAME"]; print(next((row["Id"] for row in csv.DictReader(sys.stdin) if row["Name"] == product_name), ""))'
+      args:
+        executable: /bin/bash
+      environment:
+        SATELLITE_ORG_ID: "{{ _satellite_org_id.stdout | trim }}"
+        SATELLITE_PRODUCT_NAME: "{{ satellite_bootc_product_name_effective }}"
+      register: _satellite_product_id
+      changed_when: false
+
+    - name: Require a Satellite bootc product ID
+      ansible.builtin.assert:
+        that:
+          - _satellite_product_id.stdout | trim | length > 0
+        fail_msg: "Could not determine the Satellite product ID for {{ satellite_bootc_product_name_effective }}."
+
+    - name: Persist Satellite registry facts for the bootc build
+      ansible.builtin.set_fact:
+        satellite_bootc_org_id_effective: "{{ _satellite_org_id.stdout | trim }}"
+        satellite_bootc_product_id_effective: "{{ _satellite_product_id.stdout | trim }}"
+
+- name: Build the demo bootc image and artifacts on the RHEM host
   hosts: rhem_hosts
   become: true
   vars_files:
@@ -10,28 +106,54 @@
     bootc_output_dir_effective: "{{ bootc_workspace_dir_effective }}/output"
     bootc_config_file_effective: "{{ bootc_workspace_dir_effective }}/config.yaml"
     bootc_containerfile_effective: "{{ bootc_workspace_dir_effective }}/Containerfile"
+    bootc_installer_config_file_effective: "{{ bootc_workspace_dir_effective }}/config.toml"
+    bootc_demo_hosts_script_effective: "{{ bootc_workspace_dir_effective }}/rhem-demo-hosts.sh"
+    bootc_demo_hosts_service_effective: "{{ bootc_workspace_dir_effective }}/rhem-demo-hosts.service"
     bootc_base_image_effective: "{{ bootc_base_image | default('registry.redhat.io/rhel9/rhel-bootc:9.7', true) }}"
     bootc_edge_manager_repo_effective: "{{ bootc_edge_manager_repo | default(rhem_edge_manager_repo | default('edge-manager-1.0-for-rhel-9-x86_64-rpms', true), true) }}"
-    bootc_image_repo_effective: "{{ bootc_image_repo | default('localhost/rhem-demo/device-os', true) }}"
     bootc_image_tag_effective: "{{ bootc_image_tag | default('v1', true) }}"
+    bootc_use_satellite_registry_effective: "{{ (bootc_use_satellite_registry | default(true, true) | bool) and ((groups['satellite_hosts'] | default([])) | length > 0) }}"
+    bootc_satellite_registry_host_effective: "{{ satellite_registry_host | default((hostvars[groups['satellite_hosts'][0]].fqdn | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_satellite_org_id_effective: "{{ satellite_registry_org_id | default((hostvars[groups['satellite_hosts'][0]].satellite_bootc_org_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_satellite_product_id_effective: "{{ satellite_registry_product_id | default((hostvars[groups['satellite_hosts'][0]].satellite_bootc_product_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_satellite_repository_name_effective: "{{ satellite_bootc_repository_name | default('device-os', true) }}"
+    bootc_default_image_repo_effective: "{{ (bootc_satellite_registry_host_effective ~ '/id/' ~ bootc_satellite_org_id_effective ~ '/' ~ bootc_satellite_product_id_effective ~ '/' ~ bootc_satellite_repository_name_effective) if bootc_use_satellite_registry_effective else 'localhost/rhem-demo/device-os' }}"
+    bootc_image_repo_effective: "{{ bootc_image_repo | default(bootc_default_image_repo_effective, true) }}"
     bootc_image_ref_effective: "{{ bootc_image_repo_effective }}:{{ bootc_image_tag_effective }}"
+    bootc_local_build_image_repo_effective: "{{ bootc_local_build_image_repo | default('localhost/rhem-demo/device-os', true) }}"
+    bootc_local_build_image_ref_effective: "{{ bootc_local_build_image_repo_effective }}:{{ bootc_image_tag_effective }}"
     bootc_registry_effective: "{{ bootc_registry | default((bootc_image_repo_effective.split('/'))[0] if '/' in bootc_image_repo_effective else '', true) }}"
-    bootc_registry_username_effective: "{{ bootc_registry_username | default('', true) }}"
-    bootc_registry_password_effective: "{{ bootc_registry_password | default('', true) }}"
-    bootc_publish_enabled_effective: "{{ bootc_publish_enabled | default(false, true) | bool }}"
-    bootc_publish_disk_image_enabled_effective: "{{ bootc_publish_disk_image_enabled | default(bootc_publish_enabled_effective, true) | bool }}"
+    bootc_registry_username_effective: "{{ bootc_registry_username | default((satellite_admin_username | default('', true)) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_registry_password_effective: "{{ bootc_registry_password | default((satellite_admin_password | default('', true)) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_publish_enabled_effective: "{{ bootc_publish_enabled | default(bootc_use_satellite_registry_effective, true) | bool }}"
+    bootc_sign_with_sigstore_effective: "{{ bootc_sign_with_sigstore | default(false, true) | bool }}"
+    bootc_publish_disk_image_enabled_effective: "{{ bootc_publish_disk_image_enabled | default(false, true) | bool }}"
     bootc_force_rebuild_effective: "{{ bootc_force_rebuild | default(false, true) | bool }}"
     bootc_disk_image_repo_effective: "{{ bootc_disk_image_repo | default(bootc_image_repo_effective ~ '/diskimage-iso', true) }}"
     bootc_disk_image_ref_effective: "{{ bootc_disk_image_repo_effective }}:{{ bootc_image_tag_effective }}"
     bootc_enrollment_signer_effective: "{{ bootc_enrollment_signer | default('enrollment', true) }}"
     bootc_enrollment_expiration_effective: "{{ bootc_enrollment_expiration | default('365d', true) }}"
     bootc_include_enrollment_config_effective: "{{ bootc_include_enrollment_config | default(true, true) | bool }}"
+    bootc_installer_config_enabled_effective: "{{ bootc_installer_config_enabled | default(false, true) | bool }}"
     bootc_iso_remote_path_effective: "{{ bootc_output_dir_effective }}/bootiso/install.iso"
+    bootc_qcow2_remote_path_effective: "{{ bootc_output_dir_effective }}/qcow2/disk.qcow2"
     bootc_flightctl_username_effective: "{{ bootc_flightctl_username | default(edge_manager_admin_username | default(rhem_admin_username, true), true) }}"
     bootc_flightctl_password_effective: "{{ bootc_flightctl_password | default(edge_manager_admin_password | default(rhem_admin_password, true), true) }}"
     bootc_rhem_api_url_effective: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
     bootc_registry_redhat_io_username_effective: "{{ registry_redhat_io_username | default(rhsm_username | default('', true), true) }}"
     bootc_registry_redhat_io_password_effective: "{{ registry_redhat_io_password | default(rhsm_password | default('', true), true) }}"
+    bootc_satellite_ca_filename_effective: "satellite-ca.crt"
+    bootc_satellite_ca_workspace_path_effective: "{{ bootc_workspace_dir_effective }}/{{ bootc_satellite_ca_filename_effective }}"
+    bootc_installer_nameservers_effective: >-
+      {{
+        bootc_installer_nameservers
+        | default(
+            [hostvars[groups['dns_hosts'][0]].ansible_host]
+            if ((groups['dns_hosts'] | default([])) | length > 0)
+            else [],
+            true
+          )
+      }}
   tasks:
     - name: Require a flightctl user for the bootc build
       ansible.builtin.assert:
@@ -40,7 +162,16 @@
           - bootc_flightctl_password_effective | trim | length > 0
         fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make bootc-build."
 
-    - name: Require registry coordinates when publishing bootc artifacts
+    - name: Require Satellite registry details when using Satellite as the bootc registry
+      ansible.builtin.assert:
+        that:
+          - bootc_satellite_registry_host_effective | trim | length > 0
+          - bootc_satellite_org_id_effective | trim | length > 0
+          - bootc_satellite_product_id_effective | trim | length > 0
+        fail_msg: "The Satellite registry path is incomplete. Run make up first and keep Satellite enabled, or override bootc_image_repo explicitly."
+      when: bootc_use_satellite_registry_effective
+
+    - name: Require registry credentials when publishing bootc artifacts outside Satellite
       ansible.builtin.assert:
         that:
           - bootc_registry_effective | trim | length > 0
@@ -48,7 +179,9 @@
           - bootc_registry_password_effective | trim | length > 0
           - not (bootc_image_repo_effective is match('^localhost/'))
         fail_msg: "Set bootc_registry, bootc_registry_username, bootc_registry_password, and a non-local bootc_image_repo before enabling publish."
-      when: bootc_publish_enabled_effective or bootc_publish_disk_image_enabled_effective
+      when:
+        - bootc_publish_enabled_effective
+        - not bootc_use_satellite_registry_effective
 
     - name: Install build prerequisites on the RHEM host
       ansible.builtin.dnf:
@@ -66,6 +199,42 @@
         - "{{ bootc_workspace_dir_effective }}"
         - "{{ bootc_flightctl_config_dir }}"
         - "{{ bootc_output_dir_effective }}"
+
+    - name: Download the Satellite CA certificate for the demo image and builder host
+      ansible.builtin.get_url:
+        url: "https://{{ bootc_satellite_registry_host_effective }}/pub/katello-server-ca.crt"
+        dest: "{{ bootc_satellite_ca_workspace_path_effective }}"
+        mode: "0644"
+        validate_certs: false
+      when: bootc_use_satellite_registry_effective
+
+    - name: Trust the Satellite registry CA in Podman on the RHEM host
+      ansible.builtin.file:
+        path: "/etc/containers/certs.d/{{ bootc_registry_effective }}"
+        state: directory
+        mode: "0755"
+      when: bootc_use_satellite_registry_effective
+
+    - name: Install the Satellite CA in Podman on the RHEM host
+      ansible.builtin.copy:
+        src: "{{ bootc_satellite_ca_workspace_path_effective }}"
+        dest: "/etc/containers/certs.d/{{ bootc_registry_effective }}/ca.crt"
+        remote_src: true
+        mode: "0644"
+      when: bootc_use_satellite_registry_effective
+
+    - name: Add the Satellite CA to the system trust store on the RHEM host
+      ansible.builtin.copy:
+        src: "{{ bootc_satellite_ca_workspace_path_effective }}"
+        dest: "/etc/pki/ca-trust/source/anchors/{{ bootc_registry_effective | regex_replace('[^A-Za-z0-9._-]', '_') }}.crt"
+        remote_src: true
+        mode: "0644"
+      when: bootc_use_satellite_registry_effective
+
+    - name: Refresh the system trust store on the RHEM host
+      ansible.builtin.command: update-ca-trust
+      changed_when: true
+      when: bootc_use_satellite_registry_effective
 
     - name: Log in to registry.redhat.io for bootc image pulls
       ansible.builtin.command:
@@ -126,6 +295,25 @@
         mode: "0600"
       no_log: true
 
+    - name: Render the demo host mapping helper script
+      ansible.builtin.template:
+        src: templates/bootc.demo-hosts.sh.j2
+        dest: "{{ bootc_demo_hosts_script_effective }}"
+        mode: "0755"
+
+    - name: Render the demo host mapping helper service
+      ansible.builtin.template:
+        src: templates/bootc.demo-hosts.service.j2
+        dest: "{{ bootc_demo_hosts_service_effective }}"
+        mode: "0644"
+
+    - name: Render the bootc installer Kickstart config
+      ansible.builtin.template:
+        src: templates/bootc.installer.toml.j2
+        dest: "{{ bootc_installer_config_file_effective }}"
+        mode: "0644"
+      when: bootc_installer_config_enabled_effective
+
     - name: Render the bootc Containerfile
       ansible.builtin.template:
         src: templates/bootc.Containerfile.j2
@@ -136,6 +324,17 @@
       ansible.builtin.stat:
         path: "{{ bootc_iso_remote_path_effective }}"
       register: _bootc_existing_iso
+
+    - name: Check whether the bootc qcow2 already exists
+      ansible.builtin.stat:
+        path: "{{ bootc_qcow2_remote_path_effective }}"
+      register: _bootc_existing_qcow2
+
+    - name: Decide whether bootc artifacts need to be rebuilt
+      ansible.builtin.set_fact:
+        bootc_iso_needs_rebuild: "{{ bootc_force_rebuild_effective or (not _bootc_existing_iso.stat.exists) }}"
+        bootc_qcow2_needs_rebuild: "{{ bootc_force_rebuild_effective or (not _bootc_existing_qcow2.stat.exists) }}"
+        bootc_artifacts_need_rebuild: "{{ bootc_force_rebuild_effective or (not _bootc_existing_iso.stat.exists) or (not _bootc_existing_qcow2.stat.exists) }}"
 
     - name: Build the bootc operating system image
       ansible.builtin.command:
@@ -150,9 +349,9 @@
       changed_when: true
       async: 7200
       poll: 15
-      when: bootc_force_rebuild_effective or not _bootc_existing_iso.stat.exists
+      when: bootc_artifacts_need_rebuild
 
-    - name: Generate a Sigstore key pair when publish is enabled
+    - name: Generate a Sigstore key pair when explicit signing is enabled
       ansible.builtin.command:
         argv:
           - skopeo
@@ -161,14 +360,25 @@
           - "{{ bootc_workspace_dir_effective }}/signingkey"
       args:
         creates: "{{ bootc_workspace_dir_effective }}/signingkey.private"
-      when: bootc_publish_enabled_effective or bootc_publish_disk_image_enabled_effective
+      when: bootc_sign_with_sigstore_effective
+
+    - name: Tag the built bootc image into local container storage for bootc-image-builder
+      ansible.builtin.command:
+        argv:
+          - podman
+          - tag
+          - "{{ bootc_image_ref_effective }}"
+          - "{{ bootc_local_build_image_ref_effective }}"
+      register: _bootc_local_tag
+      changed_when: true
+      when: bootc_local_build_image_ref_effective != bootc_image_ref_effective
 
     - name: Configure Sigstore attachments for the OCI registry
       ansible.builtin.template:
         src: templates/bootc.sigstore-registry.yaml.j2
         dest: "/etc/containers/registries.d/{{ bootc_registry_effective }}.yaml"
         mode: "0644"
-      when: bootc_publish_enabled_effective or bootc_publish_disk_image_enabled_effective
+      when: bootc_sign_with_sigstore_effective
 
     - name: Log in to the OCI registry for image publishing
       ansible.builtin.command:
@@ -183,7 +393,23 @@
       register: _bootc_registry_login
       changed_when: "'Login Succeeded' in (_bootc_registry_login.stdout | default(''))"
       no_log: true
-      when: bootc_publish_enabled_effective or bootc_publish_disk_image_enabled_effective
+      when:
+        - bootc_publish_enabled_effective
+        - bootc_registry_effective | trim | length > 0
+        - bootc_registry_username_effective | trim | length > 0
+        - bootc_registry_password_effective | trim | length > 0
+
+    - name: Push the bootc image to the OCI registry
+      ansible.builtin.command:
+        argv:
+          - podman
+          - push
+          - "{{ bootc_image_ref_effective }}"
+      register: _bootc_push_unsigned
+      changed_when: true
+      when:
+        - bootc_publish_enabled_effective
+        - not bootc_sign_with_sigstore_effective
 
     - name: Push the signed bootc image to the OCI registry
       ansible.builtin.command:
@@ -193,11 +419,36 @@
           - --sign-by-sigstore-private-key
           - "{{ bootc_workspace_dir_effective }}/signingkey.private"
           - "{{ bootc_image_ref_effective }}"
-      register: _bootc_push
+      register: _bootc_push_signed
       changed_when: true
-      when: bootc_publish_enabled_effective
+      when:
+        - bootc_publish_enabled_effective
+        - bootc_sign_with_sigstore_effective
 
-    - name: Build the bootc ISO with bootc-image-builder
+    - name: Build the bootc ISO artifact
+      ansible.builtin.shell: >-
+        podman run --rm --privileged --pull=newer --security-opt label=type:unconfined_t
+        -v {{ bootc_output_dir_effective | quote }}:/output
+        -v /var/lib/containers/storage:/var/lib/containers/storage
+        {% if bootc_installer_config_enabled_effective -%}
+        -v {{ bootc_installer_config_file_effective | quote }}:/config.toml:ro
+        {% endif -%}
+        registry.redhat.io/rhel9/bootc-image-builder:latest
+        --type iso
+        --local
+        {% if bootc_installer_config_enabled_effective -%}
+        --config /config.toml
+        {% endif -%}
+        {{ bootc_local_build_image_ref_effective | quote }}
+      args:
+        executable: /bin/bash
+      register: _bootc_iso_build
+      changed_when: true
+      async: 7200
+      poll: 15
+      when: bootc_iso_needs_rebuild
+
+    - name: Build the bootc qcow2 artifact
       ansible.builtin.command:
         argv:
           - podman
@@ -213,13 +464,14 @@
           - /var/lib/containers/storage:/var/lib/containers/storage
           - registry.redhat.io/rhel9/bootc-image-builder:latest
           - --type
-          - iso
-          - "{{ bootc_image_ref_effective }}"
-      register: _bootc_iso_build
+          - qcow2
+          - --local
+          - "{{ bootc_local_build_image_ref_effective }}"
+      register: _bootc_qcow2_build
       changed_when: true
       async: 7200
       poll: 15
-      when: bootc_force_rebuild_effective or not _bootc_existing_iso.stat.exists
+      when: bootc_qcow2_needs_rebuild
 
     - name: Verify that the bootc ISO exists
       ansible.builtin.stat:
@@ -232,9 +484,16 @@
           - _bootc_iso_file.stat.exists
         fail_msg: "bootc-image-builder did not produce {{ bootc_iso_remote_path_effective }}."
 
-    - name: Report the remote ISO path
-      ansible.builtin.debug:
-        msg: "bootc ISO is available on {{ inventory_hostname }} at {{ bootc_iso_remote_path_effective }}"
+    - name: Verify that the bootc qcow2 exists
+      ansible.builtin.stat:
+        path: "{{ bootc_qcow2_remote_path_effective }}"
+      register: _bootc_qcow2_file
+
+    - name: Assert the bootc qcow2 was created
+      ansible.builtin.assert:
+        that:
+          - _bootc_qcow2_file.stat.exists
+        fail_msg: "bootc-image-builder did not produce {{ bootc_qcow2_remote_path_effective }}."
 
     - name: Publish the ISO artifact to the OCI registry
       ansible.builtin.shell: >-
@@ -244,12 +503,25 @@
         --arch=amd64 --os=linux
         {{ bootc_disk_image_ref_effective | quote }}
         {{ bootc_iso_remote_path_effective | quote }} &&
+        {% if bootc_sign_with_sigstore_effective %}
         podman manifest push --all
         --sign-by-sigstore-private-key {{ (bootc_workspace_dir_effective ~ '/signingkey.private') | quote }}
         {{ bootc_disk_image_ref_effective | quote }}
         docker://{{ bootc_disk_image_ref_effective | quote }}
+        {% else %}
+        podman manifest push --all
+        {{ bootc_disk_image_ref_effective | quote }}
+        docker://{{ bootc_disk_image_ref_effective | quote }}
+        {% endif %}
       args:
         executable: /bin/bash
       register: _bootc_iso_publish
       changed_when: true
       when: bootc_publish_disk_image_enabled_effective
+
+    - name: Report the bootc artifact locations
+      ansible.builtin.debug:
+        msg:
+          image_ref: "{{ bootc_image_ref_effective }}"
+          iso_path: "{{ bootc_iso_remote_path_effective }}"
+          qcow2_path: "{{ bootc_qcow2_remote_path_effective }}"

@@ -10,6 +10,10 @@
     enrollment_flightctl_username_effective: "{{ edge_manager_admin_username | default(rhem_admin_username, true) }}"
     enrollment_flightctl_password_effective: "{{ edge_manager_admin_password | default(rhem_admin_password, true) }}"
     enrollment_labels_effective: "{{ device_enrollment_labels | default([], true) }}"
+    enrollment_wait_for_pending_effective: "{{ enrollment_wait_for_pending | default(false, true) | bool }}"
+    enrollment_pending_timeout_seconds_effective: "{{ enrollment_pending_timeout_seconds | default(1800, true) | int }}"
+    enrollment_pending_poll_interval_seconds_effective: "{{ enrollment_pending_poll_interval_seconds | default(15, true) | int }}"
+    enrollment_pending_retries_effective: "{{ [1, ((enrollment_pending_timeout_seconds_effective | int) // (enrollment_pending_poll_interval_seconds_effective | int))] | max }}"
   tasks:
     - name: Require a flightctl user before approving enrollments
       ansible.builtin.assert:
@@ -54,6 +58,11 @@
           - json
       register: _pending_enrollment_requests
       changed_when: false
+      retries: "{{ enrollment_pending_retries_effective }}"
+      delay: "{{ enrollment_pending_poll_interval_seconds_effective }}"
+      until: >-
+        (not enrollment_wait_for_pending_effective) or
+        (((_pending_enrollment_requests.stdout | from_json)['items'] | default([])) | length > 0)
 
     - name: Extract pending enrollment request names
       ansible.builtin.set_fact:

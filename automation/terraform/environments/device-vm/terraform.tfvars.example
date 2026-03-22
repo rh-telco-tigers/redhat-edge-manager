@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars in this directory. File is gitignored.
+
+proxmox_endpoint = "https://192.168.4.101:8006/"
+proxmox_insecure = true
+proxmox_node     = "homelab"
+
+disk_storage       = "local-lvm"
+import_datastore_id = "local"
+
+bootc_install_iso_path = "../../../artifacts/bootc/rhem-prereq-rhel-01/install.iso"
+uploaded_iso_file_name = "rhem-demo-device.iso"
+
+vm_id          = 150
+vm_name        = "rhem-device-01"
+vm_description = "Red Hat Edge Manager demo device"
+vm_cores       = 2
+vm_memory_mb   = 4096
+vm_disk_gb     = 20
+
+vm_tags = ["device-demo"]

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+tmpfile="$(mktemp)"
+trap 'rm -f "$tmpfile"' EXIT
+
+awk '
+/^# BEGIN RHEM DEMO HOSTS$/ {skip=1; next}
+/^# END RHEM DEMO HOSTS$/ {skip=0; next}
+!skip {print}
+' /etc/hosts > "$tmpfile"
+
+cat >> "$tmpfile" <<'EOF'
+# BEGIN RHEM DEMO HOSTS
+{% for host in groups['managed_rhel_hosts'] | default([]) %}
+{{ hostvars[host].ansible_host }} {{ hostvars[host].fqdn }} {{ hostvars[host].dns_name }}{% if host != hostvars[host].fqdn %} {{ host }}{% endif %}
+{% endfor %}
+# END RHEM DEMO HOSTS
+EOF
+
+install -m 0644 "$tmpfile" /etc/hosts

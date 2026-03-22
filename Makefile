@@ -4,6 +4,8 @@ DEMO_TF := $(DEMO_TF_DIR)/tf.sh
 MANUAL_TF_DIR := $(AUTOMATION_DIR)/terraform/environments/manual-demo
 MANUAL_TF := $(MANUAL_TF_DIR)/tf.sh
 SINGLE_TF_DIR := $(AUTOMATION_DIR)/terraform/environments/single-rhel9
+DEVICE_TF_DIR := $(AUTOMATION_DIR)/terraform/environments/device-vm
+DEVICE_TF := $(DEVICE_TF_DIR)/tf.sh
 ANSIBLE_DIR := $(AUTOMATION_DIR)/ansible
 ANSIBLE_VENV_DIR := $(AUTOMATION_DIR)/.venv
 ANSIBLE_REQUIREMENTS := $(AUTOMATION_DIR)/requirements-ansible.txt
@@ -14,7 +16,8 @@ ANSIBLE_STAMP := $(ANSIBLE_VENV_DIR)/.ansible-ready
 .PHONY: help init-files automation-init-files ansible-bootstrap
 .PHONY: plan up down configure
 .PHONY: rhel-vms-init rhel-vms-plan rhel-vms-up rhel-vms-down
-.PHONY: create-rhel9 bootc-build approve-enrollment
+.PHONY: create-rhel9 bootc-build approve-enrollment fleet-apply
+.PHONY: device-vm-init device-vm-plan device-vm-up device-vm-down device-demo
 .PHONY: tf-init tf-plan tf-up tf-down
 
 help:
@@ -29,8 +32,12 @@ help:
 	"  make rhel-vms-up      Create only the manual-demo RHEL 9 VMs" \
 	"  make rhel-vms-down    Destroy only the manual-demo RHEL 9 VMs" \
 	"  make create-rhel9     Create one standalone RHEL 9 VM" \
-	"  make bootc-build      Build the demo bootc image + ISO on the RHEM host" \
-	"  make approve-enrollment Approve pending Edge Manager enrollment requests"
+	"  make bootc-build      Build the demo bootc image, push it to Satellite, and fetch the installer artifacts" \
+	"  make device-vm-up     Create one blank demo device VM and attach the bootc installer ISO" \
+	"  make device-vm-down   Destroy the demo device VM" \
+	"  make approve-enrollment Approve pending Edge Manager enrollment requests" \
+	"  make fleet-apply      Create or update the demo Edge Manager fleet" \
+	"  make device-demo      Build image, create the device VM, approve enrollment, and apply the fleet"
 
 init-files: automation-init-files
 
@@ -70,6 +77,18 @@ rhel-vms-up: rhel-vms-init
 rhel-vms-down: rhel-vms-init
 	$(MANUAL_TF) destroy -auto-approve -input=false
 
+device-vm-init: automation-init-files
+	cd $(DEVICE_TF_DIR) && terraform init -input=false
+
+device-vm-plan: device-vm-init
+	ACTION=plan $(AUTOMATION_DIR)/scripts/device-vm.sh
+
+device-vm-up: device-vm-init
+	ACTION=apply $(AUTOMATION_DIR)/scripts/device-vm.sh
+
+device-vm-down: device-vm-init
+	ACTION=destroy $(AUTOMATION_DIR)/scripts/device-vm.sh
+
 configure: automation-init-files ansible-bootstrap
 	cd $(ANSIBLE_DIR) && $(ANSIBLE_PLAYBOOK) playbooks/demo_up.yml
 
@@ -87,3 +106,10 @@ bootc-build: automation-init-files ansible-bootstrap
 
 approve-enrollment: automation-init-files ansible-bootstrap
 	$(AUTOMATION_DIR)/scripts/approve-enrollment.sh
+
+fleet-apply: automation-init-files ansible-bootstrap
+	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
+
+device-demo: automation-init-files ansible-bootstrap bootc-build device-vm-up
+	WAIT_FOR_PENDING=true WAIT_TIMEOUT_SECONDS=1800 $(AUTOMATION_DIR)/scripts/approve-enrollment.sh
+	$(AUTOMATION_DIR)/scripts/fleet-apply.sh

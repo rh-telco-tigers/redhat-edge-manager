@@ -25,9 +25,13 @@
 
 `make up` bootstraps a repo-local Ansible environment in `automation/.venv` automatically, so you do not need a separate global `ansible-playbook` install on your Mac.
 
-`make bootc-build` builds an early-bound bootc image and ISO on the RHEM host and fetches the ISO back to `automation/artifacts/bootc/`.
+`make bootc-build` builds the early-bound bootc image on the RHEM host, pushes it to Satellite by default, and fetches the installer artifacts back to `automation/artifacts/bootc/`.
 
 `make approve-enrollment` approves pending device enrollment requests by using `flightctl` on the RHEM host.
+
+`make device-vm-up` creates a blank Proxmox device VM, uploads the generated installer ISO, and boots the VM through the same unattended installer flow described in the manual labs.
+
+`make fleet-apply` creates or updates the demo Edge Manager fleet that points at the Satellite-hosted bootc image.
 
 ## Full automation
 
@@ -143,34 +147,66 @@ Optional make variables:
 
 ## Device image helpers
 
-Use these after `make up` when you want a real image for Labs 3 and 4:
+Use these after `make up` when you want the end-to-end Labs 3, 4, and 5 flow:
 
 ```bash
 make bootc-build
+make device-vm-up
 make approve-enrollment
+make fleet-apply
 ```
 
 `make bootc-build` does the following on the RHEM host:
 
 - logs in to Edge Manager with the lab admin account
 - requests an early-binding enrollment config
+- prepares a Satellite registry path for the bootc image
 - renders a real bootc Containerfile with `flightctl-agent`
-- builds the image in local Podman storage
-- runs `bootc-image-builder` for an ISO
-- fetches the ISO back to this repo
+- embeds the Satellite CA into the image
+- builds the image and pushes it to Satellite
+- stages the same image into local container storage and uses `bootc-image-builder --local`
+- runs `bootc-image-builder` for the unattended installer ISO and also fetches the optional `qcow2`
+- fetches the generated artifacts back to this repo
 
-By default the fetched ISO lands here:
+By default the fetched artifacts land here:
 
 ```text
 automation/artifacts/bootc/rhem-prereq-rhel-01/install.iso
+automation/artifacts/bootc/rhem-prereq-rhel-01/disk.qcow2
 ```
 
-If you want signed pushes to an OCI registry as part of the same flow, set these in `automation/ansible/group_vars/all.yml` first:
+`make device-vm-up` uses the fetched `install.iso` artifact to create one fresh demo device VM on Proxmox with a blank disk. That keeps the automated device path aligned with the manual lab.
+
+`make approve-enrollment` can also wait until a pending request exists:
+
+```bash
+WAIT_FOR_PENDING=true make approve-enrollment
+```
+
+`make fleet-apply` creates a `Fleet` resource that selects devices labeled `fleet=demo` and points them at the same Satellite image reference used in Lab 3.
+
+If you want the repo to run the practical Labs 3 to 5 path in one shot, use:
+
+```bash
+make device-demo
+```
+
+If you need to rebuild the installer after changing the bootc build inputs, force a new image and ISO build:
+
+```bash
+BOOTC_FORCE_REBUILD=true make bootc-build
+```
+
+If your environment needs installer-time DNS overrides, enable the optional Kickstart-backed installer config in `automation/ansible/group_vars/all.yml` by setting:
+
+- `bootc_installer_config_enabled: true`
+- `bootc_installer_nameservers`
+
+If you want signed pushes to an OCI registry instead of the default Satellite path, set these in `automation/ansible/group_vars/all.yml` first:
 
 - `bootc_image_repo`
 - `bootc_publish_enabled: true`
 - `bootc_registry`
 - `bootc_registry_username`
 - `bootc_registry_password`
-
-`make approve-enrollment` stays separate because a device still has to boot from the ISO before an enrollment request exists.
+- `bootc_sign_with_sigstore: true`

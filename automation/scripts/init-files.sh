@@ -43,6 +43,15 @@ migrate_placeholder_ssh_key() {
   fi
 }
 
+migrate_device_vm_tfvars() {
+  local tfvars_file="$1"
+
+  [[ -f "$tfvars_file" ]] || return 0
+
+  perl -0pi -e 's/^bootc_qcow2_path\s*=.*$/bootc_install_iso_path = "..\/..\/..\/artifacts\/bootc\/rhem-prereq-rhel-01\/install.iso"/mg' "$tfvars_file"
+  perl -0pi -e 's/^uploaded_qcow2_file_name\s*=.*$/uploaded_iso_file_name = "rhem-demo-device.iso"/mg' "$tfvars_file"
+}
+
 ensure_demo_ssh_key
 
 copy_if_missing \
@@ -61,6 +70,11 @@ copy_if_missing \
   "$repo_root/automation/terraform/environments/single-rhel9/.env.example"
 
 copy_if_missing \
+  "$repo_root/automation/terraform/environments/device-vm/.env" \
+  "$repo_root/automation/terraform/environments/demo/.env" \
+  "$repo_root/automation/terraform/environments/device-vm/.env.example"
+
+copy_if_missing \
   "$repo_root/automation/terraform/environments/manual-demo/.env" \
   "$repo_root/automation/terraform/environments/demo/.env" \
   "$repo_root/automation/terraform/environments/manual-demo/.env.example"
@@ -76,6 +90,11 @@ copy_if_missing \
   "$repo_root/automation/terraform/environments/manual-demo/terraform.tfvars.example"
 
 copy_if_missing \
+  "$repo_root/automation/terraform/environments/device-vm/terraform.tfvars" \
+  "" \
+  "$repo_root/automation/terraform/environments/device-vm/terraform.tfvars.example"
+
+copy_if_missing \
   "$repo_root/automation/ansible/group_vars/all.yml" \
   "" \
   "$repo_root/automation/ansible/group_vars/all.yml.example"
@@ -83,3 +102,5 @@ copy_if_missing \
 migrate_placeholder_ssh_key "$repo_root/automation/terraform/environments/demo/terraform.tfvars"
 migrate_placeholder_ssh_key "$repo_root/automation/terraform/environments/single-rhel9/terraform.tfvars"
 migrate_placeholder_ssh_key "$repo_root/automation/terraform/environments/manual-demo/terraform.tfvars"
+migrate_placeholder_ssh_key "$repo_root/automation/terraform/environments/device-vm/terraform.tfvars"
+migrate_device_vm_tfvars "$repo_root/automation/terraform/environments/device-vm/terraform.tfvars"

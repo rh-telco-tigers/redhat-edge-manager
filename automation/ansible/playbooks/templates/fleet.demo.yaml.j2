@@ -1,0 +1,14 @@
+apiVersion: flightctl.io/v1alpha1
+kind: Fleet
+metadata:
+  name: {{ demo_fleet_name_effective }}
+spec:
+  selector:
+    matchLabels:
+{% for key, value in demo_fleet_selector_labels_effective.items() %}
+      {{ key }}: {{ value | to_json }}
+{% endfor %}
+  template:
+    spec:
+      os:
+        image: {{ demo_fleet_image_ref_effective | to_json }}

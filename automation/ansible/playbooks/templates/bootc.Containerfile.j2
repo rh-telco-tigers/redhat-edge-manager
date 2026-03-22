@@ -6,6 +6,18 @@ RUN dnf -y install 'dnf-command(config-manager)' && \
     dnf -y clean all && \
     systemctl enable flightctl-agent.service && \
     systemctl mask bootc-fetch-apply-updates.timer
+
+ADD rhem-demo-hosts.sh /usr/local/libexec/rhem-demo-hosts.sh
+ADD rhem-demo-hosts.service /usr/lib/systemd/system/rhem-demo-hosts.service
+RUN chmod 0755 /usr/local/libexec/rhem-demo-hosts.sh && \
+    systemctl enable rhem-demo-hosts.service
+
+{% if bootc_use_satellite_registry_effective %}
+RUN mkdir -p /etc/containers/certs.d/{{ bootc_registry_effective }}
+ADD {{ bootc_satellite_ca_filename_effective }} /etc/pki/ca-trust/source/anchors/{{ bootc_satellite_ca_filename_effective }}
+ADD {{ bootc_satellite_ca_filename_effective }} /etc/containers/certs.d/{{ bootc_registry_effective }}/ca.crt
+RUN update-ca-trust
+{% endif %}
 {% if bootc_include_enrollment_config_effective %}
 
 ADD config.yaml /etc/flightctl/

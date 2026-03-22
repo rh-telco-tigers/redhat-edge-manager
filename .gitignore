@@ -13,6 +13,8 @@ automation/terraform/environments/manual-demo/.env
 automation/terraform/environments/manual-demo/terraform.tfvars
 automation/terraform/environments/single-rhel9/.env
 automation/terraform/environments/single-rhel9/terraform.tfvars
+automation/terraform/environments/device-vm/.env
+automation/terraform/environments/device-vm/terraform.tfvars
 prereqs/ansible/group_vars/all.yml
 labs/02-keycloak-integration/ansible/group_vars/all.yml
 labs/02-keycloak-integration/ansible/inventory/hosts.yml
