@@ -91,7 +91,23 @@ select_workspace() {
 
 read_workspace_output() {
   local output_name="$1"
-  terraform -chdir="$env_dir" output -raw "$output_name" 2>/dev/null || true
+  terraform -chdir="$env_dir" output -json 2>/dev/null | python3 - "$output_name" <<'PY'
+import json
+import sys
+
+output_name = sys.argv[1]
+
+try:
+    payload = json.load(sys.stdin)
+except json.JSONDecodeError:
+    sys.exit(0)
+
+value = payload.get(output_name, {}).get("value", "")
+if value is None:
+    value = ""
+
+print(value)
+PY
 }
 
 detect_next_vm_id() {
@@ -288,6 +304,10 @@ select_workspace "$workspace_name"
 
 if [[ -z "$vm_id" ]]; then
   vm_id="$(read_workspace_output vm_id)"
+fi
+
+if [[ -n "$vm_id" && ! "$vm_id" =~ ^[0-9]+$ ]]; then
+  vm_id=""
 fi
 
 if [[ -z "$vm_id" && "$action" != "destroy" ]]; then
