@@ -24,7 +24,7 @@ DEVICE_LABEL_KVS_VALUE := $(strip $(foreach v,$(COMMAND_LINE_VARS),$(if $(filter
 .PHONY: rhel-vms-init rhel-vms-plan rhel-vms-up rhel-vms-down
 .PHONY: create-rhel9 aap-install aap-integrate aap-setup bootc-build approve-enrollment fleet-apply
 .PHONY: app-build app-deploy app-demo
-.PHONY: device-vm-init device-vm-plan device-vm-up device-vm-down device-demo
+.PHONY: device-vm-init device-vm-plan device-vm-up device-vm-down device-vms-down-all device-demo
 .PHONY: tf-init tf-plan tf-up tf-down
 
 help:
@@ -33,7 +33,7 @@ help:
 	"  make help             Show this help" \
 	"  make init-files       Seed local gitignored config files" \
 	"  make up               Full automation: Terraform + Ansible" \
-	"  make down             Tear down full automated stack" \
+	"  make down             Tear down full automated stack, including device VMs" \
 	"  make plan             Terraform plan for full automated stack" \
 	"  make configure        Run only the Ansible configuration phase" \
 	"  make rhel-vms-up      Create only the manual-demo RHEL 9 VMs" \
@@ -138,6 +138,9 @@ device-vm-down: device-vm-init
 	VM_TAGS='$(or $(VM_TAGS),$(tags))' \
 	ACTION=destroy $(AUTOMATION_DIR)/scripts/device-vm.sh
 
+device-vms-down-all: device-vm-init
+	$(AUTOMATION_DIR)/scripts/device-vm-down-all.sh
+
 configure: automation-init-files ansible-bootstrap
 	cd $(ANSIBLE_DIR) && $(ANSIBLE_PLAYBOOK) playbooks/demo_up.yml
 
@@ -145,7 +148,7 @@ plan: tf-plan
 
 up: tf-up configure
 
-down: tf-down
+down: device-vms-down-all tf-down
 
 create-rhel9:
 	$(AUTOMATION_DIR)/scripts/create-rhel9.sh

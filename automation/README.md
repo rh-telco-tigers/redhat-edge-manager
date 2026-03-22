@@ -62,7 +62,7 @@ Useful related commands:
 
 - `make plan` — preview Terraform changes for the full stack
 - `make configure` — rerun only the Ansible configuration phase
-- `make down` — destroy the full stack
+- `make down` — destroy the full stack, including device VMs created through `make device-vm-up`
 
 What `make up` installs by default:
 
