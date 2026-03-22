@@ -56,7 +56,7 @@ ensure_demo_ssh_key
 
 copy_if_missing \
   "$repo_root/automation/terraform/environments/demo/.env" \
-  "$repo_root/prereqs/terraform/.env" \
+  "" \
   "$repo_root/automation/terraform/environments/demo/.env.example"
 
 copy_if_missing \

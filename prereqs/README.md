@@ -1,10 +1,15 @@
-# Prereq notes
+# Reference notes
 
-Runnable automation now lives in [`automation/`](../automation/README.md). This `prereqs/` directory is kept for supporting notes, network assumptions, and alternate paths that are still useful while the automation grows.
+The primary repo paths are:
 
-Useful starting points:
+- [`labs/`](../labs/) for the manual walkthroughs
+- [`automation/`](../automation/README.md) for the runnable demo environment
 
-- [docs/01-proxmox-terraform.md](docs/01-proxmox-terraform.md) — how the Proxmox guest-image workflow works now that it lives under `automation/terraform/`
-- [docs/rhel-guest-image-proxmox.md](docs/rhel-guest-image-proxmox.md) — which RHEL qcow2 image Terraform expects
-- [docs/02-aap-single-node.md](docs/02-aap-single-node.md) — background on the single-node AAP option
-- [docs/03-edge-manager-rhacm.md](docs/03-edge-manager-rhacm.md) — alternate RHACM path
+This `prereqs/` directory is now reference-only. It keeps a small set of supporting notes for optional infrastructure and alternate deployment paths.
+
+Useful references:
+
+- [docs/01-proxmox-terraform.md](docs/01-proxmox-terraform.md) — Proxmox notes for the supported automation path
+- [docs/rhel-guest-image-proxmox.md](docs/rhel-guest-image-proxmox.md) — which RHEL guest image the Proxmox Terraform flow expects
+- [docs/02-aap-single-node.md](docs/02-aap-single-node.md) — optional single-node AAP reference
+- [docs/03-edge-manager-rhacm.md](docs/03-edge-manager-rhacm.md) — alternate Edge Manager deployment through RHACM

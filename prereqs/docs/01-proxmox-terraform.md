@@ -1,33 +1,44 @@
-# Step 1 — Proxmox VMs (automation Terraform)
+# Proxmox automation reference
+
+Use this page only if you are using the supported Proxmox-based automation path. Manual lab readers do not need this document.
+
+The supported entry points are described in [`automation/README.md`](../../automation/README.md).
+
+## What the Proxmox Terraform path does
+
+The Terraform environments under [`automation/terraform/environments/`](../../automation/terraform/environments/) create RHEL 9 virtual machines on Proxmox by:
+
+- cloning from a RHEL 9 KVM guest image
+- injecting cloud-init user data
+- configuring CPU, memory, disk, and networking
+- optionally generating inventory for the Ansible automation path
+
+Supported entry points:
+
+- `make up` / `make down` for the full automated stack
+- `make rhel-vms-up` / `make rhel-vms-down` for the base manual-lab VMs
+- `make create-rhel9 ROLE=<role>` for a single-purpose RHEL VM
 
 ## Before you run
 
-1. **Resource pool** — the automation creates a dedicated project pool and only manages VMs inside that pool. It does **not** add/remove members of the **habitvillage** pool or edit habitvillage VMs.
-2. **Network & storage** — Defaults mirror a habitvillage k3s node ( **`vmbr0`**, **`192.168.4.0/22`**, gateway **`192.168.4.1`**, DNS **`192.168.4.220`** + forwarders). See [network-habitvillage-parity.md](network-habitvillage-parity.md). Pick an **unused** `ipv4_cidr`.
-3. **Cloud image** — **RHEL 9 KVM guest** qcow2 as **`local:import/rhel9-guest-image.qcow2`** (see [rhel-guest-image-proxmox.md](rhel-guest-image-proxmox.md)). User **`cloud-user`**.
-4. **Auth** — `PROXMOX_VE_API_TOKEN` **or** `PROXMOX_VE_USERNAME` + `PROXMOX_VE_PASSWORD` (passwords with `%` need URL-encoding when testing with curl).
-5. **SSH public key** — In `terraform.tfvars`.
+1. Make sure you have a reachable Proxmox API endpoint.
+2. Provide either `PROXMOX_VE_API_TOKEN` or `PROXMOX_VE_USERNAME` and `PROXMOX_VE_PASSWORD`.
+3. Set `PROXMOX_VE_INSECURE=true` if your Proxmox API uses a self-signed certificate.
+4. Make sure the target environment `.env` and `terraform.tfvars` files are filled in under `automation/terraform/environments/`.
+5. Make sure Proxmox can access the RHEL 9 KVM guest image you plan to use. See [rhel-guest-image-proxmox.md](rhel-guest-image-proxmox.md).
 
-Provider: [bpg/proxmox](https://registry.terraform.io/providers/bpg/proxmox/latest/docs).
+Provider: [bpg/proxmox](https://registry.terraform.io/providers/bpg/proxmox/latest/docs)
 
-## Steps
-
-From the **repo root** (after `make init-files` and editing `automation/terraform/environments/demo/terraform.tfvars`):
-
-**Credentials** (the provider error *“must provide either username and password, an API token, or a ticket”* means none of these were set):
-
-- **Option A — shell:** `export PROXMOX_VE_API_TOKEN='user@pam!id=secret'` *or* `export PROXMOX_VE_USERNAME='root@pam'` and `export PROXMOX_VE_PASSWORD='...'`
-- **Option B — file:** `make init-files`, then edit `automation/terraform/environments/demo/.env` (`.env` is gitignored). `make up` runs the environment-local `tf.sh`, which sources `.env` automatically.
-
-Also set `export PROXMOX_VE_INSECURE=true` when using the default self-signed PVE cert (or put it in `.env`).
+## Common commands
 
 ```bash
-make plan   # optional preview
-make up     # create demo VMs, then run Ansible automation
-make down   # destroy the demo VMs
+make init-files
+make plan
+make up
+make down
 ```
 
-Or manually:
+For Terraform-only work inside one environment:
 
 ```bash
 cd automation/terraform/environments/demo
@@ -36,20 +47,22 @@ terraform init
 ./tf.sh apply
 ```
 
-## After apply
+## What to edit
 
-- SSH: `ssh <ci_user>@<ipv4_cidr address>` (static) or check Proxmox **Summary** if using DHCP.
-- Install **qemu-guest-agent** in the guest if the provider warns about the agent.
+The most common files are:
 
-## Sizing
+- `automation/terraform/environments/demo/.env`
+- `automation/terraform/environments/demo/terraform.tfvars`
+- `automation/terraform/environments/manual-demo/.env`
+- `automation/terraform/environments/manual-demo/terraform.tfvars`
 
-The demo environment defines separate sizing for DNS, RHEM, Keycloak, and AAP in `automation/terraform/environments/demo/terraform.tfvars`. Adjust those values before `make up`.
+Pick free `vm_id` values and valid IPs for your network before you apply.
 
 ## Troubleshooting
 
 | Issue | Action |
 |--------|--------|
-| Disk import fails | Confirm `cloud_image_import_id` exists under **node → local → import**. |
-| `failed to stat '/var/lib/vz/import/....qcow2'` | The qcow2 is not on the node at that path. Upload the [RHEL KVM guest image](rhel-guest-image-proxmox.md), **or** set `cloud_image_import_id` in `terraform.tfvars` to the exact **volid** from **Storage → local → Content** (filename must match what you uploaded). |
-| Wrong NIC / no IP | Confirm `network_bridge = "vmbr0"` matches the node. |
-| Static IP clash | Change `ipv4_cidr` to a free address in `/22`. |
+| Provider says no credentials were supplied | Set Proxmox API credentials in the shell or in the environment-local `.env` file. |
+| Disk import fails | Confirm the qcow2 exists in Proxmox storage and that `cloud_image_import_id` matches the actual volume ID. |
+| VM boots without network | Confirm the configured bridge exists on the Proxmox node and that the selected IP settings are valid. |
+| Guest agent warnings | Install `qemu-guest-agent` in the guest and restart the VM if needed. |

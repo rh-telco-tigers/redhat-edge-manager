@@ -1,15 +1,15 @@
 # RHEL 9 KVM guest image on Proxmox
 
-Terraform needs a **RHEL 9 KVM guest** `.qcow2` available to Proxmox before (or during) `make up`.
+The Proxmox Terraform environments in this repo need a **RHEL 9 KVM guest** `.qcow2` available to Proxmox before you create VMs.
 
 ## Why this is not “fully automatic” by default
 
 - **Red Hat** distributes the KVM guest image from the [customer portal](https://access.redhat.com/downloads/content/479/) behind **subscription login**. Proxmox’s download-url task uses a plain **HTTPS GET** — it cannot log in to Red Hat for you.
-- So **`make up`** either uses an image you **uploaded manually**, or an optional **`cloud_image_download_url`** you supply (internal mirror, artifact repo, presigned URL, etc.).
+- So the Terraform flow either uses an image you **uploaded manually**, or an optional **`cloud_image_download_url`** you supply.
 
 ## Optional: let Proxmox download the image (Terraform)
 
-If you set **`cloud_image_download_url`** in `terraform.tfvars` to an **`https://...`** URL your cluster can reach without interactive auth, Terraform creates **`proxmox_virtual_environment_download_file`** first, then imports that file into the VM disk.
+If you set **`cloud_image_download_url`** in `terraform.tfvars` to an **`https://...`** URL your Proxmox node can reach without interactive auth, Terraform creates **`proxmox_virtual_environment_download_file`** first, then imports that file into the VM disk.
 
 Requirements on the Proxmox side:
 
@@ -26,7 +26,7 @@ Terraform expects the qcow2 under **node → local → import** when you are **n
 
 ### Download (needs Red Hat subscription)
 
-From the portal: **Downloads → Red Hat Enterprise Linux → Product Software** → **KVM Guest Image** for RHEL 9 (x86_64), or the direct product page for [RHEL downloads](https://access.redhat.com/downloads/content/479/).
+From the portal: **Downloads → Red Hat Enterprise Linux → Product Software** → **KVM Guest Image** for RHEL 9 (x86_64), or use the direct product page for [RHEL downloads](https://access.redhat.com/downloads/content/479/).
 
 You want a single **`.qcow2`** file (KVM guest image).
 
@@ -60,6 +60,6 @@ cloud_image_import_id = "local:import/rhel9-guest-image.qcow2"
 ci_user               = "cloud-user"
 ```
 
-Then `terraform apply` (or `-replace=...` if replacing an existing VM).
+Then apply the relevant Terraform environment.
 
 **Note:** If your uploaded filename differs, set `cloud_image_import_id` to the exact **volid** from **Storage → local → Content**.

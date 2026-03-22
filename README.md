@@ -9,7 +9,7 @@ If you want the fully automated management stack, start with [`automation/README
 
 If you want to follow the labs manually but still have Terraform create the base RHEL VMs for Labs 1 and 2, use `make rhel-vms-up` / `make rhel-vms-down`.
 
-The full automation path now also includes a dedicated Satellite VM in the demo stack, and the later device labs use Satellite as the customer-like registry while Edge Manager remains the actual device control plane.
+The full automation path now also includes a dedicated Satellite VM in the demo stack, and the later device labs use Satellite as the registry/content source while Edge Manager remains the device control plane.
 
 ## Steps
 
@@ -28,6 +28,7 @@ The full automation path now also includes a dedicated Satellite VM in the demo 
 - **`lab.md`** — Step-by-step Markdown guide. Copy commands from fenced blocks.
 - Replace placeholders like `CHANGEME`, registry URLs, and hostnames before running.
 - `automation/` is where runnable Terraform, Ansible, and Make targets live.
+- `prereqs/` is now reference-only for optional infrastructure notes and alternate deployment paths.
 - For the fully automated Labs 3 to 5 path after `make up`, use `make device-demo`.
 - For the Lab 6 application-management path after the device is already enrolled and in the fleet, use `make app-demo`.
 

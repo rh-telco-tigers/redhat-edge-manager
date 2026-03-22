@@ -1,40 +1,39 @@
-# Step 2 — Ansible Automation Platform (single node)
+# Ansible Automation Platform single-node reference
 
-Based on Red Hat: [Installing AAP components on a single machine](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.0-ea/html/red_hat_ansible_automation_platform_installation_guide/single-machine-scenario) (automation controller + DB on same node).
+This is an optional reference for the single-node AAP path used by the automation stack.
 
-## Prereqs on the VM
+Source of truth:
+[Installing AAP components on a single machine](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/)
 
-- RHEL + valid **AAP subscription** (attach pools per Red Hat).
-- **FQDN or IP** resolvable for controller (installer uses nginx).
-- Time sync (`chronyd`).
+## What this repo supports
 
-## What the Ansible playbook does
+The repo automation supports a controller-only single-machine install:
 
-1. Installs base packages (`tar`, `unzip`, …).
-2. Copies your **local** AAP setup bundle tarball to the VM.
-3. Renders `inventory` from a template (controller + local PostgreSQL).
-4. Runs `./setup.sh` (long; use `screen`/`tmux` or Ansible `async`).
+- automation controller
+- local PostgreSQL
 
-## You still must do manually (Red Hat)
+It does not try to place Automation Hub on the same node.
 
-1. Download **Ansible Automation Platform setup bundle** from [Red Hat Customer Portal](https://access.redhat.com/) (version matching your subscription).
-2. On the VM: `subscription-manager attach` / enable repos per installation guide.
+## What you still need
 
-## Commands
+- a dedicated RHEL host for AAP
+- a valid AAP subscription
+- the AAP setup bundle tarball downloaded from Red Hat
+- the bundle path set in `automation/ansible/group_vars/all.yml`
+
+## Automation entry point
 
 ```bash
-make init-files
-# Edit automation/ansible/group_vars/all.yml
-# Edit automation/terraform/environments/demo/terraform.tfvars if you want the AAP VM created by make up
-
 cd automation/ansible
 ansible-playbook -l aap_controllers playbooks/aap_install.yml
 ```
 
-## Verify (from Red Hat doc)
+Or let the full stack include AAP as part of:
 
-Browse `https://<VM_IP>/` — automation controller UI; login with `admin_password` from inventory.
+```bash
+make up
+```
 
-## Important
+## Verification
 
-**Automation Hub** cannot sit on the **same** node as automation controller per Red Hat. This lab targets **controller-only** single-machine scenario. Add a **second VM** later if you need Hub on AAP.
+Open `https://<aap-host>/` and log in with the credentials rendered into the installer inventory.

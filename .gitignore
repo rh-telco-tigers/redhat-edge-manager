@@ -15,17 +15,12 @@ automation/terraform/environments/single-rhel9/.env
 automation/terraform/environments/single-rhel9/terraform.tfvars
 automation/terraform/environments/device-vm/.env
 automation/terraform/environments/device-vm/terraform.tfvars
-prereqs/ansible/group_vars/all.yml
-labs/02-keycloak-integration/ansible/group_vars/all.yml
-labs/02-keycloak-integration/ansible/inventory/hosts.yml
 labs/02-keycloak-integration/realm-edge-manager.json
-labs/02-keycloak-integration/terraform/
 *.pem
 id_rsa*
 
 # Local env for Make / tf.sh (Proxmox credentials)
-prereqs/terraform/.env
-labs/02-keycloak-integration/terraform/.env
+prereqs/terraform/
 
 # Terraform
 .terraform/
