@@ -22,17 +22,17 @@ flightctl login "${EDGE_MANAGER_API_URL}" \
 
 ## Step 2 — Review who has administrative access
 
-Confirm the authenticated user:
+Confirm that the CLI session can read Edge Manager resources:
 
 ```bash
-flightctl whoami
 flightctl get devices
 flightctl get fleets
 ```
 
-Then review your identity source:
+Then review the identity source that backs your Edge Manager login:
 
 - If you use Keycloak, confirm only intended administrators have the `flightctl-admin` realm role.
+- If you use AAP, confirm only intended administrators have the roles or organization access required by your AAP policy.
 - If you use the local PAM issuer, confirm only intended administrators are in the `flightctl-admin` group.
 - If you have a non-admin user available, sign in with that user and confirm it cannot modify fleets, repositories, or devices.
 

@@ -74,8 +74,13 @@ Use `https://<host>/` for the browser UI. Do not use `:3443` in the browser; `:3
 ```bash
 export RHEM_API_URL="https://${RHEM_HOST}:3443"
 flightctl version
-flightctl login --url "$RHEM_API_URL" --username "$RHEM_ADMIN_USER" --password "$RHEM_ADMIN_PASSWORD"
-flightctl whoami
+flightctl login "$RHEM_API_URL" \
+  --username "$RHEM_ADMIN_USER" \
+  --password "$RHEM_ADMIN_PASSWORD"
+flightctl get fleets
+flightctl get devices
 ```
 
 If the certificate is self-signed, the CLI prompts to continue with an insecure connection. That is expected in a lab setup.
+
+On a fresh installation, `flightctl get fleets` and `flightctl get devices` can return an empty list. That is still a valid result. The important point is that the login succeeds and the CLI can query the API.

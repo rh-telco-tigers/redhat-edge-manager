@@ -10,7 +10,7 @@ Open device in Edge Manager → **monitoring** / resource views (*Monitoring dev
 
 ```bash
 export RHEM_URL="https://CHANGEME-rhem.example.com"
-flightctl login --url "$RHEM_URL"
+flightctl login "$RHEM_URL"
 flightctl get devices
 flightctl get device CHANGEME_DEVICE -o yaml
 ```
