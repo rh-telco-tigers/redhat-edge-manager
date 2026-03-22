@@ -16,10 +16,16 @@
         firstName: "{{ edge_manager_admin_first_name | default('Edge', true) }}"
         lastName: "{{ edge_manager_admin_last_name | default('Manager Admin', true) }}"
         email: "{{ edge_manager_admin_email | default(edge_manager_admin_username ~ '@example.com', true) }}"
+        realmRoles:
+          - flightctl-admin
+          - offline_access
       - username: "{{ edge_manager_ops_username }}"
         firstName: "{{ edge_manager_ops_first_name | default('Edge', true) }}"
         lastName: "{{ edge_manager_ops_last_name | default('Manager Ops', true) }}"
         email: "{{ edge_manager_ops_email | default(edge_manager_ops_username ~ '@example.com', true) }}"
+        realmRoles:
+          - flightctl-admin
+          - offline_access
   tasks:
     - name: Ensure required packages
       ansible.builtin.dnf:
@@ -132,6 +138,18 @@
       no_log: true
       when: rhem_enable_keycloak_effective
 
+    - name: Look up required Keycloak realm roles
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/roles/{{ item | urlencode }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        status_code: 200
+      loop: "{{ keycloak_seed_users | map(attribute='realmRoles') | flatten | unique }}"
+      register: _keycloak_required_realm_roles
+      no_log: true
+      when: rhem_enable_keycloak_effective
+
     - name: Look up seeded Edge Manager users in Keycloak
       ansible.builtin.uri:
         url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/users?exact=true&username={{ item.username | urlencode }}"
@@ -193,6 +211,56 @@
       when:
         - rhem_enable_keycloak_effective
         - (item.json | default([]) | length) > 0
+
+    - name: Read seeded Edge Manager user realm role mappings
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/users/{{ (item.json | first).id }}/role-mappings/realm"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        status_code: 200
+      loop: "{{ _keycloak_seed_user_lookups.results | default([]) }}"
+      register: _keycloak_seed_user_role_mappings
+      no_log: true
+      when:
+        - rhem_enable_keycloak_effective
+        - (item.json | default([]) | length) > 0
+
+    - name: Grant required realm roles to seeded Edge Manager users
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/admin/realms/{{ keycloak_realm }}/users/{{ (item.json | first).id }}/role-mappings/realm"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ _keycloak_admin_token.json.access_token }}"
+        body_format: json
+        body: >-
+          {{
+            (
+              _keycloak_required_realm_roles.results
+              | selectattr('item', 'in', item.item.realmRoles)
+              | map(attribute='json')
+              | list
+            )
+          }}
+        status_code:
+          - 200
+          - 204
+      loop: "{{ _keycloak_seed_user_role_mappings.results | default([]) }}"
+      changed_when: >-
+        (
+          item.item.item.realmRoles
+          | difference((item.json | default([])) | map(attribute='name') | list)
+          | length
+        ) > 0
+      no_log: true
+      when:
+        - rhem_enable_keycloak_effective
+        - (item.item.json | default([]) | length) > 0
+        - (
+            item.item.item.realmRoles
+            | difference((item.json | default([])) | map(attribute='name') | list)
+            | length
+          ) > 0
 
 - name: Configure RHEM to use Keycloak for OIDC
   hosts: rhem_hosts
