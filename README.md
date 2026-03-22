@@ -13,7 +13,7 @@ If you want to follow the labs manually but still have Terraform create the base
 
 1. [`labs/01-edge-manager-installation`](labs/01-edge-manager-installation) — Install RHEM on RHEL
 2. [`labs/02-keycloak-integration`](labs/02-keycloak-integration) — Configure an existing Keycloak realm, users, and external OIDC integration
-3. [`labs/03-bootc-images`](labs/03-bootc-images) — Build base + app bootc images and publish them
+3. [`labs/03-bootc-images`](labs/03-bootc-images) — Prepare a dedicated Satellite content source and continue into bootc image work
 4. [`labs/04-enroll-device`](labs/04-enroll-device) — Onboard a device
 5. [`labs/05-fleet-join`](labs/05-fleet-join) — Create a fleet and roll a device onto the app image
 6. [`labs/06-managing-applications`](labs/06-managing-applications) — Deploy application workloads

@@ -38,6 +38,14 @@ case "$role" in
     dns_name="${dns_name:-keycloak}"
     description="${description:-Keycloak identity provider host}"
     ;;
+  satellite)
+    cores="${cores:-4}"
+    memory_mb="${memory_mb:-20480}"
+    disk_gb="${disk_gb:-500}"
+    vm_name="${vm_name:-rhem-satellite-01}"
+    dns_name="${dns_name:-satellite}"
+    description="${description:-Red Hat Satellite host}"
+    ;;
   dns)
     cores="${cores:-2}"
     memory_mb="${memory_mb:-4096}"

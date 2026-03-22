@@ -84,6 +84,8 @@ make init-files
 
 The manual demo environment is Terraform-only. It does not run Ansible, and it currently creates only the RHEM and Keycloak RHEL 9 VMs for Labs 1 and 2.
 
+If you need an additional standalone VM for a later manual lab, such as a dedicated Satellite host, use `make create-rhel9`.
+
 3. Run:
 
 ```bash
@@ -106,15 +108,19 @@ Examples:
 ```bash
 make create-rhel9 ROLE=keycloak VM_ID=121 IPV4_CIDR=192.168.4.121/22
 make create-rhel9 ROLE=edge-manager VM_ID=122 IPV4_CIDR=192.168.4.122/22 VM_NAME=rhem-lab-02 DNS_NAME=rhem02
+make create-rhel9 ROLE=satellite VM_ID=123 IPV4_CIDR=192.168.4.123/22
 ```
 
 Accepted `ROLE` presets:
 
 - `edge-manager`
 - `keycloak`
+- `satellite`
 - `dns`
 - `aap`
 - `generic`
+
+Use `ROLE=satellite` only for a fresh, dedicated VM. Do not install Satellite on the existing Edge Manager or Keycloak hosts.
 
 Optional make variables:
 
