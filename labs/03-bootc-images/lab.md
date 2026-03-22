@@ -100,6 +100,17 @@ That `config.yaml` is what makes the installed system enroll automatically in La
 
 Use the short certified API hostname here. The browser UI may still be at `https://rhem-prereq-rhel-01.rhem-eap.lan/`, but the embedded device config must use the RHEM API certificate name.
 
+Before you add `config.yaml` into the image, confirm it uses the short certified host:
+
+```yaml
+enrollment-service:
+  enrollment-ui-endpoint: https://rhem.rhem-eap.lan:443
+  service:
+    server: https://rhem.rhem-eap.lan:7443/
+```
+
+If your generated file still shows `rhem-prereq-rhel-01.rhem-eap.lan`, replace those two URL values before you build the image. The repo automation does this normalization for you.
+
 ## Step 5 — Build the actual bootc image
 
 Fetch the Satellite CA certificate:
@@ -116,11 +127,16 @@ FROM registry.redhat.io/rhel9/rhel-bootc:9.7
 
 RUN dnf -y install 'dnf-command(config-manager)' && \
     dnf config-manager --set-enabled edge-manager-1.0-for-rhel-9-x86_64-rpms && \
-    dnf -y install flightctl-agent qemu-guest-agent && \
+    dnf -y install flightctl-agent qemu-guest-agent sudo && \
     dnf -y clean all && \
     systemctl enable flightctl-agent.service && \
     systemctl enable qemu-guest-agent.service && \
     systemctl mask bootc-fetch-apply-updates.timer
+
+RUN dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm && \
+    dnf -y install podman-compose && \
+    dnf -y clean all && \
+    systemctl enable podman.service
 
 RUN mkdir -p /etc/containers/certs.d/satellite.rhem-eap.lan
 ADD satellite-ca.crt /etc/pki/ca-trust/source/anchors/satellite-ca.crt
@@ -131,6 +147,8 @@ ADD config.yaml /etc/flightctl/
 ```
 
 If your DHCP server does not hand out DNS for `rhem-eap.lan`, add the same management host mappings that the repo automation adds before you build the image. The automated path already handles that for you.
+
+Including `podman-compose` here is optional extra tooling. The default Lab 6 path now uses a quadlet wrapper image for a single container, so Podman is the actual requirement.
 
 Build and push the image to Satellite:
 
@@ -203,6 +221,7 @@ By default that automation:
 - stages the same image locally for `bootc-image-builder --local`
 - embeds the Edge Manager enrollment config
 - embeds the Satellite CA into the image
+- leaves Podman ready in the device OS image for Lab 6 and also installs `podman-compose` as optional extra tooling
 - generates the bootable qcow2 disk image used by the Proxmox demo device flow
 - fetches the qcow2 back to this repo
 

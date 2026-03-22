@@ -8,6 +8,11 @@ RUN dnf -y install 'dnf-command(config-manager)' && \
     systemctl enable qemu-guest-agent.service && \
     systemctl mask bootc-fetch-apply-updates.timer
 
+RUN dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm && \
+    dnf -y install podman-compose && \
+    dnf -y clean all && \
+    systemctl enable podman.service
+
 ADD demo-authorized-key.pub /tmp/demo-authorized-key.pub
 ADD rhem-demo-hosts.sh /usr/local/libexec/rhem-demo-hosts.sh
 ADD rhem-demo-hosts.service /usr/lib/systemd/system/rhem-demo-hosts.service

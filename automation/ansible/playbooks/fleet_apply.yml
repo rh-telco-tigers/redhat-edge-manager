@@ -89,6 +89,24 @@
     demo_fleet_image_repo_effective: "{{ demo_fleet_image_repo | default(bootc_image_repo | default(demo_fleet_image_repo_default_effective, true), true) }}"
     demo_fleet_image_tag_effective: "{{ demo_fleet_image_tag | default(bootc_image_tag | default('v1', true), true) }}"
     demo_fleet_image_ref_effective: "{{ demo_fleet_image_repo_effective }}:{{ demo_fleet_image_tag_effective }}"
+    demo_application_enabled_effective: "{{ demo_application_enabled | default(false, true) | bool }}"
+    demo_application_name_effective: "{{ demo_application_name | default('hello-web', true) }}"
+    demo_application_type_effective: "{{ demo_application_type | default('quadlet', true) }}"
+    demo_application_package_repo_name_effective: "{{ demo_application_package_repo_name | default('hello-web-package', true) }}"
+    demo_application_image_tag_effective: "{{ demo_application_image_tag | default('v3', true) }}"
+    demo_application_package_image_repo_default_effective: "{{ (bootc_satellite_registry_host_effective ~ '/id/' ~ bootc_satellite_org_id_effective ~ '/' ~ bootc_satellite_product_id_effective ~ '/' ~ demo_application_package_repo_name_effective) if bootc_use_satellite_registry_effective else 'localhost/rhem-demo/' ~ demo_application_package_repo_name_effective }}"
+    demo_application_package_image_repo_effective: "{{ demo_application_package_image_repo | default(demo_application_package_image_repo_default_effective, true) }}"
+    demo_application_package_image_ref_effective: "{{ demo_application_package_image_repo_effective }}:{{ demo_application_image_tag_effective }}"
+    demo_applications_effective: >-
+      {{
+        demo_applications
+        | default(
+            [{'name': demo_application_name_effective, 'appType': demo_application_type_effective, 'image': demo_application_package_image_ref_effective}]
+            if demo_application_enabled_effective
+            else [],
+            true
+          )
+      }}
   tasks:
     - name: Require a flightctl user for fleet management
       ansible.builtin.assert:
@@ -163,3 +181,4 @@
           fleet_name: "{{ demo_fleet_name_effective }}"
           image_ref: "{{ demo_fleet_image_ref_effective }}"
           selector_labels: "{{ demo_fleet_selector_labels_effective }}"
+          applications: "{{ demo_applications_effective }}"

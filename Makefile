@@ -17,6 +17,7 @@ ANSIBLE_STAMP := $(ANSIBLE_VENV_DIR)/.ansible-ready
 .PHONY: plan up down configure
 .PHONY: rhel-vms-init rhel-vms-plan rhel-vms-up rhel-vms-down
 .PHONY: create-rhel9 bootc-build approve-enrollment fleet-apply
+.PHONY: app-build app-deploy app-demo
 .PHONY: device-vm-init device-vm-plan device-vm-up device-vm-down device-demo
 .PHONY: tf-init tf-plan tf-up tf-down
 
@@ -37,7 +38,10 @@ help:
 	"  make device-vm-down   Destroy the demo device VM" \
 	"  make approve-enrollment Approve pending Edge Manager enrollment requests" \
 	"  make fleet-apply      Create or update the demo Edge Manager fleet" \
-	"  make device-demo      Build image, create the device VM, approve enrollment, and apply the fleet"
+	"  make device-demo      Build image, create the device VM, approve enrollment, and apply the fleet" \
+	"  make app-build        Build the demo application runtime and package images and push them to Satellite" \
+	"  make app-deploy       Update the demo fleet to deploy the demo application through Edge Manager" \
+	"  make app-demo         Build and deploy the demo application after Labs 3 to 5 are complete"
 
 init-files: automation-init-files
 
@@ -115,3 +119,13 @@ device-demo: automation-init-files ansible-bootstrap
 	ACTION=apply $(AUTOMATION_DIR)/scripts/device-vm.sh
 	WAIT_FOR_PENDING=true WAIT_TIMEOUT_SECONDS=1800 $(AUTOMATION_DIR)/scripts/approve-enrollment.sh
 	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
+
+app-build: automation-init-files ansible-bootstrap
+	$(AUTOMATION_DIR)/scripts/app-build.sh
+
+app-deploy: automation-init-files ansible-bootstrap
+	$(AUTOMATION_DIR)/scripts/app-deploy.sh
+
+app-demo: automation-init-files ansible-bootstrap
+	$(AUTOMATION_DIR)/scripts/app-build.sh
+	$(AUTOMATION_DIR)/scripts/app-deploy.sh

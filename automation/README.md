@@ -33,6 +33,13 @@
 
 `make fleet-apply` creates or updates the demo Edge Manager fleet that points at the Satellite-hosted bootc image.
 
+`make app-build` builds two application images on the RHEM host:
+
+- the runtime image the device actually runs
+- the small quadlet package image that Edge Manager references in the fleet
+
+`make app-deploy` updates the demo fleet so Edge Manager deploys that application package to the enrolled device and waits for the application to report `Running`.
+
 ## Full automation
 
 Use this when you want Terraform plus Ansible to stand up the fully automated stack.
@@ -163,6 +170,7 @@ make fleet-apply
 - prepares a Satellite registry path for the bootc image
 - renders a real bootc Containerfile with `flightctl-agent`
 - embeds the Satellite CA into the image
+- leaves Podman available in the device OS image for the later application-management lab
 - seeds a demo `cloud-user` with the local repo SSH key
 - builds the image and pushes it to Satellite
 - stages the same image into local container storage and uses `bootc-image-builder --local`
@@ -200,6 +208,35 @@ make device-demo
 ```
 
 `make device-demo` uses the same qcow2-first path as `make bootc-build`.
+
+## Application helpers
+
+Use these after the device is already online and selected by `Fleet/demo`:
+
+```bash
+make app-build
+make app-deploy
+```
+
+`make app-build` pushes the default `hello-web` demo application into Satellite:
+
+- `hello-web-runtime:v3`
+- `hello-web-package:v3`
+
+The package image uses a quadlet wrapper, so Edge Manager manages one container from an `application.container` file while Satellite continues to host both the runtime image and the wrapper image.
+
+Both images land in the same Satellite product family used by the earlier device image flow unless you override the app repository names in `automation/ansible/group_vars/all.yml`.
+
+`make app-deploy` updates `Fleet/demo` so the selected device keeps the same OS image and now also gets:
+
+- application name `hello-web`
+- application image `satellite.../hello-web-package:v3`
+
+If you want the repo to run the practical Lab 6 path in one shot after Labs 3 to 5 are complete, use:
+
+```bash
+make app-demo
+```
 
 If you need to rebuild the artifacts after changing the bootc build inputs, force a new image and qcow2 build:
 

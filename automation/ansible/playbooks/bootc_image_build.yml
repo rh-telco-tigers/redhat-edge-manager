@@ -169,6 +169,9 @@
     bootc_flightctl_username_effective: "{{ bootc_flightctl_username | default(edge_manager_admin_username | default(rhem_admin_username, true), true) }}"
     bootc_flightctl_password_effective: "{{ bootc_flightctl_password | default(edge_manager_admin_password | default(rhem_admin_password, true), true) }}"
     bootc_rhem_api_url_effective: "{{ bootc_rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
+    bootc_rhem_api_host_effective: "{{ bootc_rhem_api_url_effective | regex_replace('^https?://([^/:]+).*$','\\1') }}"
+    bootc_rhem_agent_api_url_effective: "https://{{ bootc_rhem_api_host_effective }}:7443/"
+    bootc_rhem_enrollment_ui_url_effective: "https://{{ bootc_rhem_api_host_effective }}:443"
     bootc_registry_redhat_io_username_effective: "{{ registry_redhat_io_username | default(rhsm_username | default('', true), true) }}"
     bootc_registry_redhat_io_password_effective: "{{ registry_redhat_io_password | default(rhsm_password | default('', true), true) }}"
     bootc_satellite_ca_filename_effective: "satellite-ca.crt"
@@ -332,7 +335,7 @@
     - name: Persist the generated enrollment config in the build workspace
       ansible.builtin.copy:
         dest: "{{ bootc_config_file_effective }}"
-        content: "{{ _bootc_enrollment_config.stdout }}"
+        content: "{{ _bootc_enrollment_config.stdout | regex_replace('server: https://[^\\s]+', 'server: ' ~ bootc_rhem_agent_api_url_effective) | regex_replace('enrollment-ui-endpoint: https://[^\\s]+', 'enrollment-ui-endpoint: ' ~ bootc_rhem_enrollment_ui_url_effective) }}"
         mode: "0600"
       no_log: true
 

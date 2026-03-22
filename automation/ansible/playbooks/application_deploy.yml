@@ -1,0 +1,311 @@
+---
+- name: Look up Satellite registry identifiers for the demo application fleet update
+  hosts: satellite_hosts
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    demo_application_use_satellite_registry_effective: "{{ demo_application_use_satellite_registry | default(bootc_use_satellite_registry | default(true, true), true) | bool }}"
+    satellite_registry_org_id_effective: "{{ satellite_registry_org_id | default('', true) }}"
+    satellite_registry_product_id_effective: "{{ satellite_registry_product_id | default('', true) }}"
+    satellite_initial_organization_effective: "{{ satellite_initial_organization | default('RHEM Demo', true) }}"
+    demo_application_product_name_effective: "{{ demo_application_product_name | default(satellite_bootc_product_name | default('bootc', true), true) }}"
+  tasks:
+    - name: Skip Satellite lookup when the demo app does not use Satellite
+      ansible.builtin.meta: end_host
+      when: not demo_application_use_satellite_registry_effective
+
+    - name: Reuse explicit Satellite registry IDs when they are already set
+      ansible.builtin.set_fact:
+        satellite_demo_application_org_id_effective: "{{ satellite_registry_org_id_effective | trim }}"
+        satellite_demo_application_product_id_effective: "{{ satellite_registry_product_id_effective | trim }}"
+      when:
+        - satellite_registry_org_id_effective | trim | length > 0
+        - satellite_registry_product_id_effective | trim | length > 0
+
+    - name: End the Satellite lookup when explicit registry IDs are already set
+      ansible.builtin.meta: end_host
+      when:
+        - satellite_registry_org_id_effective | trim | length > 0
+        - satellite_registry_product_id_effective | trim | length > 0
+
+    - name: Wait for Satellite SSH to become ready
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+        sleep: 10
+
+    - name: Gather Satellite facts after SSH is ready
+      ansible.builtin.setup:
+
+    - name: Look up the Satellite organization ID
+      ansible.builtin.shell: |
+        set -euo pipefail
+        hammer --output csv organization list | python3 -c 'import csv, os, sys; target = os.environ["SATELLITE_ORG"]; print(next((row["Id"] for row in csv.DictReader(sys.stdin) if row["Title"] == target or row["Name"] == target or row["Label"] == target), ""))'
+      args:
+        executable: /bin/bash
+      environment:
+        SATELLITE_ORG: "{{ satellite_initial_organization_effective }}"
+      register: _satellite_org_id
+      changed_when: false
+
+    - name: Look up the Satellite application product ID
+      ansible.builtin.shell: |
+        set -euo pipefail
+        hammer --output csv product list --organization-id "${SATELLITE_ORG_ID}" | python3 -c 'import csv, os, sys; product_name = os.environ["SATELLITE_PRODUCT_NAME"]; print(next((row["Id"] for row in csv.DictReader(sys.stdin) if row["Name"] == product_name), ""))'
+      args:
+        executable: /bin/bash
+      environment:
+        SATELLITE_ORG_ID: "{{ _satellite_org_id.stdout | trim }}"
+        SATELLITE_PRODUCT_NAME: "{{ demo_application_product_name_effective }}"
+      register: _satellite_product_id
+      changed_when: false
+
+    - name: Persist Satellite registry facts for the demo application deploy
+      ansible.builtin.set_fact:
+        satellite_demo_application_org_id_effective: "{{ _satellite_org_id.stdout | trim }}"
+        satellite_demo_application_product_id_effective: "{{ _satellite_product_id.stdout | trim }}"
+
+- name: Deploy the demo application through the demo fleet
+  hosts: rhem_hosts
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    application_workspace_dir_effective: "{{ demo_application_workspace_dir | default('/var/lib/rhem-demo/applications/' ~ (demo_application_name | default('hello-web', true)), true) }}"
+    application_flightctl_config_dir_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}/flightctl"
+    demo_fleet_name_effective: "{{ demo_fleet_name | default('demo', true) }}"
+    demo_fleet_selector_labels_effective: "{{ demo_fleet_selector_labels | default({'fleet': 'demo'}, true) }}"
+    demo_application_name_effective: "{{ demo_application_name | default('hello-web', true) }}"
+    demo_application_type_effective: "{{ demo_application_type | default('quadlet', true) }}"
+    demo_application_image_tag_effective: "{{ demo_application_image_tag | default('v3', true) }}"
+    demo_application_prune_unknown_devices_effective: "{{ demo_application_prune_unknown_devices | default(true, true) | bool }}"
+    demo_application_wait_timeout_seconds_effective: "{{ demo_application_wait_timeout_seconds | default(900, true) | int }}"
+    demo_application_wait_poll_interval_seconds_effective: "{{ demo_application_wait_poll_interval_seconds | default(15, true) | int }}"
+    demo_application_wait_retries_effective: "{{ [1, ((demo_application_wait_timeout_seconds_effective | int) // (demo_application_wait_poll_interval_seconds_effective | int))] | max }}"
+    bootc_use_satellite_registry_effective: "{{ (bootc_use_satellite_registry | default(true, true) | bool) and ((groups['satellite_hosts'] | default([])) | length > 0) }}"
+    bootc_satellite_registry_host_effective: "{{ satellite_registry_host | default((hostvars[groups['satellite_hosts'][0]].fqdn | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_satellite_org_id_effective: "{{ satellite_registry_org_id | default((hostvars[groups['satellite_hosts'][0]].satellite_demo_application_org_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_satellite_product_id_effective: "{{ satellite_registry_product_id | default((hostvars[groups['satellite_hosts'][0]].satellite_demo_application_product_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_satellite_repository_name_effective: "{{ satellite_bootc_repository_name | default('device-os', true) }}"
+    demo_fleet_image_repo_default_effective: "{{ (bootc_satellite_registry_host_effective ~ '/id/' ~ bootc_satellite_org_id_effective ~ '/' ~ bootc_satellite_product_id_effective ~ '/' ~ bootc_satellite_repository_name_effective) if bootc_use_satellite_registry_effective else 'localhost/rhem-demo/device-os' }}"
+    demo_fleet_image_repo_effective: "{{ demo_fleet_image_repo | default(bootc_image_repo | default(demo_fleet_image_repo_default_effective, true), true) }}"
+    demo_fleet_image_tag_effective: "{{ demo_fleet_image_tag | default(bootc_image_tag | default('v1', true), true) }}"
+    demo_fleet_image_ref_effective: "{{ demo_fleet_image_repo_effective }}:{{ demo_fleet_image_tag_effective }}"
+    demo_application_package_repo_name_effective: "{{ demo_application_package_repo_name | default('hello-web-package', true) }}"
+    demo_application_package_image_repo_default_effective: "{{ (bootc_satellite_registry_host_effective ~ '/id/' ~ bootc_satellite_org_id_effective ~ '/' ~ bootc_satellite_product_id_effective ~ '/' ~ demo_application_package_repo_name_effective) if bootc_use_satellite_registry_effective else 'localhost/rhem-demo/' ~ demo_application_package_repo_name_effective }}"
+    demo_application_package_image_repo_effective: "{{ demo_application_package_image_repo | default(demo_application_package_image_repo_default_effective, true) }}"
+    demo_application_package_image_ref_effective: "{{ demo_application_package_image_repo_effective }}:{{ demo_application_image_tag_effective }}"
+    demo_applications_effective:
+      - name: "{{ demo_application_name_effective }}"
+        appType: "{{ demo_application_type_effective }}"
+        image: "{{ demo_application_package_image_ref_effective }}"
+    application_selector_key_effective: "{{ ((demo_fleet_selector_labels_effective | dict2items | first).key) if (demo_fleet_selector_labels_effective | length > 0) else 'fleet' }}"
+    application_selector_value_effective: "{{ ((demo_fleet_selector_labels_effective | dict2items | first).value | string) if (demo_fleet_selector_labels_effective | length > 0) else 'demo' }}"
+    application_fleet_manifest_effective: "{{ application_workspace_dir_effective }}/{{ demo_fleet_name_effective }}-fleet.yaml"
+    application_rhem_api_url_effective: "{{ rhem_api_url | default('https://' ~ fqdn ~ ':3443', true) }}"
+    application_flightctl_username_effective: "{{ edge_manager_admin_username | default(rhem_admin_username, true) }}"
+    application_flightctl_password_effective: "{{ edge_manager_admin_password | default(rhem_admin_password, true) }}"
+  tasks:
+    - name: Require a flightctl user before deploying the demo application
+      ansible.builtin.assert:
+        that:
+          - application_flightctl_username_effective | trim | length > 0
+          - application_flightctl_password_effective | trim | length > 0
+        fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make app-deploy."
+
+    - name: Ensure the application workspace exists
+      ansible.builtin.file:
+        path: "{{ application_workspace_dir_effective }}"
+        state: directory
+        mode: "0755"
+
+    - name: Authenticate flightctl for the demo application deploy
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - login
+          - "{{ application_rhem_api_url_effective }}"
+          - --config-dir
+          - "{{ application_flightctl_config_dir_effective }}"
+          - --username
+          - "{{ application_flightctl_username_effective }}"
+          - --password
+          - "{{ application_flightctl_password_effective }}"
+          - --insecure-skip-tls-verify
+      register: _application_login
+      changed_when: true
+      no_log: true
+
+    - name: Render the demo fleet manifest with the application
+      ansible.builtin.template:
+        src: templates/fleet.demo.yaml.j2
+        dest: "{{ application_fleet_manifest_effective }}"
+        mode: "0644"
+
+    - name: Apply the updated fleet manifest with the demo application
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - apply
+          - --config-dir
+          - "{{ application_flightctl_config_dir_effective }}"
+          - -f
+          - "{{ application_fleet_manifest_effective }}"
+      register: _application_fleet_apply
+      changed_when: true
+
+    - name: Remove stale disconnected demo devices before waiting for the latest rollout
+      ansible.builtin.shell: |
+        set -euo pipefail
+        flightctl get devices --config-dir {{ application_flightctl_config_dir_effective | quote }} -o json > /tmp/flightctl-applications-cleanup.json
+        python3 - <<'PY'
+        import json
+        import os
+        import subprocess
+
+        selector_key = os.environ["SELECTOR_KEY"]
+        selector_value = os.environ["SELECTOR_VALUE"]
+        config_dir = os.environ["CONFIG_DIR"]
+
+        with open("/tmp/flightctl-applications-cleanup.json", "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+
+        deleted = []
+        for item in data.get("items", []):
+            labels = item.get("metadata", {}).get("labels", {}) or {}
+            if str(labels.get(selector_key, "")) != selector_value:
+                continue
+
+            summary_status = item.get("status", {}).get("summary", {}).get("status", "")
+            updated_status = item.get("status", {}).get("updated", {}).get("status", "")
+            lifecycle_status = item.get("status", {}).get("lifecycle", {}).get("status", "")
+            name = item.get("metadata", {}).get("name", "")
+
+            if name and summary_status == "Unknown" and updated_status == "Unknown" and lifecycle_status == "Enrolled":
+                subprocess.run(
+                    ["flightctl", "delete", f"device/{name}", "--config-dir", config_dir],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                )
+                deleted.append(name)
+
+        if deleted:
+            print("\n".join(deleted))
+        PY
+      args:
+        executable: /bin/bash
+      environment:
+        SELECTOR_KEY: "{{ application_selector_key_effective }}"
+        SELECTOR_VALUE: "{{ application_selector_value_effective }}"
+        CONFIG_DIR: "{{ application_flightctl_config_dir_effective }}"
+      register: _application_device_cleanup
+      changed_when: _application_device_cleanup.stdout | trim | length > 0
+      when: demo_application_prune_unknown_devices_effective
+
+    - name: Wait for the latest demo application rollout to report Running on a fleet device
+      ansible.builtin.shell: |
+        set -euo pipefail
+        flightctl get devices --config-dir {{ application_flightctl_config_dir_effective | quote }} -o json > /tmp/flightctl-applications.json
+        python3 - <<'PY'
+        import json
+        import os
+        import sys
+
+        app_name = os.environ["APP_NAME"]
+        selector_key = os.environ["SELECTOR_KEY"]
+        selector_value = os.environ["SELECTOR_VALUE"]
+        package_image = os.environ["PACKAGE_IMAGE"]
+
+        with open("/tmp/flightctl-applications.json", "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+
+        matches = []
+        for item in data.get("items", []):
+            labels = item.get("metadata", {}).get("labels", {}) or {}
+            if str(labels.get(selector_key, "")) != selector_value:
+                continue
+
+            matches.append(item)
+
+            metadata = item.get("metadata", {}) or {}
+            status = item.get("status", {}) or {}
+            spec = item.get("spec", {}) or {}
+            desired_rendered_version = (
+                (metadata.get("annotations", {}) or {}).get("device-controller/renderedVersion", "")
+            )
+            current_rendered_version = (status.get("config", {}) or {}).get("renderedVersion", "")
+            summary_status = (status.get("summary", {}) or {}).get("status", "")
+            desired_applications = spec.get("applications", []) or []
+
+            desired_app_match = any(
+                app.get("name") == app_name and app.get("image") == package_image
+                for app in desired_applications
+            )
+
+            if not desired_app_match:
+                continue
+
+            if summary_status != "Online":
+                continue
+
+            if not desired_rendered_version or current_rendered_version != desired_rendered_version:
+                continue
+
+            for app in item.get("status", {}).get("applications", []) or []:
+                if app.get("name") == app_name and app.get("status") == "Running":
+                    print(item.get("metadata", {}).get("name", ""))
+                    sys.exit(0)
+
+        if matches:
+            print(
+                json.dumps(
+                    [
+                        {
+                            "name": item.get("metadata", {}).get("name"),
+                            "applications": item.get("status", {}).get("applications", []),
+                            "applicationsSummary": item.get("status", {}).get("applicationsSummary", {}),
+                            "updated": item.get("status", {}).get("updated", {}),
+                        }
+                        for item in matches
+                    ]
+                ),
+                file=sys.stderr,
+            )
+
+        sys.exit(1)
+        PY
+      args:
+        executable: /bin/bash
+      environment:
+        APP_NAME: "{{ demo_application_name_effective }}"
+        SELECTOR_KEY: "{{ application_selector_key_effective }}"
+        SELECTOR_VALUE: "{{ application_selector_value_effective }}"
+        PACKAGE_IMAGE: "{{ demo_application_package_image_ref_effective }}"
+      register: _application_running_device
+      changed_when: false
+      retries: "{{ demo_application_wait_retries_effective }}"
+      delay: "{{ demo_application_wait_poll_interval_seconds_effective }}"
+      until: _application_running_device.rc == 0
+
+    - name: Show the fleet-managed device after the application deploy
+      ansible.builtin.command:
+        argv:
+          - flightctl
+          - get
+          - devices
+          - --config-dir
+          - "{{ application_flightctl_config_dir_effective }}"
+          - -o
+          - wide
+      register: _application_device_list
+      changed_when: false
+
+    - name: Report the demo application deploy result
+      ansible.builtin.debug:
+        msg:
+          running_device: "{{ _application_running_device.stdout | trim }}"
+          application_name: "{{ demo_application_name_effective }}"
+          application_image: "{{ demo_application_package_image_ref_effective }}"
+          selector_labels: "{{ demo_fleet_selector_labels_effective }}"
+          devices: "{{ _application_device_list.stdout_lines }}"

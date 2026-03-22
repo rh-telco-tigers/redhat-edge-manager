@@ -107,3 +107,22 @@ demo_fleet_selector_labels:
   fleet: demo
 demo_fleet_image_repo: ""
 demo_fleet_image_tag: ""
+
+# Demo application for Lab 6
+demo_application_enabled: false
+demo_application_name: hello-web
+demo_application_type: quadlet
+demo_application_title: Red Hat Edge Manager Demo App
+demo_application_message: Managed by Red Hat Edge Manager
+demo_application_http_port: 8080
+demo_application_image_tag: v3
+demo_application_runtime_base_image: registry.access.redhat.com/ubi9/httpd-24:latest
+demo_application_product_name: bootc
+demo_application_product_label: bootc
+demo_application_runtime_repo_name: hello-web-runtime
+demo_application_package_repo_name: hello-web-package
+demo_application_runtime_image_repo: ""
+demo_application_package_image_repo: ""
+demo_application_wait_timeout_seconds: 900
+demo_application_wait_poll_interval_seconds: 15
+demo_application_prune_unknown_devices: true

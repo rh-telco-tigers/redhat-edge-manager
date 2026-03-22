@@ -12,3 +12,17 @@ spec:
     spec:
       os:
         image: {{ demo_fleet_image_ref_effective | to_json }}
+{% if demo_applications_effective | default([], true) | length > 0 %}
+      applications:
+{% for app in demo_applications_effective %}
+      - name: {{ app.name | to_json }}
+        appType: {{ app.appType | default('quadlet', true) | to_json }}
+        image: {{ app.image | to_json }}
+{% if app.envVars is defined and app.envVars %}
+        envVars:
+{% for key, value in app.envVars.items() %}
+          {{ key }}: {{ value | to_json }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
