@@ -213,14 +213,14 @@ make device-vm-up name=database site=homelab
 make device-vm-up name=storefront site=branch-west VM_CORES=4 VM_MEMORY_MB=8192
 ```
 
-You can also add extra device-specific tags directly on the command line:
+You can also attach device label metadata that will be reused during enrollment approval:
 
 ```bash
 make device-vm-up name=database site=homelab env=lab role=db
-make device-vm-up name=camera site=factory tags=video,west
+make device-vm-up name=camera site=factory env=prod workload=vision
 ```
 
-Extra `key=value` pairs become additional Proxmox tags for that device VM.
+`site=` and any extra `key=value` pairs are stored as device labels for later approval. If you want actual Proxmox VM tags, use `tags=video,west` or `VM_TAGS=video,west`.
 
 Each named device uses its own Terraform workspace, so you can create and remove them independently.
 
@@ -240,6 +240,18 @@ make device-vm-down name=database
 
 ```bash
 make approve-enrollment
+```
+
+To approve a named device with the labels you saved during `make device-vm-up`, run:
+
+```bash
+make approve-enrollment name=database
+```
+
+You can also override or add labels at approval time:
+
+```bash
+make approve-enrollment name=database site=branch-west fleet=lab-a
 ```
 
 If you want the command to wait until a pending request exists:

@@ -13,7 +13,9 @@
     enrollment_flightctl_username_effective: "{{ edge_manager_admin_username | default(rhem_admin_username, true) }}"
     enrollment_flightctl_password_effective: "{{ edge_manager_admin_password | default(rhem_admin_password, true) }}"
     enrollment_flightctl_token_effective: "{{ aap_edge_manager_oauth_token | default((hostvars[groups['aap_controllers'][0]].aap_edge_manager_oauth_token_effective | default('')) if ((groups['aap_controllers'] | default([])) | length > 0) else '', true) }}"
-    enrollment_labels_effective: "{{ device_enrollment_labels | default(['site=homelab', 'fleet=demo'], true) }}"
+    enrollment_default_labels_effective: "{{ device_enrollment_labels | default(['site=homelab', 'fleet=demo'], true) }}"
+    enrollment_label_kvs_csv_effective: "{{ device_enrollment_label_kvs_csv | default('', true) }}"
+    enrollment_extra_labels_effective: "{{ enrollment_label_kvs_csv_effective.split(',') | map('trim') | reject('equalto', '') | list }}"
     enrollment_wait_for_pending_effective: "{{ enrollment_wait_for_pending | default(false, true) | bool }}"
     enrollment_pending_timeout_seconds_effective: "{{ enrollment_pending_timeout_seconds | default(1800, true) | int }}"
     enrollment_pending_poll_interval_seconds_effective: "{{ enrollment_pending_poll_interval_seconds | default(15, true) | int }}"
@@ -98,12 +100,24 @@
         _pending_enrollment_response: "{{ _pending_enrollment_requests.stdout | from_json }}"
         _pending_enrollment_names: "{{ ((_pending_enrollment_requests.stdout | from_json)['items'] | default([])) | map(attribute='metadata.name') | list }}"
 
+    - name: Start the effective enrollment labels map from defaults
+      ansible.builtin.set_fact:
+        _enrollment_labels_map_effective: {}
+
+    - name: Merge the default and requested enrollment labels
+      ansible.builtin.set_fact:
+        _enrollment_labels_map_effective: "{{ _enrollment_labels_map_effective | combine({ (item.split('=', 1)[0] | trim): (item.split('=', 1)[1] | trim) }) }}"
+      loop: "{{ enrollment_default_labels_effective + enrollment_extra_labels_effective }}"
+      when:
+        - item is string
+        - "'=' in item"
+
     - name: Approve each pending enrollment request
       ansible.builtin.command:
         cmd: >-
           flightctl approve enrollmentrequest/{{ item }}
           --config-dir {{ enrollment_flightctl_config_dir_effective }}
-          {% for label in enrollment_labels_effective %}-l {{ label | quote }} {% endfor %}
+          {% for label in _enrollment_labels_map_effective | dict2items %}-l {{ (label.key ~ '=' ~ label.value) | quote }} {% endfor %}
       loop: "{{ _pending_enrollment_names }}"
       register: _approved_enrollments
       changed_when: true
@@ -117,4 +131,9 @@
     - name: Show the approved enrollment request names
       ansible.builtin.debug:
         var: _pending_enrollment_names
+      when: _pending_enrollment_names | length > 0
+
+    - name: Show the labels used for enrollment approval
+      ansible.builtin.debug:
+        var: _enrollment_labels_map_effective
       when: _pending_enrollment_names | length > 0

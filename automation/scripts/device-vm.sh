@@ -18,7 +18,8 @@ vm_disk_gb="${VM_DISK_GB:-}"
 vm_tags="${VM_TAGS:-}"
 device_name="${DEVICE_NAME:-}"
 device_site="${DEVICE_SITE:-}"
-device_extra_tag_kvs="${DEVICE_EXTRA_TAG_KVS:-}"
+device_label_kvs="${DEVICE_LABEL_KVS:-}"
+device_metadata_dir="${env_dir}/.device-metadata"
 
 slugify() {
   printf '%s' "$1" \
@@ -162,8 +163,8 @@ PY
 }
 
 build_vm_tags_hcl() {
-  local device_slug site_slug key value key_slug value_slug tag_hcl
-  local -a tag_items extra_tag_array extra_tag_kv_array
+  local device_slug tag_hcl
+  local -a tag_items extra_tag_array
 
   tag_items=("device-demo")
 
@@ -172,34 +173,11 @@ build_vm_tags_hcl() {
     tag_items+=("device-${device_slug}")
   fi
 
-  if [[ -n "$device_site" ]]; then
-    site_slug="$(slugify "$device_site")"
-    tag_items+=("site-${site_slug}")
-  fi
-
   if [[ -n "$vm_tags" ]]; then
     IFS=',' read -r -a extra_tag_array <<< "$vm_tags"
     for tag in "${extra_tag_array[@]}"; do
       [[ -n "$tag" ]] || continue
       tag_items+=("$tag")
-    done
-  fi
-
-  if [[ -n "$device_extra_tag_kvs" ]]; then
-    IFS=' ' read -r -a extra_tag_kv_array <<< "$device_extra_tag_kvs"
-    for item in "${extra_tag_kv_array[@]}"; do
-      [[ -n "$item" && "$item" == *=* ]] || continue
-      key="${item%%=*}"
-      value="${item#*=}"
-      [[ -n "$key" && -n "$value" ]] || continue
-      key_slug="$(slugify "$key")"
-      value_slug="$(slugify "$value")"
-      [[ -n "$key_slug" && -n "$value_slug" ]] || continue
-      if [[ "$key_slug" == "$value_slug" ]]; then
-        tag_items+=("$value_slug")
-      else
-        tag_items+=("${key_slug}-${value_slug}")
-      fi
     done
   fi
 
@@ -219,6 +197,71 @@ build_vm_tags_hcl() {
   tag_hcl+="]"
 
   printf '%s' "$tag_hcl"
+}
+
+build_device_label_kvs_csv() {
+  local item key value key_slug value_slug csv=""
+  local -a label_items extra_label_kv_array
+
+  if [[ -n "$device_site" ]]; then
+    label_items+=("site=$device_site")
+  fi
+
+  if [[ -n "$device_label_kvs" ]]; then
+    IFS=' ' read -r -a extra_label_kv_array <<< "$device_label_kvs"
+    for item in "${extra_label_kv_array[@]}"; do
+      [[ -n "$item" && "$item" == *=* ]] || continue
+      key="${item%%=*}"
+      value="${item#*=}"
+      [[ -n "$key" && -n "$value" ]] || continue
+      key_slug="$(slugify "$key")"
+      value_slug="$(slugify "$value")"
+      [[ -n "$key_slug" && -n "$value_slug" ]] || continue
+      label_items+=("${key_slug}=${value_slug}")
+    done
+  fi
+
+  local seen=","
+  for item in "${label_items[@]}"; do
+    [[ -n "$item" ]] || continue
+    if [[ "$seen" == *",$item,"* ]]; then
+      continue
+    fi
+    if [[ -n "$csv" ]]; then
+      csv+=","
+    fi
+    csv+="$item"
+    seen+="$item,"
+  done
+
+  printf '%s' "$csv"
+}
+
+device_metadata_path() {
+  local workspace_name="$1"
+  printf '%s/%s.env' "$device_metadata_dir" "$workspace_name"
+}
+
+persist_device_metadata() {
+  local workspace_name="$1"
+  local metadata_path label_kvs_csv
+
+  [[ -n "$device_name" ]] || return 0
+
+  metadata_path="$(device_metadata_path "$workspace_name")"
+  label_kvs_csv="$(build_device_label_kvs_csv)"
+
+  mkdir -p "$device_metadata_dir"
+  cat > "$metadata_path" <<EOF
+DEVICE_NAME=$(printf '%q' "$device_name")
+DEVICE_SITE=$(printf '%q' "$device_site")
+DEVICE_LABEL_KVS_CSV=$(printf '%q' "$label_kvs_csv")
+EOF
+}
+
+remove_device_metadata() {
+  local workspace_name="$1"
+  rm -f "$(device_metadata_path "$workspace_name")"
 }
 
 if [[ -z "$bootc_qcow2_path" ]]; then
@@ -318,3 +361,9 @@ fi
 echo "VM ID: $vm_id" >&2
 
 "${cmd[@]}"
+
+if [[ "$action" == "apply" ]]; then
+  persist_device_metadata "$workspace_name"
+elif [[ "$action" == "destroy" ]]; then
+  remove_device_metadata "$workspace_name"
+fi

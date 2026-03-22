@@ -15,9 +15,9 @@ ANSIBLE_STAMP := $(ANSIBLE_VENV_DIR)/.ansible-ready
 empty :=
 space := $(empty) $(empty)
 comma := ,
-DEVICE_RESERVED_CLI_VARS := name site tags DEVICE_NAME DEVICE_SITE DEVICE_EXTRA_TAG_KVS BOOTC_QCOW2_PATH UPLOADED_QCOW2_FILE_NAME VM_ID vm_id VM_NAME vm_name VM_DESCRIPTION VM_CORES VM_MEMORY_MB VM_DISK_GB VM_TAGS ACTION
+DEVICE_RESERVED_CLI_VARS := name site tags DEVICE_NAME DEVICE_SITE DEVICE_LABEL_KVS BOOTC_QCOW2_PATH UPLOADED_QCOW2_FILE_NAME VM_ID vm_id VM_NAME vm_name VM_DESCRIPTION VM_CORES VM_MEMORY_MB VM_DISK_GB VM_TAGS ACTION WAIT_FOR_PENDING WAIT_TIMEOUT_SECONDS WAIT_POLL_INTERVAL_SECONDS
 COMMAND_LINE_VARS := $(sort $(foreach v,$(.VARIABLES),$(if $(filter command line,$(origin $(v))),$(v))))
-DEVICE_EXTRA_TAG_KVS_VALUE := $(strip $(foreach v,$(COMMAND_LINE_VARS),$(if $(filter-out $(DEVICE_RESERVED_CLI_VARS),$(v)),$(v)=$($(v)))))
+DEVICE_LABEL_KVS_VALUE := $(strip $(foreach v,$(COMMAND_LINE_VARS),$(if $(filter-out $(DEVICE_RESERVED_CLI_VARS),$(v)),$(v)=$($(v)))))
 
 .PHONY: help init-files automation-init-files ansible-bootstrap
 .PHONY: plan up down configure
@@ -45,7 +45,7 @@ help:
 	"  make bootc-build      Build the demo bootc image, push it to Satellite, and fetch the bootable qcow2" \
 	"  make device-vm-up     Create one named demo device VM; pass name=<device> site=<site> env=lab" \
 	"  make device-vm-down   Destroy one named demo device VM; pass name=<device>" \
-	"  make approve-enrollment Approve pending Edge Manager enrollment requests" \
+	"  make approve-enrollment Approve pending requests; pass name=<device> to reuse stored labels" \
 	"  make fleet-apply      Create or update the demo Edge Manager fleet" \
 	"  make device-demo      Build image, create the device VM, approve enrollment, and apply the fleet" \
 	"  make app-build        Build the demo application runtime and package images and push them to Satellite" \
@@ -96,7 +96,7 @@ device-vm-init: automation-init-files
 device-vm-plan: device-vm-init
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
 	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
-	DEVICE_EXTRA_TAG_KVS='$(DEVICE_EXTRA_TAG_KVS_VALUE)' \
+	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	BOOTC_QCOW2_PATH='$(BOOTC_QCOW2_PATH)' \
 	UPLOADED_QCOW2_FILE_NAME='$(UPLOADED_QCOW2_FILE_NAME)' \
 	VM_ID='$(or $(VM_ID),$(vm_id))' \
@@ -111,7 +111,7 @@ device-vm-plan: device-vm-init
 device-vm-up: device-vm-init
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
 	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
-	DEVICE_EXTRA_TAG_KVS='$(DEVICE_EXTRA_TAG_KVS_VALUE)' \
+	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	BOOTC_QCOW2_PATH='$(BOOTC_QCOW2_PATH)' \
 	UPLOADED_QCOW2_FILE_NAME='$(UPLOADED_QCOW2_FILE_NAME)' \
 	VM_ID='$(or $(VM_ID),$(vm_id))' \
@@ -126,7 +126,7 @@ device-vm-up: device-vm-init
 device-vm-down: device-vm-init
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
 	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
-	DEVICE_EXTRA_TAG_KVS='$(DEVICE_EXTRA_TAG_KVS_VALUE)' \
+	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	BOOTC_QCOW2_PATH='$(BOOTC_QCOW2_PATH)' \
 	UPLOADED_QCOW2_FILE_NAME='$(UPLOADED_QCOW2_FILE_NAME)' \
 	VM_ID='$(or $(VM_ID),$(vm_id))' \
@@ -162,6 +162,9 @@ bootc-build: automation-init-files ansible-bootstrap
 	$(AUTOMATION_DIR)/scripts/bootc-build.sh
 
 approve-enrollment: automation-init-files ansible-bootstrap
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	$(AUTOMATION_DIR)/scripts/approve-enrollment.sh
 
 fleet-apply: automation-init-files ansible-bootstrap
@@ -169,7 +172,13 @@ fleet-apply: automation-init-files ansible-bootstrap
 
 device-demo: automation-init-files ansible-bootstrap
 	$(AUTOMATION_DIR)/scripts/bootc-build.sh
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	ACTION=apply $(AUTOMATION_DIR)/scripts/device-vm.sh
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	WAIT_FOR_PENDING=true WAIT_TIMEOUT_SECONDS=1800 $(AUTOMATION_DIR)/scripts/approve-enrollment.sh
 	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
 
