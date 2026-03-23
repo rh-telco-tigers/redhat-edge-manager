@@ -14,6 +14,24 @@ variable "proxmox_node" {
   description = "PVE node name"
 }
 
+variable "proxmox_ssh_username" {
+  type        = string
+  default     = "root"
+  description = "SSH username for Proxmox node access used during snippet uploads"
+}
+
+variable "proxmox_ssh_host" {
+  type        = string
+  default     = ""
+  description = "Optional SSH hostname for the Proxmox node; defaults to the API endpoint host"
+}
+
+variable "proxmox_ssh_port" {
+  type        = number
+  default     = 22
+  description = "SSH port for the Proxmox node"
+}
+
 variable "resource_pool_id" {
   type        = string
   default     = "rhem-eap-demo"
@@ -35,6 +53,12 @@ variable "import_datastore_id" {
   type        = string
   default     = "local"
   description = "Datastore that supports imported qcow2 content"
+}
+
+variable "cloud_init_datastore_id" {
+  type        = string
+  default     = "local"
+  description = "Datastore that supports snippets content for cloud-init user-data"
 }
 
 variable "disk_interface" {

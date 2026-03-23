@@ -6,6 +6,7 @@ proxmox_node     = "homelab"
 
 disk_storage       = "local-lvm"
 import_datastore_id = "local"
+cloud_init_datastore_id = "local"
 
 bootc_qcow2_path = "../../../artifacts/bootc/current/rhem/disk.qcow2"
 uploaded_qcow2_file_name = "rhem-demo-device.qcow2"

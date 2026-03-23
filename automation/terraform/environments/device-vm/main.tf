@@ -1,9 +1,20 @@
 provider "proxmox" {
   endpoint = var.proxmox_endpoint
   insecure = var.proxmox_insecure
+
+  ssh {
+    username = var.proxmox_ssh_username
+
+    node {
+      name    = var.proxmox_node
+      address = local.proxmox_ssh_host
+      port    = var.proxmox_ssh_port
+    }
+  }
 }
 
 locals {
+  proxmox_ssh_host = var.proxmox_ssh_host != "" ? var.proxmox_ssh_host : split(":", split("/", replace(replace(var.proxmox_endpoint, "https://", ""), "http://", ""))[0])[0]
   vm_tags = distinct(concat([
     "managed-by-terraform",
     "project-rhem-eap",
@@ -30,7 +41,7 @@ resource "proxmox_virtual_environment_file" "cloud_init_user_data" {
   count = var.cloud_init_user_data_path != "" ? 1 : 0
 
   content_type = "snippets"
-  datastore_id = var.import_datastore_id
+  datastore_id = var.cloud_init_datastore_id
   node_name    = var.proxmox_node
   overwrite    = true
 

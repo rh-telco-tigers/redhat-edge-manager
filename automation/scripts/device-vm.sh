@@ -22,6 +22,7 @@ device_name="${DEVICE_NAME:-}"
 device_site="${DEVICE_SITE:-}"
 device_label_kvs="${DEVICE_LABEL_KVS:-}"
 device_metadata_dir="${env_dir}/.device-metadata"
+terraform_home_dir="${env_dir}/.terraform-home"
 
 slugify() {
   printf '%s' "$1" \
@@ -57,6 +58,55 @@ load_proxmox_env() {
     # shellcheck source=/dev/null
     source "$env_dir/.env"
     set +a
+  fi
+}
+
+get_proxmox_endpoint() {
+  local endpoint="${PROXMOX_ENDPOINT:-}"
+
+  if [[ -z "$endpoint" ]]; then
+    endpoint="$(read_tfvars_string proxmox_endpoint)"
+  fi
+
+  if [[ -z "$endpoint" ]]; then
+    echo "Could not determine proxmox_endpoint." >&2
+    exit 1
+  fi
+
+  printf '%s' "${endpoint%/}"
+}
+
+get_proxmox_ssh_target() {
+  python3 - "$(get_proxmox_endpoint)" <<'PY'
+import sys
+from urllib.parse import urlparse
+
+endpoint = sys.argv[1]
+parsed = urlparse(endpoint)
+host = parsed.hostname or ""
+port = parsed.port or 22
+print(host)
+print(port)
+PY
+}
+
+prepare_terraform_home() {
+  local ssh_host ssh_port ssh_dir known_hosts_file ssh_target
+
+  ssh_target="$(get_proxmox_ssh_target)"
+  ssh_host="$(printf '%s\n' "$ssh_target" | sed -n '1p')"
+  ssh_port="$(printf '%s\n' "$ssh_target" | sed -n '2p')"
+
+  ssh_dir="${terraform_home_dir}/.ssh"
+  known_hosts_file="${ssh_dir}/known_hosts"
+
+  mkdir -p "$ssh_dir"
+  chmod 700 "$ssh_dir"
+  : > "$known_hosts_file"
+  chmod 600 "$known_hosts_file"
+
+  if [[ -n "$ssh_host" ]]; then
+    ssh-keyscan -H -p "$ssh_port" "$ssh_host" >> "$known_hosts_file" 2>/dev/null || true
   fi
 }
 
@@ -121,7 +171,7 @@ PY
 detect_next_vm_id() {
   load_proxmox_env
 
-  local endpoint="${PROXMOX_ENDPOINT:-}"
+  local endpoint
   local insecure="${PROXMOX_VE_INSECURE:-true}"
   local curl_args=(-fsS)
   local auth_response nextid_response
@@ -130,16 +180,7 @@ detect_next_vm_id() {
     curl_args+=(-k)
   fi
 
-  if [[ -z "$endpoint" ]]; then
-    endpoint="$(read_tfvars_string proxmox_endpoint)"
-  fi
-
-  if [[ -z "$endpoint" ]]; then
-    echo "Could not determine proxmox_endpoint for automatic VM ID allocation." >&2
-    exit 1
-  fi
-
-  endpoint="${endpoint%/}"
+  endpoint="$(get_proxmox_endpoint)"
 
   if [[ -n "${PROXMOX_VE_API_TOKEN:-}" ]]; then
     nextid_response="$(curl "${curl_args[@]}" \
@@ -184,6 +225,134 @@ if value == "":
     sys.exit(1)
 print(value)
 PY
+}
+
+proxmox_api_request() {
+  local method="$1"
+  local path="$2"
+  shift 2
+
+  load_proxmox_env
+
+  local endpoint insecure auth_response curl_args auth_curl_args
+  endpoint="$(get_proxmox_endpoint)"
+  insecure="${PROXMOX_VE_INSECURE:-true}"
+  curl_args=(-fsS)
+  auth_curl_args=(-fsS)
+
+  if [[ "$insecure" == "true" ]]; then
+    curl_args+=(-k)
+    auth_curl_args+=(-k)
+  fi
+
+  if [[ "$method" != "GET" ]]; then
+    curl_args+=(-X "$method")
+  fi
+
+  if [[ -n "${PROXMOX_VE_API_TOKEN:-}" ]]; then
+    curl "${curl_args[@]}" \
+      -H "Authorization: PVEAPIToken=${PROXMOX_VE_API_TOKEN}" \
+      "$@" \
+      "$endpoint/api2/json$path"
+    return
+  fi
+
+  if [[ -z "${PROXMOX_VE_USERNAME:-}" || -z "${PROXMOX_VE_PASSWORD:-}" ]]; then
+    echo "Proxmox credentials are required." >&2
+    exit 1
+  fi
+
+  auth_response="$(curl "${auth_curl_args[@]}" \
+    --data-urlencode "username=${PROXMOX_VE_USERNAME}" \
+    --data-urlencode "password=${PROXMOX_VE_PASSWORD}" \
+    "$endpoint/api2/json/access/ticket")"
+
+  local ticket csrf
+  ticket="$(python3 - "$auth_response" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+print(payload.get("data", {}).get("ticket", ""))
+PY
+)"
+  csrf="$(python3 - "$auth_response" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+print(payload.get("data", {}).get("CSRFPreventionToken", ""))
+PY
+)"
+
+  if [[ -z "$ticket" ]]; then
+    echo "Failed to obtain a Proxmox API ticket." >&2
+    exit 1
+  fi
+
+  if [[ "$method" == "GET" ]]; then
+    curl "${curl_args[@]}" \
+      -H "Cookie: PVEAuthCookie=${ticket}" \
+      "$@" \
+      "$endpoint/api2/json$path"
+    return
+  fi
+
+  curl "${curl_args[@]}" \
+    -H "Cookie: PVEAuthCookie=${ticket}" \
+    -H "CSRFPreventionToken: ${csrf}" \
+    "$@" \
+    "$endpoint/api2/json$path"
+}
+
+ensure_snippets_supported() {
+  local datastore_id storage_json storage_type content new_content
+
+  datastore_id="$(read_tfvars_string cloud_init_datastore_id)"
+  if [[ -z "$datastore_id" ]]; then
+    datastore_id="$(read_tfvars_string import_datastore_id)"
+  fi
+  [[ -n "$datastore_id" ]] || return 0
+
+  storage_json="$(proxmox_api_request GET "/storage/${datastore_id}")"
+  storage_type="$(python3 - "$storage_json" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+print(payload.get("data", {}).get("type", ""))
+PY
+)"
+  content="$(python3 - "$storage_json" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+print(payload.get("data", {}).get("content", ""))
+PY
+)"
+
+  if [[ ",$content," == *",snippets,"* ]]; then
+    return 0
+  fi
+
+  if [[ "$storage_type" != "dir" ]]; then
+    echo "Proxmox datastore '${datastore_id}' does not support snippets and is not a dir storage. Set a snippet-capable datastore for late binding." >&2
+    exit 1
+  fi
+
+  new_content="$(python3 - "$content" <<'PY'
+import sys
+
+items = [item.strip() for item in sys.argv[1].split(",") if item.strip()]
+if "snippets" not in items:
+    items.append("snippets")
+print(",".join(items))
+PY
+)"
+
+  proxmox_api_request PUT "/storage/${datastore_id}" --data-urlencode "content=${new_content}" >/dev/null
+  echo "Enabled snippets on Proxmox datastore '${datastore_id}' for late-binding cloud-init." >&2
 }
 
 build_vm_tags_hcl() {
@@ -365,6 +534,14 @@ fi
 if [[ -z "$bootc_qcow2_path" ]]; then
   bootc_qcow2_path="/tmp/rhem-device-placeholder.qcow2"
 fi
+
+prepare_terraform_home
+
+if [[ "$action" == "apply" && "$bootc_binding_mode" == "latebinding" ]]; then
+  ensure_snippets_supported
+fi
+
+export HOME="$terraform_home_dir"
 
 terraform -chdir="$env_dir" init -input=false >/dev/null
 

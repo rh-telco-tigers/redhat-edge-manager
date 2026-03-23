@@ -16,6 +16,7 @@ automation/terraform/environments/single-rhel9/terraform.tfvars
 automation/terraform/environments/device-vm/.env
 automation/terraform/environments/device-vm/terraform.tfvars
 automation/terraform/environments/device-vm/.device-metadata/
+automation/terraform/environments/device-vm/.terraform-home/
 labs/02-keycloak-integration/realm-edge-manager.json
 *.pem
 id_rsa*
