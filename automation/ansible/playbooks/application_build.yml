@@ -17,19 +17,38 @@
       ansible.builtin.meta: end_host
       when: not demo_application_use_satellite_registry_effective
 
-    - name: Reuse explicit Satellite registry IDs when they are already set
+    - name: Validate explicit Satellite registry IDs for the application flow
+      ansible.builtin.command:
+        argv:
+          - hammer
+          - product
+          - info
+          - --organization-id
+          - "{{ satellite_registry_org_id_effective | trim }}"
+          - --id
+          - "{{ satellite_registry_product_id_effective | trim }}"
+      register: _satellite_explicit_product
+      changed_when: false
+      failed_when: false
+      when:
+        - satellite_registry_org_id_effective | trim | length > 0
+        - satellite_registry_product_id_effective | trim | length > 0
+
+    - name: Reuse explicit Satellite registry IDs when they are valid
       ansible.builtin.set_fact:
         satellite_demo_application_org_id_effective: "{{ satellite_registry_org_id_effective | trim }}"
         satellite_demo_application_product_id_effective: "{{ satellite_registry_product_id_effective | trim }}"
       when:
         - satellite_registry_org_id_effective | trim | length > 0
         - satellite_registry_product_id_effective | trim | length > 0
+        - _satellite_explicit_product.rc == 0
 
-    - name: End the Satellite lookup when explicit registry IDs are already set
+    - name: End the Satellite lookup when explicit registry IDs are valid
       ansible.builtin.meta: end_host
       when:
         - satellite_registry_org_id_effective | trim | length > 0
         - satellite_registry_product_id_effective | trim | length > 0
+        - _satellite_explicit_product.rc == 0
 
     - name: Wait for Satellite SSH to become ready
       ansible.builtin.wait_for_connection:
@@ -38,6 +57,11 @@
 
     - name: Gather Satellite facts after SSH is ready
       ansible.builtin.setup:
+
+    - name: Reuse the explicit Satellite organization ID when provided
+      ansible.builtin.set_fact:
+        satellite_demo_application_org_id_lookup_effective: "{{ satellite_registry_org_id_effective | trim }}"
+      when: satellite_registry_org_id_effective | trim | length > 0
 
     - name: Look up the Satellite organization ID
       ansible.builtin.shell: |
@@ -49,11 +73,16 @@
         SATELLITE_ORG: "{{ satellite_initial_organization_effective }}"
       register: _satellite_org_id
       changed_when: false
+      when: satellite_registry_org_id_effective | trim | length == 0
+
+    - name: Set the effective Satellite organization ID for the application flow
+      ansible.builtin.set_fact:
+        satellite_demo_application_org_id_lookup_effective: "{{ satellite_demo_application_org_id_lookup_effective | default(((_satellite_org_id | default({})).stdout | default('', true)) | trim, true) }}"
 
     - name: Require a Satellite organization ID for the application flow
       ansible.builtin.assert:
         that:
-          - _satellite_org_id.stdout | trim | length > 0
+          - satellite_demo_application_org_id_lookup_effective | trim | length > 0
         fail_msg: "Could not determine the Satellite organization ID for {{ satellite_initial_organization_effective }}."
 
     - name: Allow unauthenticated pull from the Satellite Library lifecycle environment
@@ -63,7 +92,7 @@
           - lifecycle-environment
           - update
           - --organization-id
-          - "{{ _satellite_org_id.stdout | trim }}"
+          - "{{ satellite_demo_application_org_id_lookup_effective }}"
           - --name
           - Library
           - --registry-unauthenticated-pull
@@ -78,7 +107,7 @@
       args:
         executable: /bin/bash
       environment:
-        SATELLITE_ORG_ID: "{{ _satellite_org_id.stdout | trim }}"
+        SATELLITE_ORG_ID: "{{ satellite_demo_application_org_id_lookup_effective }}"
         SATELLITE_PRODUCT_NAME: "{{ demo_application_product_name_effective }}"
       register: _satellite_product_id_lookup
       changed_when: false
@@ -90,7 +119,7 @@
           - product
           - create
           - --organization-id
-          - "{{ _satellite_org_id.stdout | trim }}"
+          - "{{ satellite_demo_application_org_id_lookup_effective }}"
           - --name
           - "{{ demo_application_product_name_effective }}"
           - --label
@@ -104,7 +133,7 @@
       args:
         executable: /bin/bash
       environment:
-        SATELLITE_ORG_ID: "{{ _satellite_org_id.stdout | trim }}"
+        SATELLITE_ORG_ID: "{{ satellite_demo_application_org_id_lookup_effective }}"
         SATELLITE_PRODUCT_NAME: "{{ demo_application_product_name_effective }}"
       register: _satellite_product_id
       changed_when: false
@@ -117,7 +146,7 @@
 
     - name: Persist Satellite registry facts for the application build
       ansible.builtin.set_fact:
-        satellite_demo_application_org_id_effective: "{{ _satellite_org_id.stdout | trim }}"
+        satellite_demo_application_org_id_effective: "{{ satellite_demo_application_org_id_lookup_effective }}"
         satellite_demo_application_product_id_effective: "{{ _satellite_product_id.stdout | trim }}"
 
 - name: Build and publish the demo application images
@@ -126,6 +155,7 @@
   vars_files:
     - ../group_vars/all.yml
   vars:
+    repo_root_effective: "{{ playbook_dir | dirname | dirname | dirname }}"
     demo_application_name_effective: "{{ demo_application_name | default('hello-web', true) }}"
     demo_application_title_effective: "{{ demo_application_title | default('Red Hat Edge Manager Demo App', true) }}"
     demo_application_message_effective: "{{ demo_application_message | default('Managed by Red Hat Edge Manager', true) }}"
@@ -134,8 +164,8 @@
     demo_application_runtime_base_image_effective: "{{ demo_application_runtime_base_image | default('registry.access.redhat.com/ubi9/httpd-24:latest', true) }}"
     demo_application_use_satellite_registry_effective: "{{ demo_application_use_satellite_registry | default(bootc_use_satellite_registry | default(true, true), true) | bool }}"
     demo_application_registry_host_effective: "{{ demo_application_registry_host | default((hostvars[groups['satellite_hosts'][0]].fqdn | default('')) if demo_application_use_satellite_registry_effective else '', true) }}"
-    demo_application_org_id_effective: "{{ demo_application_org_id | default((satellite_registry_org_id | default((hostvars[groups['satellite_hosts'][0]].satellite_demo_application_org_id_effective | default('')), true)) if demo_application_use_satellite_registry_effective else '', true) }}"
-    demo_application_product_id_effective: "{{ demo_application_product_id | default((satellite_registry_product_id | default((hostvars[groups['satellite_hosts'][0]].satellite_demo_application_product_id_effective | default('')), true)) if demo_application_use_satellite_registry_effective else '', true) }}"
+    demo_application_org_id_effective: "{{ demo_application_org_id | default((hostvars[groups['satellite_hosts'][0]].satellite_demo_application_org_id_effective | default(satellite_registry_org_id | default('', true), true)) if demo_application_use_satellite_registry_effective else '', true) }}"
+    demo_application_product_id_effective: "{{ demo_application_product_id | default((hostvars[groups['satellite_hosts'][0]].satellite_demo_application_product_id_effective | default(satellite_registry_product_id | default('', true), true)) if demo_application_use_satellite_registry_effective else '', true) }}"
     demo_application_runtime_repo_name_effective: "{{ demo_application_runtime_repo_name | default('hello-web-runtime', true) }}"
     demo_application_package_repo_name_effective: "{{ demo_application_package_repo_name | default('hello-web-package', true) }}"
     demo_application_runtime_image_repo_default_effective: "{{ (demo_application_registry_host_effective ~ '/id/' ~ demo_application_org_id_effective ~ '/' ~ demo_application_product_id_effective ~ '/' ~ demo_application_runtime_repo_name_effective) if demo_application_use_satellite_registry_effective else 'localhost/rhem-demo/' ~ demo_application_runtime_repo_name_effective }}"
@@ -145,6 +175,7 @@
     demo_application_runtime_image_ref_effective: "{{ demo_application_runtime_image_repo_effective }}:{{ demo_application_image_tag_effective }}"
     demo_application_package_image_ref_effective: "{{ demo_application_package_image_repo_effective }}:{{ demo_application_image_tag_effective }}"
     demo_application_workspace_dir_effective: "{{ demo_application_workspace_dir | default('/var/lib/rhem-demo/applications/' ~ demo_application_name_effective, true) }}"
+    demo_application_source_dir_effective: "{{ repo_root_effective }}/applications/{{ demo_application_name_effective }}"
     demo_application_runtime_dir_effective: "{{ demo_application_workspace_dir_effective }}/runtime"
     demo_application_package_dir_effective: "{{ demo_application_workspace_dir_effective }}/package"
     demo_application_satellite_ca_workspace_path_effective: "{{ demo_application_workspace_dir_effective }}/satellite-ca.crt"
@@ -211,27 +242,81 @@
       ansible.builtin.command: update-ca-trust
       when: demo_application_use_satellite_registry_effective
 
-    - name: Render the demo application landing page
-      ansible.builtin.template:
-        src: templates/demo-application-index.html.j2
+    - name: Copy the demo application landing page
+      ansible.builtin.copy:
+        src: "{{ demo_application_source_dir_effective }}/runtime/index.html"
         dest: "{{ demo_application_runtime_dir_effective }}/index.html"
         mode: "0644"
 
-    - name: Render the demo application runtime Containerfile
-      ansible.builtin.template:
-        src: templates/demo-application-runtime.Containerfile.j2
+    - name: Set the demo application title in the landing page
+      ansible.builtin.replace:
+        path: "{{ demo_application_runtime_dir_effective }}/index.html"
+        regexp: '^  <title>.*</title>$'
+        replace: "  <title>{{ demo_application_title_effective }}</title>"
+
+    - name: Set the demo application heading in the landing page
+      ansible.builtin.replace:
+        path: "{{ demo_application_runtime_dir_effective }}/index.html"
+        regexp: '^  <h1>.*</h1>$'
+        replace: "  <h1>{{ demo_application_title_effective }}</h1>"
+
+    - name: Set the demo application message in the landing page
+      ansible.builtin.replace:
+        path: "{{ demo_application_runtime_dir_effective }}/index.html"
+        regexp: '^  <p>Managed by Red Hat Edge Manager</p>$'
+        replace: "  <p>{{ demo_application_message_effective }}</p>"
+
+    - name: Set the demo application package name in the landing page
+      ansible.builtin.replace:
+        path: "{{ demo_application_runtime_dir_effective }}/index.html"
+        regexp: '^  <p>Application package: .*?</p>$'
+        replace: "  <p>Application package: {{ demo_application_name_effective }}</p>"
+
+    - name: Set the demo application runtime image in the landing page
+      ansible.builtin.replace:
+        path: "{{ demo_application_runtime_dir_effective }}/index.html"
+        regexp: '^  <p>Runtime image: .*?</p>$'
+        replace: "  <p>Runtime image: {{ demo_application_runtime_image_ref_effective }}</p>"
+
+    - name: Copy the demo application runtime Containerfile
+      ansible.builtin.copy:
+        src: "{{ demo_application_source_dir_effective }}/runtime/Containerfile"
         dest: "{{ demo_application_runtime_dir_effective }}/Containerfile"
         mode: "0644"
 
-    - name: Render the demo application quadlet file
-      ansible.builtin.template:
-        src: templates/demo-application-application.container.j2
+    - name: Set the demo application runtime base image
+      ansible.builtin.replace:
+        path: "{{ demo_application_runtime_dir_effective }}/Containerfile"
+        regexp: '^FROM .*$'
+        replace: "FROM {{ demo_application_runtime_base_image_effective }}"
+
+    - name: Copy the demo application quadlet file
+      ansible.builtin.copy:
+        src: "{{ demo_application_source_dir_effective }}/package/application.container"
         dest: "{{ demo_application_package_dir_effective }}/application.container"
         mode: "0644"
 
-    - name: Render the demo application package Containerfile
-      ansible.builtin.template:
-        src: templates/demo-application-package.Containerfile.j2
+    - name: Set the demo application title in the quadlet file
+      ansible.builtin.replace:
+        path: "{{ demo_application_package_dir_effective }}/application.container"
+        regexp: '^Description=.*$'
+        replace: "Description={{ demo_application_title_effective }}"
+
+    - name: Set the demo application runtime image in the quadlet file
+      ansible.builtin.replace:
+        path: "{{ demo_application_package_dir_effective }}/application.container"
+        regexp: '^Image=.*$'
+        replace: "Image={{ demo_application_runtime_image_ref_effective }}"
+
+    - name: Set the demo application port mapping in the quadlet file
+      ansible.builtin.replace:
+        path: "{{ demo_application_package_dir_effective }}/application.container"
+        regexp: '^PublishPort=.*$'
+        replace: "PublishPort={{ demo_application_http_port_effective }}:8080"
+
+    - name: Copy the demo application package Containerfile
+      ansible.builtin.copy:
+        src: "{{ demo_application_source_dir_effective }}/package/Containerfile"
         dest: "{{ demo_application_package_dir_effective }}/Containerfile"
         mode: "0644"
 

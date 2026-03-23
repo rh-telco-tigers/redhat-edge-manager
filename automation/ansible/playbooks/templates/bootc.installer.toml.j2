@@ -1,5 +1,0 @@
-[customizations.installer.kickstart]
-contents = """
-network --bootproto=dhcp --device=link --activate --onboot=on{% if bootc_installer_nameservers_effective | length > 0 %} --nameserver={{ bootc_installer_nameservers_effective | join(',') }}{% endif %}
-reboot --eject
-"""

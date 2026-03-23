@@ -18,19 +18,38 @@
       ansible.builtin.meta: end_host
       when: not demo_application_use_satellite_registry_effective
 
-    - name: Reuse explicit Satellite registry IDs when they are already set
+    - name: Validate explicit Satellite registry IDs for the demo application deploy
+      ansible.builtin.command:
+        argv:
+          - hammer
+          - product
+          - info
+          - --organization-id
+          - "{{ satellite_registry_org_id_effective | trim }}"
+          - --id
+          - "{{ satellite_registry_product_id_effective | trim }}"
+      register: _satellite_explicit_product
+      changed_when: false
+      failed_when: false
+      when:
+        - satellite_registry_org_id_effective | trim | length > 0
+        - satellite_registry_product_id_effective | trim | length > 0
+
+    - name: Reuse explicit Satellite registry IDs when they are valid
       ansible.builtin.set_fact:
         satellite_demo_application_org_id_effective: "{{ satellite_registry_org_id_effective | trim }}"
         satellite_demo_application_product_id_effective: "{{ satellite_registry_product_id_effective | trim }}"
       when:
         - satellite_registry_org_id_effective | trim | length > 0
         - satellite_registry_product_id_effective | trim | length > 0
+        - _satellite_explicit_product.rc == 0
 
-    - name: End the Satellite lookup when explicit registry IDs are already set
+    - name: End the Satellite lookup when explicit registry IDs are valid
       ansible.builtin.meta: end_host
       when:
         - satellite_registry_org_id_effective | trim | length > 0
         - satellite_registry_product_id_effective | trim | length > 0
+        - _satellite_explicit_product.rc == 0
 
     - name: Wait for Satellite SSH to become ready
       ansible.builtin.wait_for_connection:
@@ -39,6 +58,11 @@
 
     - name: Gather Satellite facts after SSH is ready
       ansible.builtin.setup:
+
+    - name: Reuse the explicit Satellite organization ID when provided
+      ansible.builtin.set_fact:
+        satellite_demo_application_org_id_lookup_effective: "{{ satellite_registry_org_id_effective | trim }}"
+      when: satellite_registry_org_id_effective | trim | length > 0
 
     - name: Look up the Satellite organization ID
       ansible.builtin.shell: |
@@ -50,6 +74,11 @@
         SATELLITE_ORG: "{{ satellite_initial_organization_effective }}"
       register: _satellite_org_id
       changed_when: false
+      when: satellite_registry_org_id_effective | trim | length == 0
+
+    - name: Set the effective Satellite organization ID for the demo application deploy
+      ansible.builtin.set_fact:
+        satellite_demo_application_org_id_lookup_effective: "{{ satellite_demo_application_org_id_lookup_effective | default(((_satellite_org_id | default({})).stdout | default('', true)) | trim, true) }}"
 
     - name: Look up the Satellite application product ID
       ansible.builtin.shell: |
@@ -58,14 +87,14 @@
       args:
         executable: /bin/bash
       environment:
-        SATELLITE_ORG_ID: "{{ _satellite_org_id.stdout | trim }}"
+        SATELLITE_ORG_ID: "{{ satellite_demo_application_org_id_lookup_effective }}"
         SATELLITE_PRODUCT_NAME: "{{ demo_application_product_name_effective }}"
       register: _satellite_product_id
       changed_when: false
 
     - name: Persist Satellite registry facts for the demo application deploy
       ansible.builtin.set_fact:
-        satellite_demo_application_org_id_effective: "{{ _satellite_org_id.stdout | trim }}"
+        satellite_demo_application_org_id_effective: "{{ satellite_demo_application_org_id_lookup_effective }}"
         satellite_demo_application_product_id_effective: "{{ _satellite_product_id.stdout | trim }}"
 
 - name: Deploy the demo application through the demo fleet
@@ -74,12 +103,14 @@
   vars_files:
     - ../group_vars/all.yml
   vars:
+    repo_root_effective: "{{ playbook_dir | dirname | dirname | dirname }}"
     rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
     application_workspace_dir_effective: "{{ demo_application_workspace_dir | default('/var/lib/rhem-demo/applications/' ~ (demo_application_name | default('hello-web', true)), true) }}"
     application_flightctl_config_dir_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}/flightctl"
     demo_fleet_name_effective: "{{ demo_fleet_name | default('demo', true) }}"
     demo_fleet_selector_labels_effective: "{{ demo_fleet_selector_labels | default({'fleet': 'demo'}, true) }}"
     demo_application_name_effective: "{{ demo_application_name | default('hello-web', true) }}"
+    demo_application_source_dir_effective: "{{ repo_root_effective }}/applications/{{ demo_application_name_effective }}"
     demo_application_type_effective: "{{ demo_application_type | default('quadlet', true) }}"
     demo_application_image_tag_effective: "{{ demo_application_image_tag | default('v3', true) }}"
     demo_application_prune_unknown_devices_effective: "{{ demo_application_prune_unknown_devices | default(true, true) | bool }}"
@@ -88,8 +119,8 @@
     demo_application_wait_retries_effective: "{{ [1, ((demo_application_wait_timeout_seconds_effective | int) // (demo_application_wait_poll_interval_seconds_effective | int))] | max }}"
     bootc_use_satellite_registry_effective: "{{ (bootc_use_satellite_registry | default(true, true) | bool) and ((groups['satellite_hosts'] | default([])) | length > 0) }}"
     bootc_satellite_registry_host_effective: "{{ satellite_registry_host | default((hostvars[groups['satellite_hosts'][0]].fqdn | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
-    bootc_satellite_org_id_effective: "{{ satellite_registry_org_id | default((hostvars[groups['satellite_hosts'][0]].satellite_demo_application_org_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
-    bootc_satellite_product_id_effective: "{{ satellite_registry_product_id | default((hostvars[groups['satellite_hosts'][0]].satellite_demo_application_product_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_satellite_org_id_effective: "{{ (hostvars[groups['satellite_hosts'][0]].satellite_demo_application_org_id_effective | default(satellite_registry_org_id | default('', true), true)) if bootc_use_satellite_registry_effective else '' }}"
+    bootc_satellite_product_id_effective: "{{ (hostvars[groups['satellite_hosts'][0]].satellite_demo_application_product_id_effective | default(satellite_registry_product_id | default('', true), true)) if bootc_use_satellite_registry_effective else '' }}"
     bootc_satellite_repository_name_effective: "{{ satellite_bootc_repository_name | default('device-os', true) }}"
     demo_fleet_image_repo_default_effective: "{{ (bootc_satellite_registry_host_effective ~ '/id/' ~ bootc_satellite_org_id_effective ~ '/' ~ bootc_satellite_product_id_effective ~ '/' ~ bootc_satellite_repository_name_effective) if bootc_use_satellite_registry_effective else 'localhost/rhem-demo/device-os' }}"
     demo_fleet_image_repo_effective: "{{ demo_fleet_image_repo | default(bootc_image_repo | default(demo_fleet_image_repo_default_effective, true), true) }}"
@@ -99,10 +130,6 @@
     demo_application_package_image_repo_default_effective: "{{ (bootc_satellite_registry_host_effective ~ '/id/' ~ bootc_satellite_org_id_effective ~ '/' ~ bootc_satellite_product_id_effective ~ '/' ~ demo_application_package_repo_name_effective) if bootc_use_satellite_registry_effective else 'localhost/rhem-demo/' ~ demo_application_package_repo_name_effective }}"
     demo_application_package_image_repo_effective: "{{ demo_application_package_image_repo | default(demo_application_package_image_repo_default_effective, true) }}"
     demo_application_package_image_ref_effective: "{{ demo_application_package_image_repo_effective }}:{{ demo_application_image_tag_effective }}"
-    demo_applications_effective:
-      - name: "{{ demo_application_name_effective }}"
-        appType: "{{ demo_application_type_effective }}"
-        image: "{{ demo_application_package_image_ref_effective }}"
     application_selector_key_effective: "{{ ((demo_fleet_selector_labels_effective | dict2items | first).key) if (demo_fleet_selector_labels_effective | length > 0) else 'fleet' }}"
     application_selector_value_effective: "{{ ((demo_fleet_selector_labels_effective | dict2items | first).value | string) if (demo_fleet_selector_labels_effective | length > 0) else 'demo' }}"
     application_fleet_manifest_effective: "{{ application_workspace_dir_effective }}/{{ demo_fleet_name_effective }}-fleet.yaml"
@@ -110,6 +137,10 @@
     application_flightctl_username_effective: "{{ edge_manager_admin_username | default(rhem_admin_username, true) }}"
     application_flightctl_password_effective: "{{ edge_manager_admin_password | default(rhem_admin_password, true) }}"
     application_flightctl_token_effective: "{{ aap_edge_manager_oauth_token | default((hostvars[groups['aap_controllers'][0]].aap_edge_manager_oauth_token_effective | default('')) if ((groups['aap_controllers'] | default([])) | length > 0) else '', true) }}"
+    demo_fleet_selector_labels_block_effective: |-
+      {% for item in demo_fleet_selector_labels_effective | dict2items %}
+            {{ item.key }}: {{ item.value | to_json }}
+      {% endfor %}
   tasks:
     - name: Require an AAP OAuth token when AAP auth is selected
       ansible.builtin.assert:
@@ -166,11 +197,35 @@
       no_log: true
       when: rhem_auth_provider_effective != 'aap'
 
-    - name: Render the demo fleet manifest with the application
-      ansible.builtin.template:
-        src: templates/fleet.demo.yaml.j2
+    - name: Copy the demo fleet manifest with the application
+      ansible.builtin.copy:
+        src: "{{ demo_application_source_dir_effective }}/fleet-with-app.yaml"
         dest: "{{ application_fleet_manifest_effective }}"
         mode: "0644"
+
+    - name: Set the fleet name in the demo application manifest
+      ansible.builtin.replace:
+        path: "{{ application_fleet_manifest_effective }}"
+        regexp: '^  name: .*$'
+        replace: "  name: {{ demo_fleet_name_effective }}"
+
+    - name: Set the fleet selector labels in the demo application manifest
+      ansible.builtin.replace:
+        path: "{{ application_fleet_manifest_effective }}"
+        regexp: '(?ms)^    matchLabels:\n.*?^  template:'
+        replace: "    matchLabels:\n{{ demo_fleet_selector_labels_block_effective }}\n  template:"
+
+    - name: Set the operating system image in the demo application manifest
+      ansible.builtin.replace:
+        path: "{{ application_fleet_manifest_effective }}"
+        regexp: '(?m)^      os:\n        image: .*$'
+        replace: "      os:\n        image: {{ demo_fleet_image_ref_effective }}"
+
+    - name: Set the application block in the demo fleet manifest
+      ansible.builtin.replace:
+        path: "{{ application_fleet_manifest_effective }}"
+        regexp: '(?m)^      applications:\n        - name: .*\n          appType: .*\n          image: .*$'
+        replace: "      applications:\n        - name: {{ demo_application_name_effective }}\n          appType: {{ demo_application_type_effective }}\n          image: {{ demo_application_package_image_ref_effective }}"
 
     - name: Apply the updated fleet manifest with the demo application
       ansible.builtin.command:

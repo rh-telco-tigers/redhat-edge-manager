@@ -1,7 +1,7 @@
-FROM {{ bootc_base_image_effective }}
+FROM registry.redhat.io/rhel9/rhel-bootc:9.7
 
 RUN dnf -y install 'dnf-command(config-manager)' && \
-    dnf config-manager --set-enabled {{ bootc_edge_manager_repo_effective }} && \
+    dnf config-manager --set-enabled edge-manager-1.0-for-rhel-9-x86_64-rpms && \
     dnf -y install flightctl-agent qemu-guest-agent sudo && \
     dnf -y clean all && \
     systemctl enable flightctl-agent.service && \
@@ -24,13 +24,9 @@ RUN getent passwd cloud-user >/dev/null 2>&1 || useradd -m -G wheel cloud-user &
     chmod 0755 /usr/local/libexec/rhem-demo-hosts.sh && \
     systemctl enable rhem-demo-hosts.service
 
-{% if bootc_use_satellite_registry_effective %}
-RUN mkdir -p /etc/containers/certs.d/{{ bootc_registry_effective }}
-ADD {{ bootc_satellite_ca_filename_effective }} /etc/pki/ca-trust/source/anchors/{{ bootc_satellite_ca_filename_effective }}
-ADD {{ bootc_satellite_ca_filename_effective }} /etc/containers/certs.d/{{ bootc_registry_effective }}/ca.crt
+RUN mkdir -p /etc/containers/certs.d/satellite.rhem-eap.lan
+ADD satellite-ca.crt /etc/pki/ca-trust/source/anchors/satellite-ca.crt
+ADD satellite-ca.crt /etc/containers/certs.d/satellite.rhem-eap.lan/ca.crt
 RUN update-ca-trust
-{% endif %}
-{% if bootc_include_enrollment_config_effective %}
 
 ADD config.yaml /etc/flightctl/
-{% endif %}

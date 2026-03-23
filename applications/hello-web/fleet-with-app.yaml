@@ -1,0 +1,16 @@
+apiVersion: flightctl.io/v1alpha1
+kind: Fleet
+metadata:
+  name: demo
+spec:
+  selector:
+    matchLabels:
+      fleet: demo
+  template:
+    spec:
+      os:
+        image: satellite.rhem-eap.lan/id/1/1/device-os:v1
+      applications:
+        - name: hello-web
+          appType: quadlet
+          image: satellite.rhem-eap.lan/id/1/1/hello-web-package:v3

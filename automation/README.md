@@ -180,6 +180,12 @@ make bootc-build
 
 This builds the bootc image on the Edge Manager host, pushes it to Satellite by default, and fetches the generated artifacts back to this repo.
 
+The source of truth for this flow lives under:
+
+```text
+bootc/
+```
+
 Fetched artifacts are stored under:
 
 ```text
@@ -293,6 +299,12 @@ This builds and pushes:
 
 - the runtime image the device actually runs
 - the quadlet package image referenced by Edge Manager
+
+The source of truth for this flow lives under:
+
+```text
+applications/hello-web/
+```
 
 ### Deploy the application through Edge Manager
 

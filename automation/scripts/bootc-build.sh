@@ -3,11 +3,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTOMATION_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${AUTOMATION_DIR}/.." && pwd)"
 ANSIBLE_DIR="${AUTOMATION_DIR}/ansible"
 ANSIBLE_PLAYBOOK="${AUTOMATION_DIR}/.venv/bin/ansible-playbook"
 ANSIBLE_INVENTORY="${AUTOMATION_DIR}/.venv/bin/ansible-inventory"
 GROUP_VARS_FILE="${ANSIBLE_DIR}/group_vars/all.yml"
+BOOTC_SOURCE_DIR="${REPO_ROOT}/bootc"
 extra_vars=()
+
+echo "Using bootc source from ${BOOTC_SOURCE_DIR}"
 
 if [[ -n "${BOOTC_FORCE_REBUILD:-}" ]]; then
   extra_vars+=(-e "bootc_force_rebuild=${BOOTC_FORCE_REBUILD}")
@@ -67,3 +71,5 @@ if [[ "${BOOTC_FETCH_QCOW2:-true}" == "true" ]]; then
     "${BOOTC_WORKSPACE_DIR}/output/qcow2/disk.qcow2" \
     "${ARTIFACT_DIR}/disk.qcow2"
 fi
+
+echo "Fetched bootc artifacts into ${ARTIFACT_DIR}"

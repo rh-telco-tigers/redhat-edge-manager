@@ -102,6 +102,8 @@ If your generated file shows a different host that is not covered by the Edge Ma
 
 ## Step 4 — Build the bootc image
 
+This repo keeps the reusable bootc build source in [`bootc/`](../bootc/README.md). The manual lab and `make bootc-build` use the same files.
+
 Create a working directory on the build host:
 
 ```bash
@@ -122,29 +124,18 @@ sudo podman login "${SATELLITE_HOST}" \
   --password 'CHANGEME-satellite-admin-password'
 ```
 
-Create the `Containerfile`:
+Use these files from [`bootc/`](../bootc/README.md):
 
-```bash
-cat > Containerfile <<EOF
-FROM registry.redhat.io/rhel9/rhel-bootc:9.7
+- [`bootc/Containerfile`](../bootc/Containerfile)
+- [`bootc/installer.toml`](../bootc/installer.toml)
+- [`bootc/rhem-demo-hosts.sh`](../bootc/rhem-demo-hosts.sh)
+- [`bootc/rhem-demo-hosts.service`](../bootc/rhem-demo-hosts.service)
 
-RUN dnf -y install 'dnf-command(config-manager)' && \
-    dnf config-manager --set-enabled edge-manager-1.0-for-rhel-9-x86_64-rpms && \
-    dnf -y install flightctl-agent podman qemu-guest-agent sudo && \
-    dnf -y clean all && \
-    systemctl enable flightctl-agent.service && \
-    systemctl enable qemu-guest-agent.service && \
-    systemctl enable podman.service && \
-    systemctl mask bootc-fetch-apply-updates.timer
+Copy those files into the build directory. If your hostnames differ from the defaults in this repo, edit the obvious lines in `Containerfile` and `rhem-demo-hosts.sh`. Place these generated files in the same build context:
 
-RUN mkdir -p /etc/containers/certs.d/${SATELLITE_HOST}
-ADD satellite-ca.crt /etc/pki/ca-trust/source/anchors/satellite-ca.crt
-ADD satellite-ca.crt /etc/containers/certs.d/${SATELLITE_HOST}/ca.crt
-RUN update-ca-trust
-
-ADD config.yaml /etc/flightctl/
-EOF
-```
+- `config.yaml`
+- `satellite-ca.crt`
+- `demo-authorized-key.pub`
 
 Build and push the image:
 
@@ -163,7 +154,7 @@ sudo podman tag \
 
 ## Step 5 — Generate the bootable installer artifact
 
-Use `bootc-image-builder` against the locally tagged image. This avoids private-registry pull issues during artifact generation.
+Use `bootc-image-builder` against the locally tagged image. This avoids private-registry pull issues during artifact generation. If you want the same Kickstart behavior as automation, use [`bootc/installer.toml`](../bootc/installer.toml) as `config.toml`.
 
 Create the output directory:
 

@@ -18,19 +18,38 @@
       ansible.builtin.meta: end_host
       when: not satellite_bootc_registry_enabled_effective
 
-    - name: Skip Satellite lookup when explicit registry IDs are already set
+    - name: Validate explicit Satellite registry IDs for the fleet image reference
+      ansible.builtin.command:
+        argv:
+          - hammer
+          - product
+          - info
+          - --organization-id
+          - "{{ satellite_registry_org_id_effective | trim }}"
+          - --id
+          - "{{ satellite_registry_product_id_effective | trim }}"
+      register: _satellite_explicit_product
+      changed_when: false
+      failed_when: false
+      when:
+        - satellite_registry_org_id_effective | trim | length > 0
+        - satellite_registry_product_id_effective | trim | length > 0
+
+    - name: Reuse explicit Satellite registry IDs when they are valid
       ansible.builtin.set_fact:
         satellite_bootc_org_id_effective: "{{ satellite_registry_org_id_effective | trim }}"
         satellite_bootc_product_id_effective: "{{ satellite_registry_product_id_effective | trim }}"
       when:
         - satellite_registry_org_id_effective | trim | length > 0
         - satellite_registry_product_id_effective | trim | length > 0
+        - _satellite_explicit_product.rc == 0
 
-    - name: End the Satellite lookup play when explicit registry IDs are already set
+    - name: End the Satellite lookup play when explicit registry IDs are valid
       ansible.builtin.meta: end_host
       when:
         - satellite_registry_org_id_effective | trim | length > 0
         - satellite_registry_product_id_effective | trim | length > 0
+        - _satellite_explicit_product.rc == 0
 
     - name: Wait for Satellite SSH to become ready
       ansible.builtin.wait_for_connection:
@@ -39,6 +58,11 @@
 
     - name: Gather Satellite facts after SSH is ready
       ansible.builtin.setup:
+
+    - name: Reuse the explicit Satellite organization ID when provided
+      ansible.builtin.set_fact:
+        satellite_bootc_org_id_lookup_effective: "{{ satellite_registry_org_id_effective | trim }}"
+      when: satellite_registry_org_id_effective | trim | length > 0
 
     - name: Look up the Satellite organization ID
       ansible.builtin.shell: |
@@ -50,6 +74,11 @@
         SATELLITE_ORG: "{{ satellite_initial_organization_effective }}"
       register: _satellite_org_id
       changed_when: false
+      when: satellite_registry_org_id_effective | trim | length == 0
+
+    - name: Set the effective Satellite organization ID for the fleet image reference
+      ansible.builtin.set_fact:
+        satellite_bootc_org_id_lookup_effective: "{{ satellite_bootc_org_id_lookup_effective | default(((_satellite_org_id | default({})).stdout | default('', true)) | trim, true) }}"
 
     - name: Look up the Satellite bootc product ID
       ansible.builtin.shell: |
@@ -58,14 +87,14 @@
       args:
         executable: /bin/bash
       environment:
-        SATELLITE_ORG_ID: "{{ _satellite_org_id.stdout | trim }}"
+        SATELLITE_ORG_ID: "{{ satellite_bootc_org_id_lookup_effective }}"
         SATELLITE_PRODUCT_NAME: "{{ satellite_bootc_product_name_effective }}"
       register: _satellite_product_id
       changed_when: false
 
     - name: Persist Satellite registry facts for the fleet image reference
       ansible.builtin.set_fact:
-        satellite_bootc_org_id_effective: "{{ _satellite_org_id.stdout | trim }}"
+        satellite_bootc_org_id_effective: "{{ satellite_bootc_org_id_lookup_effective }}"
         satellite_bootc_product_id_effective: "{{ _satellite_product_id.stdout | trim }}"
 
 - name: Create or update the demo Edge Manager fleet
@@ -86,8 +115,8 @@
     fleet_flightctl_token_effective: "{{ aap_edge_manager_oauth_token | default((hostvars[groups['aap_controllers'][0]].aap_edge_manager_oauth_token_effective | default('')) if ((groups['aap_controllers'] | default([])) | length > 0) else '', true) }}"
     bootc_use_satellite_registry_effective: "{{ (bootc_use_satellite_registry | default(true, true) | bool) and ((groups['satellite_hosts'] | default([])) | length > 0) }}"
     bootc_satellite_registry_host_effective: "{{ satellite_registry_host | default((hostvars[groups['satellite_hosts'][0]].fqdn | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
-    bootc_satellite_org_id_effective: "{{ satellite_registry_org_id | default((hostvars[groups['satellite_hosts'][0]].satellite_bootc_org_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
-    bootc_satellite_product_id_effective: "{{ satellite_registry_product_id | default((hostvars[groups['satellite_hosts'][0]].satellite_bootc_product_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_satellite_org_id_effective: "{{ (hostvars[groups['satellite_hosts'][0]].satellite_bootc_org_id_effective | default(satellite_registry_org_id | default('', true), true)) if bootc_use_satellite_registry_effective else '' }}"
+    bootc_satellite_product_id_effective: "{{ (hostvars[groups['satellite_hosts'][0]].satellite_bootc_product_id_effective | default(satellite_registry_product_id | default('', true), true)) if bootc_use_satellite_registry_effective else '' }}"
     bootc_satellite_repository_name_effective: "{{ satellite_bootc_repository_name | default('device-os', true) }}"
     demo_fleet_image_repo_default_effective: "{{ (bootc_satellite_registry_host_effective ~ '/id/' ~ bootc_satellite_org_id_effective ~ '/' ~ bootc_satellite_product_id_effective ~ '/' ~ bootc_satellite_repository_name_effective) if bootc_use_satellite_registry_effective else 'localhost/rhem-demo/device-os' }}"
     demo_fleet_image_repo_effective: "{{ demo_fleet_image_repo | default(bootc_image_repo | default(demo_fleet_image_repo_default_effective, true), true) }}"

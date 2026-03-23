@@ -1,0 +1,12 @@
+[Unit]
+Description=Red Hat Edge Manager Demo App
+
+[Container]
+Image=satellite.rhem-eap.lan/id/1/1/hello-web-runtime:v3
+PublishPort=8080:8080
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

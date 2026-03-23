@@ -42,14 +42,14 @@ help:
 	"  make aap-install      Install Ansible Automation Platform on the AAP host" \
 	"  make aap-integrate    Configure Edge Manager to use AAP authentication" \
 	"  make aap-setup        Run both AAP install and AAP integration" \
-	"  make bootc-build      Build the demo bootc image, push it to Satellite, and fetch the bootable qcow2" \
+	"  make bootc-build      Build the bootc/ source, push it to Satellite, and fetch the bootable qcow2" \
 	"  make device-vm-up     Create one named demo device VM; pass name=<device> site=<site> env=lab" \
 	"  make device-vm-down   Destroy one named demo device VM; pass name=<device>" \
 	"  make approve-enrollment Approve pending requests; pass name=<device> to reuse stored labels" \
 	"  make fleet-apply      Create or update the demo Edge Manager fleet" \
 	"  make device-demo      Build image, create the device VM, approve enrollment, and apply the fleet" \
-	"  make app-build        Build the demo application runtime and package images and push them to Satellite" \
-	"  make app-deploy       Update the demo fleet to deploy the demo application through Edge Manager" \
+	"  make app-build        Build the applications/hello-web/ images and push them to Satellite" \
+	"  make app-deploy       Apply applications/hello-web/fleet-with-app.yaml through Edge Manager" \
 	"  make app-demo         Build and deploy the demo application after Labs 3 to 5 are complete"
 
 init-files: automation-init-files

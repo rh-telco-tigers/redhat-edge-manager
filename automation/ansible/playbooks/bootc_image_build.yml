@@ -19,19 +19,38 @@
       ansible.builtin.meta: end_host
       when: not satellite_bootc_registry_enabled_effective
 
-    - name: Skip Satellite registry preparation when explicit registry IDs are already set
+    - name: Validate explicit Satellite registry IDs for the bootc flow
+      ansible.builtin.command:
+        argv:
+          - hammer
+          - product
+          - info
+          - --organization-id
+          - "{{ satellite_registry_org_id_effective | trim }}"
+          - --id
+          - "{{ satellite_registry_product_id_effective | trim }}"
+      register: _satellite_explicit_product
+      changed_when: false
+      failed_when: false
+      when:
+        - satellite_registry_org_id_effective | trim | length > 0
+        - satellite_registry_product_id_effective | trim | length > 0
+
+    - name: Reuse explicit Satellite registry IDs when they are valid
       ansible.builtin.set_fact:
         satellite_bootc_org_id_effective: "{{ satellite_registry_org_id_effective | trim }}"
         satellite_bootc_product_id_effective: "{{ satellite_registry_product_id_effective | trim }}"
       when:
         - satellite_registry_org_id_effective | trim | length > 0
         - satellite_registry_product_id_effective | trim | length > 0
+        - _satellite_explicit_product.rc == 0
 
-    - name: End the Satellite registry preparation play when explicit registry IDs are already set
+    - name: End the Satellite registry preparation play when explicit registry IDs are valid
       ansible.builtin.meta: end_host
       when:
         - satellite_registry_org_id_effective | trim | length > 0
         - satellite_registry_product_id_effective | trim | length > 0
+        - _satellite_explicit_product.rc == 0
 
     - name: Wait for Satellite SSH to become ready
       ansible.builtin.wait_for_connection:
@@ -40,6 +59,11 @@
 
     - name: Gather Satellite facts after SSH is ready
       ansible.builtin.setup:
+
+    - name: Reuse the explicit Satellite organization ID when provided
+      ansible.builtin.set_fact:
+        satellite_bootc_org_id_lookup_effective: "{{ satellite_registry_org_id_effective | trim }}"
+      when: satellite_registry_org_id_effective | trim | length > 0
 
     - name: Look up the Satellite organization ID
       ansible.builtin.shell: |
@@ -51,11 +75,16 @@
         SATELLITE_ORG: "{{ satellite_initial_organization_effective }}"
       register: _satellite_org_id
       changed_when: false
+      when: satellite_registry_org_id_effective | trim | length == 0
+
+    - name: Set the effective Satellite organization ID for the bootc flow
+      ansible.builtin.set_fact:
+        satellite_bootc_org_id_lookup_effective: "{{ satellite_bootc_org_id_lookup_effective | default(((_satellite_org_id | default({})).stdout | default('', true)) | trim, true) }}"
 
     - name: Require a Satellite organization ID for the bootc flow
       ansible.builtin.assert:
         that:
-          - _satellite_org_id.stdout | trim | length > 0
+          - satellite_bootc_org_id_lookup_effective | trim | length > 0
         fail_msg: "Could not determine the Satellite organization ID for {{ satellite_initial_organization_effective }}."
 
     - name: Allow unauthenticated pull from the Satellite Library lifecycle environment
@@ -65,7 +94,7 @@
           - lifecycle-environment
           - update
           - --organization-id
-          - "{{ _satellite_org_id.stdout | trim }}"
+          - "{{ satellite_bootc_org_id_lookup_effective }}"
           - --name
           - Library
           - --registry-unauthenticated-pull
@@ -80,7 +109,7 @@
       args:
         executable: /bin/bash
       environment:
-        SATELLITE_ORG_ID: "{{ _satellite_org_id.stdout | trim }}"
+        SATELLITE_ORG_ID: "{{ satellite_bootc_org_id_lookup_effective }}"
         SATELLITE_PRODUCT_NAME: "{{ satellite_bootc_product_name_effective }}"
       register: _satellite_product_id_lookup
       changed_when: false
@@ -92,7 +121,7 @@
           - product
           - create
           - --organization-id
-          - "{{ _satellite_org_id.stdout | trim }}"
+          - "{{ satellite_bootc_org_id_lookup_effective }}"
           - --name
           - "{{ satellite_bootc_product_name_effective }}"
           - --label
@@ -106,7 +135,7 @@
       args:
         executable: /bin/bash
       environment:
-        SATELLITE_ORG_ID: "{{ _satellite_org_id.stdout | trim }}"
+        SATELLITE_ORG_ID: "{{ satellite_bootc_org_id_lookup_effective }}"
         SATELLITE_PRODUCT_NAME: "{{ satellite_bootc_product_name_effective }}"
       register: _satellite_product_id
       changed_when: false
@@ -119,7 +148,7 @@
 
     - name: Persist Satellite registry facts for the bootc build
       ansible.builtin.set_fact:
-        satellite_bootc_org_id_effective: "{{ _satellite_org_id.stdout | trim }}"
+        satellite_bootc_org_id_effective: "{{ satellite_bootc_org_id_lookup_effective }}"
         satellite_bootc_product_id_effective: "{{ _satellite_product_id.stdout | trim }}"
 
 - name: Build the demo bootc image and artifacts on the RHEM host
@@ -128,6 +157,8 @@
   vars_files:
     - ../group_vars/all.yml
   vars:
+    repo_root_effective: "{{ playbook_dir | dirname | dirname | dirname }}"
+    bootc_source_dir_effective: "{{ repo_root_effective }}/bootc"
     rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
     bootc_workspace_dir_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}"
     bootc_flightctl_config_dir: "{{ bootc_workspace_dir_effective }}/flightctl"
@@ -144,8 +175,8 @@
     bootc_image_tag_effective: "{{ bootc_image_tag | default('v1', true) }}"
     bootc_use_satellite_registry_effective: "{{ (bootc_use_satellite_registry | default(true, true) | bool) and ((groups['satellite_hosts'] | default([])) | length > 0) }}"
     bootc_satellite_registry_host_effective: "{{ satellite_registry_host | default((hostvars[groups['satellite_hosts'][0]].fqdn | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
-    bootc_satellite_org_id_effective: "{{ satellite_registry_org_id | default((hostvars[groups['satellite_hosts'][0]].satellite_bootc_org_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
-    bootc_satellite_product_id_effective: "{{ satellite_registry_product_id | default((hostvars[groups['satellite_hosts'][0]].satellite_bootc_product_id_effective | default('')) if bootc_use_satellite_registry_effective else '', true) }}"
+    bootc_satellite_org_id_effective: "{{ (hostvars[groups['satellite_hosts'][0]].satellite_bootc_org_id_effective | default(satellite_registry_org_id | default('', true), true)) if bootc_use_satellite_registry_effective else '' }}"
+    bootc_satellite_product_id_effective: "{{ (hostvars[groups['satellite_hosts'][0]].satellite_bootc_product_id_effective | default(satellite_registry_product_id | default('', true), true)) if bootc_use_satellite_registry_effective else '' }}"
     bootc_satellite_repository_name_effective: "{{ satellite_bootc_repository_name | default('device-os', true) }}"
     bootc_default_image_repo_effective: "{{ (bootc_satellite_registry_host_effective ~ '/id/' ~ bootc_satellite_org_id_effective ~ '/' ~ bootc_satellite_product_id_effective ~ '/' ~ bootc_satellite_repository_name_effective) if bootc_use_satellite_registry_effective else 'localhost/rhem-demo/device-os' }}"
     bootc_image_repo_effective: "{{ bootc_image_repo | default(bootc_default_image_repo_effective, true) }}"
@@ -190,6 +221,14 @@
             true
           )
       }}
+    bootc_demo_hosts_block_effective: |-
+      {% for host in groups['managed_rhel_hosts'] | default([]) %}
+      {% set host_fqdn = hostvars[host].fqdn | default('') %}
+      {% set host_name = host if host != host_fqdn else '' %}
+      {% set host_domain = host_fqdn.split('.', 1)[1] if '.' in host_fqdn else '' %}
+      {% set long_host_fqdn = (host_name ~ '.' ~ host_domain) if host_name and host_domain and (host_name ~ '.' ~ host_domain) != host_fqdn else '' %}
+      {{ [hostvars[host].ansible_host, host_fqdn, hostvars[host].dns_name | default(''), host_name, long_host_fqdn] | reject('equalto', '') | unique | join(' ') }}
+      {% endfor %}
   tasks:
     - name: Require an AAP OAuth token when AAP auth is selected
       ansible.builtin.assert:
@@ -368,30 +407,86 @@
         mode: "0600"
       no_log: true
 
-    - name: Render the demo host mapping helper script
-      ansible.builtin.template:
-        src: templates/bootc.demo-hosts.sh.j2
+    - name: Copy the demo host mapping helper script
+      ansible.builtin.copy:
+        src: "{{ bootc_source_dir_effective }}/rhem-demo-hosts.sh"
         dest: "{{ bootc_demo_hosts_script_effective }}"
         mode: "0755"
 
-    - name: Render the demo host mapping helper service
-      ansible.builtin.template:
-        src: templates/bootc.demo-hosts.service.j2
+    - name: Rewrite the demo host mapping helper script for the current environment
+      ansible.builtin.replace:
+        path: "{{ bootc_demo_hosts_script_effective }}"
+        regexp: '(?ms)^# BEGIN RHEM DEMO HOSTS$\n.*^# END RHEM DEMO HOSTS$'
+        replace: |-
+          # BEGIN RHEM DEMO HOSTS
+          {{ bootc_demo_hosts_block_effective }}
+          # END RHEM DEMO HOSTS
+
+    - name: Copy the demo host mapping helper service
+      ansible.builtin.copy:
+        src: "{{ bootc_source_dir_effective }}/rhem-demo-hosts.service"
         dest: "{{ bootc_demo_hosts_service_effective }}"
         mode: "0644"
 
-    - name: Render the bootc installer Kickstart config
-      ansible.builtin.template:
-        src: templates/bootc.installer.toml.j2
+    - name: Copy the bootc installer Kickstart config
+      ansible.builtin.copy:
+        src: "{{ bootc_source_dir_effective }}/installer.toml"
         dest: "{{ bootc_installer_config_file_effective }}"
         mode: "0644"
       when: bootc_installer_config_enabled_effective
 
-    - name: Render the bootc Containerfile
-      ansible.builtin.template:
-        src: templates/bootc.Containerfile.j2
+    - name: Add installer nameservers when requested
+      ansible.builtin.replace:
+        path: "{{ bootc_installer_config_file_effective }}"
+        regexp: '^network --bootproto=dhcp --device=link --activate --onboot=on$'
+        replace: "network --bootproto=dhcp --device=link --activate --onboot=on --nameserver={{ bootc_installer_nameservers_effective | join(',') }}"
+      when:
+        - bootc_installer_config_enabled_effective
+        - bootc_installer_nameservers_effective | length > 0
+
+    - name: Copy the bootc Containerfile
+      ansible.builtin.copy:
+        src: "{{ bootc_source_dir_effective }}/Containerfile"
         dest: "{{ bootc_containerfile_effective }}"
         mode: "0644"
+
+    - name: Set the bootc base image
+      ansible.builtin.replace:
+        path: "{{ bootc_containerfile_effective }}"
+        regexp: '^FROM .*$'
+        replace: "FROM {{ bootc_base_image_effective }}"
+
+    - name: Set the Edge Manager repository in the bootc Containerfile
+      ansible.builtin.replace:
+        path: "{{ bootc_containerfile_effective }}"
+        regexp: 'edge-manager-1\.0-for-rhel-9-x86_64-rpms'
+        replace: "{{ bootc_edge_manager_repo_effective }}"
+
+    - name: Set the registry host in the bootc Containerfile
+      ansible.builtin.replace:
+        path: "{{ bootc_containerfile_effective }}"
+        regexp: 'satellite\.rhem-eap\.lan'
+        replace: "{{ bootc_registry_effective }}"
+      when: bootc_use_satellite_registry_effective
+
+    - name: Remove the registry CA section when Satellite is not used for the bootc image
+      ansible.builtin.lineinfile:
+        path: "{{ bootc_containerfile_effective }}"
+        regexp: "{{ item }}"
+        state: absent
+      loop:
+        - '^RUN mkdir -p /etc/containers/certs.d/satellite\.rhem-eap\.lan$'
+        - '^ADD satellite-ca\.crt /etc/pki/ca-trust/source/anchors/satellite-ca\.crt$'
+        - '^ADD satellite-ca\.crt /etc/containers/certs.d/satellite\.rhem-eap\.lan/ca\.crt$'
+        - '^RUN update-ca-trust$'
+      when: not bootc_use_satellite_registry_effective
+
+    - name: Remove the enrollment config from the bootc Containerfile when disabled
+      ansible.builtin.lineinfile:
+        path: "{{ bootc_containerfile_effective }}"
+        regexp: '^ADD config\.yaml /etc/flightctl/$'
+        state: absent
+      when: not bootc_include_enrollment_config_effective
 
     - name: Check whether the bootc ISO already exists
       ansible.builtin.stat:

@@ -68,33 +68,14 @@ sudo podman login "${SATELLITE_HOST}" \
   --password 'CHANGEME-satellite-admin-password'
 ```
 
-Create the application content:
+This repo keeps the reusable application source in [`applications/hello-web/`](../applications/hello-web/README.md). The manual lab, `make app-build`, and `make app-deploy` use the same files.
 
-```bash
-cat > runtime/index.html <<'EOF'
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Red Hat Edge Manager Demo App</title>
-</head>
-<body>
-  <h1>Red Hat Edge Manager Demo App</h1>
-  <p>Managed by Red Hat Edge Manager</p>
-</body>
-</html>
-EOF
-```
+Use these files:
 
-Create the runtime `Containerfile`:
+- [`applications/hello-web/runtime/index.html`](../applications/hello-web/runtime/index.html)
+- [`applications/hello-web/runtime/Containerfile`](../applications/hello-web/runtime/Containerfile)
 
-```bash
-cat > runtime/Containerfile <<'EOF'
-FROM registry.access.redhat.com/ubi9/httpd-24:latest
-
-COPY index.html /var/www/html/index.html
-EOF
-```
+Copy them into `runtime/`. If your registry path differs from the repo default, edit the `Runtime image` line in `index.html`.
 
 Build and push the runtime image:
 
@@ -109,36 +90,12 @@ sudo podman push "${DEMO_RUNTIME_IMAGE_REPO}:${APP_TAG}"
 
 ## Step 4 — Build the Edge Manager application package image
 
-Create the quadlet definition:
+Use these files:
 
-```bash
-cat > package/application.container <<EOF
-[Unit]
-Description=Red Hat Edge Manager Demo App
+- [`applications/hello-web/package/application.container`](../applications/hello-web/package/application.container)
+- [`applications/hello-web/package/Containerfile`](../applications/hello-web/package/Containerfile)
 
-[Container]
-Image=${DEMO_RUNTIME_IMAGE_REPO}:${APP_TAG}
-PublishPort=8080:8080
-
-[Service]
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-```
-
-Create the package `Containerfile`:
-
-```bash
-cat > package/Containerfile <<'EOF'
-FROM scratch
-
-COPY application.container /application.container
-
-LABEL appType=quadlet
-EOF
-```
+Copy them into `package/`. If your Satellite registry path differs from the repo default, edit the `Image=` line in `application.container`.
 
 Build and push the package image:
 
@@ -153,30 +110,7 @@ sudo podman push "${DEMO_PACKAGE_IMAGE_REPO}:${APP_TAG}"
 
 ## Step 5 — Update the fleet to deploy the application
 
-Create `fleet-with-app.yaml`:
-
-```bash
-cat > fleet-with-app.yaml <<EOF
-apiVersion: flightctl.io/v1alpha1
-kind: Fleet
-metadata:
-  name: demo
-spec:
-  selector:
-    matchLabels:
-      fleet: "demo"
-  template:
-    spec:
-      os:
-        image: "${FLEET_IMAGE_REF}"
-      applications:
-        - name: "hello-web"
-          appType: "quadlet"
-          image: "${DEMO_PACKAGE_IMAGE_REPO}:${APP_TAG}"
-EOF
-```
-
-Apply it:
+Use [`applications/hello-web/fleet-with-app.yaml`](../applications/hello-web/fleet-with-app.yaml). If your image references differ from the repo default, edit the two `image:` lines before you apply it:
 
 ```bash
 flightctl apply -f fleet-with-app.yaml
