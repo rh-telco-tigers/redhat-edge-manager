@@ -8,6 +8,8 @@ env_dir="$repo_root/automation/terraform/environments/device-vm"
 
 action="${ACTION:-apply}"
 bootc_qcow2_path="${BOOTC_QCOW2_PATH:-}"
+bootc_binding_mode="${BOOTC_BINDING_MODE:-}"
+cloud_init_user_data_path="${CLOUD_INIT_USER_DATA_PATH:-}"
 uploaded_qcow2_file_name="${UPLOADED_QCOW2_FILE_NAME:-}"
 vm_id="${VM_ID:-}"
 vm_name="${VM_NAME:-}"
@@ -286,16 +288,77 @@ remove_device_metadata() {
   rm -f "$(device_metadata_path "$workspace_name")"
 }
 
+discover_latest_qcow2() {
+  local current_qcow2
+  current_qcow2="$(find "$repo_root/automation/artifacts/bootc/current" -maxdepth 2 -type f -name 'disk.qcow2' 2>/dev/null | sort | tail -n 1 || true)"
+  if [[ -n "$current_qcow2" ]]; then
+    printf '%s' "$current_qcow2"
+    return
+  fi
+
+  find "$repo_root/automation/artifacts/bootc" -maxdepth 4 -type f -name 'disk.qcow2' 2>/dev/null | sort | tail -n 1 || true
+}
+
+discover_latebinding_cloud_init_user_data() {
+  local candidate
+
+  if [[ -n "$bootc_qcow2_path" ]]; then
+    for candidate in \
+      "$(dirname "$bootc_qcow2_path")/cloud-init.user-data.yaml" \
+      "$(dirname "$(dirname "$bootc_qcow2_path")")/cloud-init.user-data.yaml"; do
+      if [[ -f "$candidate" ]]; then
+        printf '%s' "$candidate"
+        return
+      fi
+    done
+  fi
+
+  find "$repo_root/automation/artifacts/bootc/current" -maxdepth 2 -type f -name 'cloud-init.user-data.yaml' 2>/dev/null | sort | tail -n 1 || true
+}
+
+detect_bootc_binding_mode() {
+  local metadata_path
+
+  if [[ -n "$bootc_binding_mode" ]]; then
+    printf '%s' "$bootc_binding_mode"
+    return
+  fi
+
+  if [[ -n "$bootc_qcow2_path" ]]; then
+    for metadata_path in \
+      "$(dirname "$bootc_qcow2_path")/binding-mode.txt" \
+      "$(dirname "$(dirname "$bootc_qcow2_path")")/binding-mode.txt"; do
+      if [[ -f "$metadata_path" ]]; then
+        tr -d "[:space:]" < "$metadata_path"
+        return
+      fi
+    done
+  fi
+
+  printf 'earlybinding'
+}
+
 if [[ -z "$bootc_qcow2_path" ]]; then
-  bootc_qcow2_path="$(find "$repo_root/automation/artifacts/bootc" -maxdepth 3 -type f -name 'disk.qcow2' | sort | tail -n 1)"
+  bootc_qcow2_path="$(discover_latest_qcow2)"
 fi
 
 if [[ -z "$bootc_qcow2_path" && "$action" == "destroy" ]]; then
   bootc_qcow2_path="$(read_tfvars_string bootc_qcow2_path)"
 fi
 
+bootc_binding_mode="$(detect_bootc_binding_mode)"
+
+if [[ "$action" != "destroy" && "$bootc_binding_mode" == "latebinding" && -z "$cloud_init_user_data_path" ]]; then
+  cloud_init_user_data_path="$(discover_latebinding_cloud_init_user_data)"
+fi
+
 if [[ "$action" != "destroy" && ( -z "$bootc_qcow2_path" || ! -f "$bootc_qcow2_path" ) ]]; then
-  echo "No bootc qcow2 artifact was found. Run 'BOOTC_BUILD_QCOW2=true BOOTC_FETCH_QCOW2=true make bootc-build' first, or set BOOTC_QCOW2_PATH." >&2
+  echo "No bootc qcow2 artifact was found. Run make bootc-build or make bootc-build-latebinding first, or set BOOTC_QCOW2_PATH." >&2
+  exit 1
+fi
+
+if [[ "$action" != "destroy" && "$bootc_binding_mode" == "latebinding" && ( -z "$cloud_init_user_data_path" || ! -f "$cloud_init_user_data_path" ) ]]; then
+  echo "No late-binding cloud-init user-data artifact was found. Run make bootc-build-latebinding first." >&2
   exit 1
 fi
 
@@ -369,6 +432,11 @@ if [[ -n "$vm_disk_gb" ]]; then
   cmd+=(-var "vm_disk_gb=$vm_disk_gb")
 fi
 
+if [[ -n "$cloud_init_user_data_path" && "$bootc_binding_mode" == "latebinding" ]]; then
+  cmd+=(-var "cloud_init_user_data_path=$cloud_init_user_data_path")
+  cmd+=(-var "cloud_init_file_name=rhem-device-$(slugify "${device_name:-device}")-user-data.yaml")
+fi
+
 if [[ -n "$device_name" || -n "$device_site" || -n "$vm_tags" ]]; then
   cmd+=(-var "vm_tags=$(build_vm_tags_hcl)")
 fi
@@ -378,6 +446,7 @@ if [[ "$action" == "apply" || "$action" == "destroy" ]]; then
 fi
 
 echo "Using device workspace: $workspace_name" >&2
+echo "Bootc binding mode: $bootc_binding_mode" >&2
 if [[ -n "$device_name" ]]; then
   echo "Device name: $device_name" >&2
 fi

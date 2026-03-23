@@ -1,6 +1,6 @@
-# Build a bootc image and publish it through Satellite
+# Build an early-binding bootc image and publish it through Satellite
 
-**Goal:** build the device operating system image, publish it to Satellite, and generate the bootable installer artifact that you will use in the next lab.
+**Goal:** build the device operating system image, publish it to Satellite, and generate the bootable installer artifact with the Edge Manager enrollment configuration already included.
 
 **Prereqs:** Labs 1 and 2 are complete. You have:
 
@@ -102,7 +102,7 @@ If your generated file shows a different host that is not covered by the Edge Ma
 
 ## Step 4 — Build the bootc image
 
-This repo keeps the reusable bootc build source in [`bootc/`](../bootc/README.md). The manual lab and `make bootc-build` use the same files.
+This repo keeps the reusable early-binding build source in [`../bootc/earlybinding/`](../bootc/earlybinding/README.md).
 
 Create a working directory on the build host:
 
@@ -124,12 +124,12 @@ sudo podman login "${SATELLITE_HOST}" \
   --password 'CHANGEME-satellite-admin-password'
 ```
 
-Use these files from [`bootc/`](../bootc/README.md):
+Use these files from [`../bootc/earlybinding/`](../bootc/earlybinding/README.md):
 
-- [`bootc/Containerfile`](../bootc/Containerfile)
-- [`bootc/installer.toml`](../bootc/installer.toml)
-- [`bootc/rhem-demo-hosts.sh`](../bootc/rhem-demo-hosts.sh)
-- [`bootc/rhem-demo-hosts.service`](../bootc/rhem-demo-hosts.service)
+- [`../bootc/earlybinding/Containerfile`](../bootc/earlybinding/Containerfile)
+- [`../bootc/earlybinding/installer.toml`](../bootc/earlybinding/installer.toml)
+- [`../bootc/earlybinding/rhem-demo-hosts.sh`](../bootc/earlybinding/rhem-demo-hosts.sh)
+- [`../bootc/earlybinding/rhem-demo-hosts.service`](../bootc/earlybinding/rhem-demo-hosts.service)
 
 Copy those files into the build directory. If your hostnames differ from the defaults in this repo, edit the obvious lines in `Containerfile` and `rhem-demo-hosts.sh`. Place these generated files in the same build context:
 
@@ -154,7 +154,7 @@ sudo podman tag \
 
 ## Step 5 — Generate the bootable installer artifact
 
-Use `bootc-image-builder` against the locally tagged image. This avoids private-registry pull issues during artifact generation. If you want the same Kickstart behavior as automation, use [`bootc/installer.toml`](../bootc/installer.toml) as `config.toml`.
+Use `bootc-image-builder` against the locally tagged image. This avoids private-registry pull issues during artifact generation.
 
 Create the output directory:
 
@@ -169,9 +169,11 @@ sudo podman run --rm -it --privileged --pull=newer \
   --security-opt label=type:unconfined_t \
   -v "${PWD}/output":/output \
   -v /var/lib/containers/storage:/var/lib/containers/storage \
+  -v "${PWD}/installer.toml":/config.toml:ro \
   registry.redhat.io/rhel9/bootc-image-builder:latest \
   --type iso \
   --local \
+  --config /config.toml \
   "localhost/device-os:${OCI_IMAGE_TAG}"
 ```
 

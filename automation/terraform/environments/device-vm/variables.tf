@@ -90,6 +90,18 @@ variable "uploaded_qcow2_file_name" {
   description = "Filename to use on the Proxmox import datastore"
 }
 
+variable "cloud_init_user_data_path" {
+  type        = string
+  default     = ""
+  description = "Optional local path to a cloud-init user-data file"
+}
+
+variable "cloud_init_file_name" {
+  type        = string
+  default     = "rhem-demo-device-user-data.yaml"
+  description = "Filename to use for the uploaded cloud-init user-data snippet"
+}
+
 variable "timeout_upload" {
   type        = number
   default     = 7200

@@ -178,19 +178,35 @@ Use these after the management stack is already up.
 make bootc-build
 ```
 
-This builds the bootc image on the Edge Manager host, pushes it to Satellite by default, and fetches the generated artifacts back to this repo.
+This builds the early-binding bootc image on the Edge Manager host, pushes it to Satellite by default, and fetches the generated artifacts back to this repo.
+
+To build the late-binding variant instead:
+
+```bash
+make bootc-build-latebinding
+```
+
+That late-binding build fetches both:
+
+- the clean `disk.qcow2`
+- the matching `cloud-init.user-data.yaml`
 
 The source of truth for this flow lives under:
 
 ```text
-bootc/
+bootc/earlybinding/
+bootc/latebinding/
 ```
 
 Fetched artifacts are stored under:
 
 ```text
-automation/artifacts/bootc/<rhem-host>/
+automation/artifacts/bootc/earlybinding/<rhem-host>/
+automation/artifacts/bootc/latebinding/<rhem-host>/
+automation/artifacts/bootc/current/<rhem-host>/
 ```
+
+`current/` always points to the most recent bootc build and is what `make device-vm-up` uses by default.
 
 Optional ISO build:
 
@@ -210,7 +226,11 @@ BOOTC_FORCE_REBUILD=true make bootc-build
 make device-vm-up
 ```
 
-This uses the latest fetched `disk.qcow2` artifact and creates one fresh demo device VM on Proxmox.
+This uses the latest fetched `disk.qcow2` artifact from `automation/artifacts/bootc/current/` and creates one fresh demo device VM on Proxmox.
+
+If the current artifact is early-binding, the image already contains the enrollment configuration.
+
+If the current artifact is late-binding, `make device-vm-up` uploads the clean qcow2 and attaches the generated cloud-init user-data so the device receives the enrollment config and Satellite registry CA at first boot.
 
 If you want to create additional named devices on the fly, pass a device name and optional site:
 
@@ -284,6 +304,8 @@ This runs:
 - `make device-vm-up`
 - `make approve-enrollment`
 - `make fleet-apply`
+
+`make device-demo` is the early-binding convenience path. If you want the late-binding device flow, run `make bootc-build-latebinding` first and then create the device with `make device-vm-up`.
 
 ## Application workflow helpers
 

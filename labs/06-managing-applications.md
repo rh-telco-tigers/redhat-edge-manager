@@ -68,7 +68,7 @@ sudo podman login "${SATELLITE_HOST}" \
   --password 'CHANGEME-satellite-admin-password'
 ```
 
-This repo keeps the reusable application source in [`applications/hello-web/`](../applications/hello-web/README.md). The manual lab, `make app-build`, and `make app-deploy` use the same files.
+This repo keeps the reusable application source in [`applications/hello-web/`](../applications/hello-web/README.md). Use those same files for the manual flow here.
 
 Use these files:
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=Ensure demo management host entries exist
+Before=flightctl-agent.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/rhem-demo-hosts.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

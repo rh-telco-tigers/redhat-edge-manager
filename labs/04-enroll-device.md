@@ -1,8 +1,8 @@
 # Enroll a device
 
-**Goal:** boot a fresh device with the image from Lab 3, let it create an enrollment request automatically, and approve that request in Edge Manager.
+**Goal:** boot a fresh device with the image from Lab 3a or 3b, let it create an enrollment request automatically, and approve that request in Edge Manager.
 
-**Prereqs:** Lab 3 is complete.
+**Prereqs:** Lab 3a or Lab 3b is complete.
 
 ## Step 1 — Create the CLI context
 
@@ -22,6 +22,7 @@ Use the installer artifact that matches your target platform:
 
 - `output/bootiso/install.iso` if you are booting from ISO media
 - `output/qcow2/disk.qcow2` if your virtualization platform imports qcow2 images directly
+- `output/qcow2/disk.qcow2` together with the rendered `user-data.yaml` if you followed the late-binding flow in Lab 3b
 
 For a VM, create a fresh guest with at least:
 
@@ -36,7 +37,12 @@ Before first boot, confirm the device can resolve and reach:
 - the Edge Manager API hostname
 - the Satellite registry hostname
 
-Because the image already includes `/etc/flightctl/config.yaml`, the device should create an enrollment request automatically on first boot.
+At first boot, the device needs `/etc/flightctl/config.yaml`.
+
+- If you followed Lab 3a, the image already contains that file.
+- If you followed Lab 3b, make sure you are booting the artifact together with the late-binding cloud-init user data.
+
+Once that file is present, the device should create an enrollment request automatically on first boot.
 
 ## Step 3 — List pending enrollment requests
 

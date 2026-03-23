@@ -7,7 +7,7 @@ proxmox_node     = "homelab"
 disk_storage       = "local-lvm"
 import_datastore_id = "local"
 
-bootc_qcow2_path = "../../../artifacts/bootc/rhem/disk.qcow2"
+bootc_qcow2_path = "../../../artifacts/bootc/current/rhem/disk.qcow2"
 uploaded_qcow2_file_name = "rhem-demo-device.qcow2"
 
 vm_id          = 150

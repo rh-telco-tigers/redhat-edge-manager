@@ -22,7 +22,7 @@ DEVICE_LABEL_KVS_VALUE := $(strip $(foreach v,$(COMMAND_LINE_VARS),$(if $(filter
 .PHONY: help init-files automation-init-files ansible-bootstrap
 .PHONY: plan up down configure
 .PHONY: rhel-vms-init rhel-vms-plan rhel-vms-up rhel-vms-down
-.PHONY: create-rhel9 aap-install aap-integrate aap-setup bootc-build approve-enrollment fleet-apply
+.PHONY: create-rhel9 aap-install aap-integrate aap-setup bootc-build bootc-build-earlybinding bootc-build-latebinding approve-enrollment fleet-apply
 .PHONY: app-build app-deploy app-demo
 .PHONY: device-vm-init device-vm-plan device-vm-up device-vm-down device-vms-down-all device-demo
 .PHONY: tf-init tf-plan tf-up tf-down
@@ -42,12 +42,13 @@ help:
 	"  make aap-install      Install Ansible Automation Platform on the AAP host" \
 	"  make aap-integrate    Configure Edge Manager to use AAP authentication" \
 	"  make aap-setup        Run both AAP install and AAP integration" \
-	"  make bootc-build      Build the bootc/ source, push it to Satellite, and fetch the bootable qcow2" \
+	"  make bootc-build      Build bootc/earlybinding, push it to Satellite, and fetch the bootable qcow2" \
+	"  make bootc-build-latebinding Build bootc/latebinding and fetch the qcow2 plus cloud-init user-data" \
 	"  make device-vm-up     Create one named demo device VM; pass name=<device> site=<site> env=lab" \
 	"  make device-vm-down   Destroy one named demo device VM; pass name=<device>" \
 	"  make approve-enrollment Approve pending requests; pass name=<device> to reuse stored labels" \
 	"  make fleet-apply      Create or update the demo Edge Manager fleet" \
-	"  make device-demo      Build image, create the device VM, approve enrollment, and apply the fleet" \
+	"  make device-demo      Run the early-binding device flow through fleet assignment" \
 	"  make app-build        Build the applications/hello-web/ images and push them to Satellite" \
 	"  make app-deploy       Apply applications/hello-web/fleet-with-app.yaml through Edge Manager" \
 	"  make app-demo         Build and deploy the demo application after Labs 3 to 5 are complete"
@@ -161,8 +162,13 @@ aap-integrate: automation-init-files ansible-bootstrap
 
 aap-setup: aap-install aap-integrate
 
-bootc-build: automation-init-files ansible-bootstrap
-	$(AUTOMATION_DIR)/scripts/bootc-build.sh
+bootc-build: bootc-build-earlybinding
+
+bootc-build-earlybinding: automation-init-files ansible-bootstrap
+	BOOTC_BINDING_MODE=earlybinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
+
+bootc-build-latebinding: automation-init-files ansible-bootstrap
+	BOOTC_BINDING_MODE=latebinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
 
 approve-enrollment: automation-init-files ansible-bootstrap
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
@@ -174,7 +180,7 @@ fleet-apply: automation-init-files ansible-bootstrap
 	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
 
 device-demo: automation-init-files ansible-bootstrap
-	$(AUTOMATION_DIR)/scripts/bootc-build.sh
+	BOOTC_BINDING_MODE=earlybinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
 	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
 	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \

@@ -1,6 +1,6 @@
 # Create a fleet and place the device into it
 
-**Goal:** create an Edge Manager `Fleet` that targets the enrolled device and points at the bootc image that you published in Lab 3.
+**Goal:** create an Edge Manager `Fleet` that targets the enrolled device and points at the bootc image that you published in Lab 3a or 3b.
 
 **Prereqs:** Lab 4 is complete and the device is online in Edge Manager.
 
@@ -16,7 +16,7 @@ flightctl login "${EDGE_MANAGER_API_URL}" \
   --insecure-skip-tls-verify
 ```
 
-## Step 2 — Reuse the image reference from Lab 3
+## Step 2 — Reuse the image reference from Lab 3a or 3b
 
 ```bash
 export SATELLITE_HOST="satellite.rhem-eap.lan"

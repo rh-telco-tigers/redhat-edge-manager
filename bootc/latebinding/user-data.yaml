@@ -1,0 +1,19 @@
+#cloud-config
+write_files:
+  - path: /etc/flightctl/config.yaml
+    owner: root:root
+    permissions: "0600"
+    content: |
+      CHANGEME_PASTE_CONFIG_YAML_HERE
+  - path: /etc/pki/ca-trust/source/anchors/satellite-ca.crt
+    owner: root:root
+    permissions: "0644"
+    content: |
+      CHANGEME_PASTE_SATELLITE_CA_HERE
+  - path: /etc/containers/certs.d/satellite.rhem-eap.lan/ca.crt
+    owner: root:root
+    permissions: "0644"
+    content: |
+      CHANGEME_PASTE_SATELLITE_CA_HERE
+runcmd:
+  - update-ca-trust

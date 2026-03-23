@@ -19,6 +19,14 @@
       ansible.builtin.meta: end_host
       when: not satellite_bootc_registry_enabled_effective
 
+    - name: Wait for Satellite SSH to become ready
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+        sleep: 10
+
+    - name: Gather Satellite facts after SSH is ready
+      ansible.builtin.setup:
+
     - name: Validate explicit Satellite registry IDs for the bootc flow
       ansible.builtin.command:
         argv:
@@ -51,14 +59,6 @@
         - satellite_registry_org_id_effective | trim | length > 0
         - satellite_registry_product_id_effective | trim | length > 0
         - _satellite_explicit_product.rc == 0
-
-    - name: Wait for Satellite SSH to become ready
-      ansible.builtin.wait_for_connection:
-        timeout: 900
-        sleep: 10
-
-    - name: Gather Satellite facts after SSH is ready
-      ansible.builtin.setup:
 
     - name: Reuse the explicit Satellite organization ID when provided
       ansible.builtin.set_fact:
@@ -158,12 +158,15 @@
     - ../group_vars/all.yml
   vars:
     repo_root_effective: "{{ playbook_dir | dirname | dirname | dirname }}"
-    bootc_source_dir_effective: "{{ repo_root_effective }}/bootc"
+    bootc_binding_effective: "{{ bootc_binding | default('earlybinding', true) }}"
+    bootc_workspace_root_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}"
+    bootc_source_dir_effective: "{{ repo_root_effective }}/bootc/{{ bootc_binding_effective }}"
     rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
-    bootc_workspace_dir_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}"
-    bootc_flightctl_config_dir: "{{ bootc_workspace_dir_effective }}/flightctl"
+    bootc_workspace_dir_effective: "{{ bootc_workspace_root_effective }}/{{ bootc_binding_effective }}"
+    bootc_flightctl_config_dir: "{{ bootc_workspace_root_effective }}/flightctl"
     bootc_output_dir_effective: "{{ bootc_workspace_dir_effective }}/output"
     bootc_config_file_effective: "{{ bootc_workspace_dir_effective }}/config.yaml"
+    bootc_cloud_init_user_data_file_effective: "{{ bootc_workspace_dir_effective }}/cloud-init.user-data.yaml"
     bootc_containerfile_effective: "{{ bootc_workspace_dir_effective }}/Containerfile"
     bootc_installer_config_file_effective: "{{ bootc_workspace_dir_effective }}/config.toml"
     bootc_demo_ssh_public_key_path_effective: "{{ bootc_demo_ssh_public_key_path | default(lookup('env', 'HOME') ~ '/.ssh/redhat-edge-manager-demo.pub', true) }}"
@@ -196,7 +199,7 @@
     bootc_disk_image_ref_effective: "{{ bootc_disk_image_repo_effective }}:{{ bootc_image_tag_effective }}"
     bootc_enrollment_signer_effective: "{{ bootc_enrollment_signer | default('enrollment', true) }}"
     bootc_enrollment_expiration_effective: "{{ bootc_enrollment_expiration | default('365d', true) }}"
-    bootc_include_enrollment_config_effective: "{{ bootc_include_enrollment_config | default(true, true) | bool }}"
+    bootc_include_enrollment_config_effective: "{{ bootc_binding_effective == 'earlybinding' }}"
     bootc_installer_config_enabled_effective: "{{ bootc_installer_config_enabled | default(true, true) | bool }}"
     bootc_iso_remote_path_effective: "{{ bootc_output_dir_effective }}/bootiso/install.iso"
     bootc_qcow2_remote_path_effective: "{{ bootc_output_dir_effective }}/qcow2/disk.qcow2"
@@ -230,6 +233,12 @@
       {{ [hostvars[host].ansible_host, host_fqdn, hostvars[host].dns_name | default(''), host_name, long_host_fqdn] | reject('equalto', '') | unique | join(' ') }}
       {% endfor %}
   tasks:
+    - name: Require a supported bootc binding mode
+      ansible.builtin.assert:
+        that:
+          - bootc_binding_effective in ['earlybinding', 'latebinding']
+        fail_msg: "Unsupported bootc binding mode {{ bootc_binding_effective }}. Use earlybinding or latebinding."
+
     - name: Require an AAP OAuth token when AAP auth is selected
       ansible.builtin.assert:
         that:
@@ -279,6 +288,7 @@
         state: directory
         mode: "0755"
       loop:
+        - "{{ bootc_workspace_root_effective }}"
         - "{{ bootc_workspace_dir_effective }}"
         - "{{ bootc_flightctl_config_dir }}"
         - "{{ bootc_output_dir_effective }}"
@@ -382,7 +392,7 @@
       no_log: true
       when: rhem_auth_provider_effective != 'aap'
 
-    - name: Request an embedded enrollment config for early binding
+    - name: Request an embedded enrollment config for the bootc build
       ansible.builtin.command:
         argv:
           - flightctl
@@ -400,12 +410,67 @@
       changed_when: true
       no_log: true
 
+    - name: Normalize the generated enrollment config for this environment
+      ansible.builtin.set_fact:
+        bootc_enrollment_config_rendered_effective: "{{ _bootc_enrollment_config.stdout | regex_replace('server: https://[^\\s]+', 'server: ' ~ bootc_rhem_agent_api_url_effective) | regex_replace('enrollment-ui-endpoint: https://[^\\s]+', 'enrollment-ui-endpoint: ' ~ bootc_rhem_enrollment_ui_url_effective) }}"
+      no_log: true
+
     - name: Persist the generated enrollment config in the build workspace
       ansible.builtin.copy:
         dest: "{{ bootc_config_file_effective }}"
-        content: "{{ _bootc_enrollment_config.stdout | regex_replace('server: https://[^\\s]+', 'server: ' ~ bootc_rhem_agent_api_url_effective) | regex_replace('enrollment-ui-endpoint: https://[^\\s]+', 'enrollment-ui-endpoint: ' ~ bootc_rhem_enrollment_ui_url_effective) }}"
+        content: "{{ bootc_enrollment_config_rendered_effective }}"
         mode: "0600"
       no_log: true
+      when: bootc_include_enrollment_config_effective
+
+    - name: Remove any leftover enrollment config from the late-binding workspace
+      ansible.builtin.file:
+        path: "{{ bootc_config_file_effective }}"
+        state: absent
+      when: not bootc_include_enrollment_config_effective
+
+    - name: Read the Satellite CA from the build workspace for late binding
+      ansible.builtin.slurp:
+        src: "{{ bootc_satellite_ca_workspace_path_effective }}"
+      register: _bootc_satellite_ca_workspace
+      when:
+        - not bootc_include_enrollment_config_effective
+        - bootc_use_satellite_registry_effective
+
+    - name: Render the late-binding cloud-init user data
+      ansible.builtin.copy:
+        dest: "{{ bootc_cloud_init_user_data_file_effective }}"
+        mode: "0600"
+        content: |
+          #cloud-config
+          write_files:
+            - path: /etc/flightctl/config.yaml
+              owner: root:root
+              permissions: "0600"
+              content: |
+          {{ bootc_enrollment_config_rendered_effective | indent(16, true) }}
+          {% if bootc_use_satellite_registry_effective %}
+            - path: /etc/pki/ca-trust/source/anchors/satellite-ca.crt
+              owner: root:root
+              permissions: "0644"
+              content: |
+          {{ (_bootc_satellite_ca_workspace.content | b64decode) | indent(16, true) }}
+            - path: /etc/containers/certs.d/{{ bootc_registry_effective }}/ca.crt
+              owner: root:root
+              permissions: "0644"
+              content: |
+          {{ (_bootc_satellite_ca_workspace.content | b64decode) | indent(16, true) }}
+          runcmd:
+            - update-ca-trust
+          {% endif %}
+      no_log: true
+      when: not bootc_include_enrollment_config_effective
+
+    - name: Remove any leftover late-binding cloud-init user data from the early-binding workspace
+      ansible.builtin.file:
+        path: "{{ bootc_cloud_init_user_data_file_effective }}"
+        state: absent
+      when: bootc_include_enrollment_config_effective
 
     - name: Copy the demo host mapping helper script
       ansible.builtin.copy:

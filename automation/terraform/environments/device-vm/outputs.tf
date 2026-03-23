@@ -12,3 +12,8 @@ output "bootc_qcow2_file_id" {
   value       = proxmox_virtual_environment_file.bootc_qcow2.id
   description = "Uploaded bootc qcow2 file ID"
 }
+
+output "cloud_init_user_data_file_id" {
+  value       = try(proxmox_virtual_environment_file.cloud_init_user_data[0].id, "")
+  description = "Uploaded cloud-init user-data file ID"
+}
