@@ -55,16 +55,16 @@ make init-files
 3. Run the full stack:
 
 ```bash
-make up
+make start-lab
 ```
 
 Useful related commands:
 
-- `make plan` — preview Terraform changes for the full stack
-- `make configure` — rerun only the Ansible configuration phase
-- `make down` — destroy the full stack, including device VMs created through `make device-vm-up`
+- `make plan-lab` — preview Terraform changes for the full stack
+- `make configure-lab` — rerun only the Ansible configuration phase
+- `make stop-lab` — destroy the full stack, including device VMs created through `make add-device`
 
-What `make up` installs by default:
+What `make start-lab` installs by default:
 
 - PowerDNS
 - Red Hat Edge Manager
@@ -73,9 +73,9 @@ What `make up` installs by default:
 
 AAP is optional and is only installed when `aap_install_enabled: true` is set in `automation/ansible/group_vars/all.yml`.
 
-Put your Proxmox API credentials in `automation/terraform/environments/demo/.env`, or export them in your shell before you run `make up`.
+Put your Proxmox API credentials in `automation/terraform/environments/demo/.env`, or export them in your shell before you run `make start-lab`.
 
-The default auth path is Keycloak. If you want the full automation path to use AAP authentication instead, set these in `automation/ansible/group_vars/all.yml` before you run `make up`:
+The default auth path is Keycloak. If you want the full automation path to use AAP authentication instead, set these in `automation/ansible/group_vars/all.yml` before you run `make start-lab`:
 
 - `rhem_auth_provider: aap`
 - `aap_install_enabled: true`
@@ -104,18 +104,18 @@ make init-files
 3. Create the VMs:
 
 ```bash
-make rhel-vms-up
+make start-demo-vms
 ```
 
 4. Remove them later if needed:
 
 ```bash
-make rhel-vms-down
+make stop-demo-vms
 ```
 
 This path is Terraform-only. It does not install or configure services inside those VMs.
 
-Put your Proxmox API credentials in `automation/terraform/environments/manual-demo/.env`, or export them in your shell before you run `make rhel-vms-up`.
+Put your Proxmox API credentials in `automation/terraform/environments/manual-demo/.env`, or export them in your shell before you run `make start-demo-vms`.
 
 ### One standalone RHEL VM
 
@@ -124,9 +124,9 @@ Use this when you need one extra host, for example a dedicated Satellite host.
 Examples:
 
 ```bash
-make create-rhel9 ROLE=keycloak VM_ID=121 IPV4_CIDR=192.168.4.121/22
-make create-rhel9 ROLE=edge-manager VM_ID=122 IPV4_CIDR=192.168.4.122/22 VM_NAME=rhem-lab-02 DNS_NAME=rhem02
-make create-rhel9 ROLE=satellite VM_ID=123 IPV4_CIDR=192.168.4.123/22
+make create-vm ROLE=keycloak VM_ID=121 IPV4_CIDR=192.168.4.121/22
+make create-vm ROLE=edge-manager VM_ID=122 IPV4_CIDR=192.168.4.122/22 VM_NAME=rhem-lab-02 DNS_NAME=rhem02
+make create-vm ROLE=satellite VM_ID=123 IPV4_CIDR=192.168.4.123/22
 ```
 
 Supported `ROLE` presets:
@@ -145,7 +145,7 @@ Use these when you want to install or integrate Ansible Automation Platform sepa
 ### Install AAP on the AAP host
 
 ```bash
-make aap-install
+make install-aap
 ```
 
 This uses `automation/ansible/playbooks/aap_install.yml`.
@@ -153,7 +153,7 @@ This uses `automation/ansible/playbooks/aap_install.yml`.
 ### Configure Edge Manager to use AAP authentication
 
 ```bash
-make aap-integrate
+make connect-aap
 ```
 
 This uses `automation/ansible/playbooks/aap_integration.yml`.
@@ -161,7 +161,7 @@ This uses `automation/ansible/playbooks/aap_integration.yml`.
 ### Run both steps together
 
 ```bash
-make aap-setup
+make setup-aap
 ```
 
 If you want the AAP integration path, set `rhem_auth_provider: aap` in `automation/ansible/group_vars/all.yml` first.
@@ -175,7 +175,7 @@ Use these after the management stack is already up.
 ### Build the device image
 
 ```bash
-make bootc-build
+make build-image-early
 ```
 
 This builds the early-binding bootc image on the Edge Manager host, pushes it to Satellite by default, and fetches the generated artifacts back to this repo.
@@ -183,7 +183,7 @@ This builds the early-binding bootc image on the Edge Manager host, pushes it to
 To build the late-binding variant instead:
 
 ```bash
-make bootc-build-latebinding
+make build-image-late
 ```
 
 That late-binding build fetches both:
@@ -206,44 +206,44 @@ automation/artifacts/bootc/latebinding/<rhem-host>/
 automation/artifacts/bootc/current/<rhem-host>/
 ```
 
-`current/` always points to the most recent bootc build and is what `make device-vm-up` uses by default.
+`current/` always points to the most recent bootc build and is what `make add-device` uses by default.
 
 Optional ISO build:
 
 ```bash
-BOOTC_BUILD_ISO=true BOOTC_FETCH_ISO=true make bootc-build
+BOOTC_BUILD_ISO=true BOOTC_FETCH_ISO=true make build-image-early
 ```
 
 Force a rebuild:
 
 ```bash
-BOOTC_FORCE_REBUILD=true make bootc-build
+BOOTC_FORCE_REBUILD=true make build-image-early
 ```
 
 ### Create the demo device VM
 
 ```bash
-make device-vm-up
+make add-device
 ```
 
 This uses the latest fetched `disk.qcow2` artifact from `automation/artifacts/bootc/current/` and creates one fresh demo device VM on Proxmox.
 
 If the current artifact is early-binding, the image already contains the enrollment configuration.
 
-If the current artifact is late-binding, `make device-vm-up` uploads the clean qcow2 and attaches the generated cloud-init user-data so the device receives the enrollment config and Satellite registry CA at first boot.
+If the current artifact is late-binding, `make add-device` uploads the clean qcow2 and attaches the generated cloud-init user-data so the device receives the enrollment config and Satellite registry CA at first boot.
 
 If you want to create additional named devices on the fly, pass a device name and optional site:
 
 ```bash
-make device-vm-up name=database site=homelab
-make device-vm-up name=storefront site=branch-west VM_CORES=4 VM_MEMORY_MB=8192
+make add-device name=database site=homelab
+make add-device name=storefront site=branch-west VM_CORES=4 VM_MEMORY_MB=8192
 ```
 
 You can also attach device label metadata that will be reused during enrollment approval:
 
 ```bash
-make device-vm-up name=database site=homelab env=lab role=db
-make device-vm-up name=camera site=factory env=prod workload=vision
+make add-device name=database site=homelab env=lab role=db
+make add-device name=camera site=factory env=prod workload=vision
 ```
 
 `site=` and any extra `key=value` pairs are stored as device labels for later approval. If you want actual Proxmox VM tags, use `tags=video,west` or `VM_TAGS=video,west`.
@@ -253,70 +253,70 @@ Each named device uses its own Terraform workspace, so you can create and remove
 Remove that device VM later with:
 
 ```bash
-make device-vm-down
+make remove-device
 ```
 
 Or remove one named device:
 
 ```bash
-make device-vm-down name=database
+make remove-device name=database
 ```
 
 ### Approve enrollment
 
 ```bash
-make approve-enrollment
+make approve-device
 ```
 
-To approve a named device with the labels you saved during `make device-vm-up`, run:
+To approve a named device with the labels you saved during `make add-device`, run:
 
 ```bash
-make approve-enrollment name=database
+make approve-device name=database
 ```
 
 You can also override or add labels at approval time:
 
 ```bash
-make approve-enrollment name=database site=branch-west fleet=lab-a
+make approve-device name=database site=branch-west fleet=lab-a
 ```
 
 If you want the command to wait until a pending request exists:
 
 ```bash
-WAIT_FOR_PENDING=true make approve-enrollment
+WAIT_FOR_PENDING=true make approve-device
 ```
 
 ### Create or update the demo fleet
 
 ```bash
-make fleet-apply
+make apply-fleet
 ```
 
 ### Run the Labs 3 to 5 flow in one command
 
 ```bash
-make device-demo
+make demo-early
 ```
 
 This runs:
 
-- `make bootc-build`
-- `make device-vm-up`
-- `make approve-enrollment`
-- `make fleet-apply`
+- `make build-image-early`
+- `make add-device`
+- `make approve-device`
+- `make apply-fleet`
 
 For the late-binding path:
 
 ```bash
-make device-demo-latebinding
+make demo-late
 ```
 
 This runs:
 
-- `make bootc-build-latebinding`
-- `make device-vm-up`
-- `make approve-enrollment`
-- `make fleet-apply`
+- `make build-image-late`
+- `make add-device`
+- `make approve-device`
+- `make apply-fleet`
 
 ## Application workflow helpers
 
@@ -325,7 +325,7 @@ Use these after the device is online and already selected by `Fleet/demo`.
 ### Build the demo application images
 
 ```bash
-make app-build
+make build-app
 ```
 
 This builds and pushes:
@@ -342,7 +342,7 @@ applications/hello-web/
 ### Deploy the application through Edge Manager
 
 ```bash
-make app-deploy
+make deploy-app
 ```
 
 This updates the demo fleet and waits for the application to report `Running` on the target device.
@@ -350,13 +350,13 @@ This updates the demo fleet and waits for the application to report `Running` on
 ### Run the full Lab 6 application flow
 
 ```bash
-make app-demo
+make demo-app
 ```
 
 This runs:
 
-- `make app-build`
-- `make app-deploy`
+- `make build-app`
+- `make deploy-app`
 
 ## Files you will edit most often
 
@@ -368,7 +368,7 @@ This runs:
 
 ## Notes
 
-- `make up` bootstraps a repo-local Ansible virtual environment in `automation/.venv`, so you do not need a separate global Ansible install.
+- `make start-lab` bootstraps a repo-local Ansible virtual environment in `automation/.venv`, so you do not need a separate global Ansible install.
 - The demo Terraform environments treat the configured VM IDs as automation-owned. Pick free VM IDs before you apply.
 - If `registry_redhat_io_username` and `registry_redhat_io_password` are left blank, the automation reuses `rhsm_username` and `rhsm_password` for `registry.redhat.io`.
 - `rhem_auth_provider: keycloak` is the default. Set `rhem_auth_provider: aap` if you want Edge Manager to use Ansible Automation Platform authentication instead.

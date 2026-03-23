@@ -36,7 +36,7 @@
       ansible.builtin.assert:
         that:
           - _bundle.stat.exists
-        fail_msg: "Set aap_bundle_tar to your ansible-automation-platform-setup-bundle path before running make up."
+        fail_msg: "Set aap_bundle_tar to your ansible-automation-platform-setup-bundle path before running make start-lab."
 
     - name: Create install directory
       ansible.builtin.file:

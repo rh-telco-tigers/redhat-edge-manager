@@ -73,7 +73,7 @@ case "$role" in
 esac
 
 if [[ -z "$vm_id" ]]; then
-  echo "VM_ID is required. Example: make create-rhel9 ROLE=keycloak VM_ID=121 IPV4_CIDR=192.168.4.121/22" >&2
+  echo "VM_ID is required. Example: make create-vm ROLE=keycloak VM_ID=121 IPV4_CIDR=192.168.4.121/22" >&2
   exit 1
 fi
 

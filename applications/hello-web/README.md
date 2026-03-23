@@ -4,8 +4,8 @@ This folder is the source of truth for the demo application used in Lab 6.
 
 Automation uses these same files when you run:
 
-- `make app-build`
-- `make app-deploy`
+- `make build-app`
+- `make deploy-app`
 
 Files:
 
@@ -44,5 +44,5 @@ sudo podman push "${DEMO_PACKAGE_IMAGE_REPO}:${APP_TAG}"
 
 Automation path:
 
-- `make app-build` copies these same files and updates the few environment-specific values automatically before it builds and pushes the images.
-- `make app-deploy` copies `fleet-with-app.yaml`, updates the live image references, and applies it through Edge Manager.
+- `make build-app` copies these same files and updates the few environment-specific values automatically before it builds and pushes the images.
+- `make deploy-app` copies `fleet-with-app.yaml`, updates the live image references, and applies it through Edge Manager.

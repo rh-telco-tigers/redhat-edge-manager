@@ -85,7 +85,7 @@ satellite_registry_product_id: ""
 # bootc image build + device enrollment demo
 # The bootc build runs on the RHEM host, pushes the image to Satellite by default,
 # and generates a bootable qcow2 disk image for the Proxmox device demo path.
-# `make bootc-build` uses the early-binding source. `make bootc-build-latebinding`
+# `make build-image-early` uses the early-binding source. `make build-image-late`
 # uses the late-binding source and defers enrollment config injection to device creation time.
 bootc_workspace_dir: /var/lib/rhem-demo/bootc
 bootc_base_image: registry.redhat.io/rhel9/rhel-bootc:9.7

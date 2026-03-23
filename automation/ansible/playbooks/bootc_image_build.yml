@@ -243,7 +243,7 @@
       ansible.builtin.assert:
         that:
           - bootc_flightctl_token_effective | trim | length > 0
-        fail_msg: "AAP authentication is enabled, but no OAuth token is available for make bootc-build."
+        fail_msg: "AAP authentication is enabled, but no OAuth token is available for make build-image-early or make build-image-late."
       when: rhem_auth_provider_effective == 'aap'
 
     - name: Require a flightctl user for the bootc build
@@ -251,7 +251,7 @@
         that:
           - bootc_flightctl_username_effective | trim | length > 0
           - bootc_flightctl_password_effective | trim | length > 0
-        fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make bootc-build."
+        fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make build-image-early or make build-image-late."
       when: rhem_auth_provider_effective != 'aap'
 
     - name: Require Satellite registry details when using Satellite as the bootc registry
@@ -260,7 +260,7 @@
           - bootc_satellite_registry_host_effective | trim | length > 0
           - bootc_satellite_org_id_effective | trim | length > 0
           - bootc_satellite_product_id_effective | trim | length > 0
-        fail_msg: "The Satellite registry path is incomplete. Run make up first and keep Satellite enabled, or override bootc_image_repo explicitly."
+        fail_msg: "The Satellite registry path is incomplete. Run make start-lab first and keep Satellite enabled, or override bootc_image_repo explicitly."
       when: bootc_use_satellite_registry_effective
 
     - name: Require registry credentials when publishing bootc artifacts outside Satellite

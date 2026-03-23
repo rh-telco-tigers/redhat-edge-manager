@@ -15,8 +15,8 @@ Manual labs:
 
 Automation:
 
-- `make bootc-build` or `make bootc-build-earlybinding`
-- `make bootc-build-latebinding`
+- `make build-image-early`
+- `make build-image-late`
 
 The automation stores fetched artifacts under:
 
@@ -24,4 +24,4 @@ The automation stores fetched artifacts under:
 - `automation/artifacts/bootc/latebinding/<rhem-host>/`
 - `automation/artifacts/bootc/current/<rhem-host>/`
 
-`current/` always points to the most recent build and is what `make device-vm-up` uses by default.
+`current/` always points to the most recent build and is what `make add-device` uses by default.

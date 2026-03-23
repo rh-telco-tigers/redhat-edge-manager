@@ -34,7 +34,7 @@
               (rhsm_org | default('') | trim | length > 0) and
               (rhsm_activation_key | default('') | trim | length > 0)
             )
-        fail_msg: "Provide RHSM credentials in automation/ansible/group_vars/all.yml before running make up."
+        fail_msg: "Provide RHSM credentials in automation/ansible/group_vars/all.yml before running make start-lab."
 
     - name: Register host with activation key
       ansible.builtin.command:

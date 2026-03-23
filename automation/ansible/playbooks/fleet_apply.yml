@@ -145,7 +145,7 @@
       ansible.builtin.assert:
         that:
           - fleet_flightctl_token_effective | trim | length > 0
-        fail_msg: "AAP authentication is enabled, but no OAuth token is available for make fleet-apply."
+        fail_msg: "AAP authentication is enabled, but no OAuth token is available for make apply-fleet."
       when: rhem_auth_provider_effective == 'aap'
 
     - name: Require a flightctl user for fleet management
@@ -153,14 +153,14 @@
         that:
           - fleet_flightctl_username_effective | trim | length > 0
           - fleet_flightctl_password_effective | trim | length > 0
-        fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make fleet-apply."
+        fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make apply-fleet."
       when: rhem_auth_provider_effective != 'aap'
 
     - name: Require a non-local bootc image reference for the fleet
       ansible.builtin.assert:
         that:
           - not (demo_fleet_image_repo_effective is match('^localhost/'))
-        fail_msg: "The fleet image reference is still local-only. Run make bootc-build first, or set demo_fleet_image_repo explicitly."
+        fail_msg: "The fleet image reference is still local-only. Run make build-image-early or make build-image-late first, or set demo_fleet_image_repo explicitly."
 
     - name: Ensure the fleet workspace exists
       ansible.builtin.file:

@@ -20,11 +20,16 @@ COMMAND_LINE_VARS := $(sort $(foreach v,$(.VARIABLES),$(if $(filter command line
 DEVICE_LABEL_KVS_VALUE := $(strip $(foreach v,$(COMMAND_LINE_VARS),$(if $(filter-out $(DEVICE_RESERVED_CLI_VARS),$(v)),$(v)=$($(v)))))
 
 .PHONY: help init-files automation-init-files ansible-bootstrap
-.PHONY: plan up down configure
+.PHONY: plan-lab start-lab stop-lab configure-lab
+.PHONY: start-demo-vms stop-demo-vms create-vm
+.PHONY: install-aap connect-aap setup-aap build-image-early build-image-late approve-device apply-fleet
+.PHONY: build-app deploy-app demo-app
+.PHONY: add-device remove-device device-vms-down-all demo-early demo-late
+.PHONY: up down plan configure
 .PHONY: rhel-vms-init rhel-vms-plan rhel-vms-up rhel-vms-down
 .PHONY: create-rhel9 aap-install aap-integrate aap-setup bootc-build bootc-build-earlybinding bootc-build-latebinding approve-enrollment fleet-apply
 .PHONY: app-build app-deploy app-demo
-.PHONY: device-vm-init device-vm-plan device-vm-up device-vm-down device-vms-down-all device-demo device-demo-latebinding
+.PHONY: device-vm-init device-vm-plan device-vm-up device-vm-down device-demo device-demo-latebinding
 .PHONY: tf-init tf-plan tf-up tf-down
 
 help:
@@ -32,27 +37,27 @@ help:
 	"Supported targets:" \
 	"  make help             Show this help" \
 	"  make init-files       Seed local gitignored config files" \
-	"  make up               Full automation: Terraform + Ansible" \
-	"  make down             Tear down full automated stack, including device VMs" \
-	"  make plan             Terraform plan for full automated stack" \
-	"  make configure        Run only the Ansible configuration phase" \
-	"  make rhel-vms-up      Create only the manual-demo RHEL 9 VMs" \
-	"  make rhel-vms-down    Destroy only the manual-demo RHEL 9 VMs" \
-	"  make create-rhel9     Create one standalone RHEL 9 VM" \
-	"  make aap-install      Install Ansible Automation Platform on the AAP host" \
-	"  make aap-integrate    Configure Edge Manager to use AAP authentication" \
-	"  make aap-setup        Run both AAP install and AAP integration" \
-	"  make bootc-build      Build bootc/earlybinding, push it to Satellite, and fetch the bootable qcow2" \
-	"  make bootc-build-latebinding Build bootc/latebinding and fetch the qcow2 plus cloud-init user-data" \
-	"  make device-vm-up     Create one named demo device VM; pass name=<device> site=<site> env=lab" \
-	"  make device-vm-down   Destroy one named demo device VM; pass name=<device>" \
-	"  make approve-enrollment Approve pending requests; pass name=<device> to reuse stored labels" \
-	"  make fleet-apply      Create or update the demo Edge Manager fleet" \
-	"  make device-demo      Run the early-binding device flow through fleet assignment" \
-	"  make device-demo-latebinding Run the late-binding device flow through fleet assignment" \
-	"  make app-build        Build the applications/hello-web/ images and push them to Satellite" \
-	"  make app-deploy       Apply applications/hello-web/fleet-with-app.yaml through Edge Manager" \
-	"  make app-demo         Build and deploy the demo application after Labs 3 to 5 are complete"
+	"  make start-lab        Full automation: Terraform + Ansible" \
+	"  make stop-lab         Tear down the full lab, including device VMs" \
+	"  make plan-lab         Preview Terraform changes for the full lab" \
+	"  make configure-lab    Run only the Ansible configuration phase" \
+	"  make start-demo-vms   Create only the base RHEL 9 VMs for the manual path" \
+	"  make stop-demo-vms    Destroy only those base RHEL 9 VMs" \
+	"  make create-vm        Create one standalone RHEL 9 VM" \
+	"  make install-aap      Install Ansible Automation Platform on the AAP host" \
+	"  make connect-aap      Configure Edge Manager to use AAP authentication" \
+	"  make setup-aap        Run both AAP install and AAP integration" \
+	"  make build-image-early Build bootc/earlybinding, push it to Satellite, and fetch the bootable qcow2" \
+	"  make build-image-late Build bootc/latebinding and fetch the qcow2 plus cloud-init user-data" \
+	"  make add-device       Create one named demo device VM; pass name=<device> site=<site> env=lab" \
+	"  make remove-device    Destroy one named demo device VM; pass name=<device>" \
+	"  make approve-device   Approve pending requests; pass name=<device> to reuse stored labels" \
+	"  make apply-fleet      Create or update the demo Edge Manager fleet" \
+	"  make demo-early       Run the early-binding device flow through fleet assignment" \
+	"  make demo-late        Run the late-binding device flow through fleet assignment" \
+	"  make build-app        Build the applications/hello-web/ images and push them to Satellite" \
+	"  make deploy-app       Apply applications/hello-web/fleet-with-app.yaml through Edge Manager" \
+	"  make demo-app         Build and deploy the demo application after Labs 3 to 5 are complete"
 
 init-files: automation-init-files
 
@@ -110,7 +115,7 @@ device-vm-plan: device-vm-init
 	VM_TAGS='$(or $(VM_TAGS),$(tags))' \
 	ACTION=plan $(AUTOMATION_DIR)/scripts/device-vm.sh
 
-device-vm-up: device-vm-init
+add-device: device-vm-init
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
 	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
 	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
@@ -125,7 +130,7 @@ device-vm-up: device-vm-init
 	VM_TAGS='$(or $(VM_TAGS),$(tags))' \
 	ACTION=apply $(AUTOMATION_DIR)/scripts/device-vm.sh
 
-device-vm-down: device-vm-init
+remove-device: device-vm-init
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
 	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
 	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
@@ -143,44 +148,42 @@ device-vm-down: device-vm-init
 device-vms-down-all: device-vm-init
 	$(AUTOMATION_DIR)/scripts/device-vm-down-all.sh
 
-configure: automation-init-files ansible-bootstrap
+configure-lab: automation-init-files ansible-bootstrap
 	cd $(ANSIBLE_DIR) && $(ANSIBLE_PLAYBOOK) playbooks/demo_up.yml
 
-plan: tf-plan
+plan-lab: tf-plan
 
-up: tf-up configure
+start-lab: tf-up configure-lab
 
-down: device-vms-down-all tf-down
+stop-lab: device-vms-down-all tf-down
 
-create-rhel9:
+create-vm:
 	$(AUTOMATION_DIR)/scripts/create-rhel9.sh
 
-aap-install: automation-init-files ansible-bootstrap
+install-aap: automation-init-files ansible-bootstrap
 	cd $(ANSIBLE_DIR) && $(ANSIBLE_PLAYBOOK) playbooks/aap_install.yml
 
-aap-integrate: automation-init-files ansible-bootstrap
+connect-aap: automation-init-files ansible-bootstrap
 	cd $(ANSIBLE_DIR) && $(ANSIBLE_PLAYBOOK) playbooks/aap_integration.yml
 
-aap-setup: aap-install aap-integrate
+setup-aap: install-aap connect-aap
 
-bootc-build: bootc-build-earlybinding
-
-bootc-build-earlybinding: automation-init-files ansible-bootstrap
+build-image-early: automation-init-files ansible-bootstrap
 	BOOTC_BINDING_MODE=earlybinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
 
-bootc-build-latebinding: automation-init-files ansible-bootstrap
+build-image-late: automation-init-files ansible-bootstrap
 	BOOTC_BINDING_MODE=latebinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
 
-approve-enrollment: automation-init-files ansible-bootstrap
+approve-device: automation-init-files ansible-bootstrap
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
 	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
 	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	$(AUTOMATION_DIR)/scripts/approve-enrollment.sh
 
-fleet-apply: automation-init-files ansible-bootstrap
+apply-fleet: automation-init-files ansible-bootstrap
 	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
 
-device-demo: automation-init-files ansible-bootstrap
+demo-early: automation-init-files ansible-bootstrap
 	BOOTC_BINDING_MODE=earlybinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
 	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
@@ -192,7 +195,7 @@ device-demo: automation-init-files ansible-bootstrap
 	WAIT_FOR_PENDING=true WAIT_TIMEOUT_SECONDS=1800 $(AUTOMATION_DIR)/scripts/approve-enrollment.sh
 	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
 
-device-demo-latebinding: automation-init-files ansible-bootstrap
+demo-late: automation-init-files ansible-bootstrap
 	BOOTC_BINDING_MODE=latebinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
 	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
@@ -204,12 +207,56 @@ device-demo-latebinding: automation-init-files ansible-bootstrap
 	WAIT_FOR_PENDING=true WAIT_TIMEOUT_SECONDS=1800 $(AUTOMATION_DIR)/scripts/approve-enrollment.sh
 	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
 
-app-build: automation-init-files ansible-bootstrap
+build-app: automation-init-files ansible-bootstrap
 	$(AUTOMATION_DIR)/scripts/app-build.sh
 
-app-deploy: automation-init-files ansible-bootstrap
+deploy-app: automation-init-files ansible-bootstrap
 	$(AUTOMATION_DIR)/scripts/app-deploy.sh
 
-app-demo: automation-init-files ansible-bootstrap
+demo-app: automation-init-files ansible-bootstrap
 	$(AUTOMATION_DIR)/scripts/app-build.sh
 	$(AUTOMATION_DIR)/scripts/app-deploy.sh
+
+up: start-lab
+
+down: stop-lab
+
+plan: plan-lab
+
+configure: configure-lab
+
+start-demo-vms: rhel-vms-up
+
+stop-demo-vms: rhel-vms-down
+
+create-rhel9: create-vm
+
+aap-install: install-aap
+
+aap-integrate: connect-aap
+
+aap-setup: setup-aap
+
+bootc-build: build-image-early
+
+bootc-build-earlybinding: build-image-early
+
+bootc-build-latebinding: build-image-late
+
+device-vm-up: add-device
+
+device-vm-down: remove-device
+
+approve-enrollment: approve-device
+
+fleet-apply: apply-fleet
+
+device-demo: demo-early
+
+device-demo-latebinding: demo-late
+
+app-build: build-app
+
+app-deploy: deploy-app
+
+app-demo: demo-app

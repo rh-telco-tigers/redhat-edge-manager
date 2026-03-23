@@ -56,4 +56,4 @@ Edit `user-data.rendered.yaml` and replace:
 
 Attach that user-data to the VM or provisioning workflow together with the qcow2 or ISO you built.
 
-This is the same structure used by `make bootc-build-latebinding`. The automation requests the enrollment config, renders the matching cloud-init user data, fetches both artifacts into `automation/artifacts/bootc/latebinding/`, and then `make device-vm-up` attaches that user-data when the current artifact is late binding.
+This is the same structure used by `make build-image-late`. The automation requests the enrollment config, renders the matching cloud-init user data, fetches both artifacts into `automation/artifacts/bootc/latebinding/`, and then `make add-device` attaches that user-data when the current artifact is late binding.

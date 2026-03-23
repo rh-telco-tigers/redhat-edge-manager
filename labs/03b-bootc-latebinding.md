@@ -220,7 +220,7 @@ For a VM, attach `user-data.yaml` through your platform’s cloud-init or NoClou
 
 For an ISO or physical-device workflow, use your provisioning tooling to supply the same cloud-init data or an equivalent mechanism that writes both files before the installed OS completes first boot.
 
-This is the same handoff the automation uses. `make bootc-build-latebinding` requests the enrollment config, renders the matching cloud-init user data, and fetches both artifacts. `make device-vm-up` then attaches that cloud-init payload when the current bootc artifact is late binding.
+This is the same handoff the automation uses. `make build-image-late` requests the enrollment config, renders the matching cloud-init user data, and fetches both artifacts. `make add-device` then attaches that cloud-init payload when the current bootc artifact is late binding.
 
 ## Step 6 — Prepare for the next lab
 

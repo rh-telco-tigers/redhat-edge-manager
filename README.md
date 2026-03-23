@@ -33,15 +33,15 @@ The automated path lives under [`automation/`](automation/README.md).
 
 Common entry points:
 
-- `make up` — create and configure the full demo stack
-- `make down` — remove the full demo stack
-- `make rhel-vms-up` — create only the base RHEL VMs for the manual lab path
-- `make rhel-vms-down` — remove those base RHEL VMs
-- `make bootc-build` — build the early-binding bootc image
-- `make bootc-build-latebinding` — build the late-binding bootc image and fetch the matching cloud-init user-data
-- `make device-demo` — run the early-binding Labs 3 to 5 device flow after the stack is up
-- `make device-demo-latebinding` — run the late-binding Labs 3 to 5 device flow after the stack is up
-- `make app-demo` — run the Lab 6 application flow after the device is enrolled
+- `make start-lab` — create and configure the full demo stack
+- `make stop-lab` — remove the full demo stack
+- `make start-demo-vms` — create only the base RHEL VMs for the manual lab path
+- `make stop-demo-vms` — remove those base RHEL VMs
+- `make build-image-early` — build the early-binding bootc image
+- `make build-image-late` — build the late-binding bootc image and fetch the matching cloud-init user-data
+- `make demo-early` — run the early-binding Labs 3 to 5 device flow after the stack is up
+- `make demo-late` — run the late-binding Labs 3 to 5 device flow after the stack is up
+- `make demo-app` — run the Lab 6 application flow after the device is enrolled
 
 ## Troubleshooting
 

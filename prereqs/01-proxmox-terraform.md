@@ -15,9 +15,9 @@ The Proxmox Terraform environments under [`automation/terraform/environments/`](
 
 The main entry points are:
 
-- `make up` / `make down` for the full automated stack
-- `make rhel-vms-up` / `make rhel-vms-down` for the base RHEL VMs only
-- `make create-rhel9 ROLE=<role>` for one extra RHEL VM
+- `make start-lab` / `make stop-lab` for the full automated stack
+- `make start-demo-vms` / `make stop-demo-vms` for the base RHEL VMs only
+- `make create-vm ROLE=<role>` for one extra RHEL VM
 
 ## Before you run
 
@@ -113,7 +113,7 @@ For the base RHEL VM path:
 
 For a single extra RHEL VM:
 
-- the command-line arguments you pass to `make create-rhel9`
+- the command-line arguments you pass to `make create-vm`
 
 Pick free `vm_id` values and valid IP settings before you apply.
 
@@ -121,9 +121,9 @@ Pick free `vm_id` values and valid IP settings before you apply.
 
 ```bash
 make init-files
-make plan
-make up
-make down
+make plan-lab
+make start-lab
+make stop-lab
 ```
 
 If you want to work directly in one Terraform environment:

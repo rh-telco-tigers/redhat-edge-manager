@@ -25,7 +25,7 @@
       ansible.builtin.assert:
         that:
           - enrollment_flightctl_token_effective | trim | length > 0
-        fail_msg: "AAP authentication is enabled, but no OAuth token is available for make approve-enrollment."
+        fail_msg: "AAP authentication is enabled, but no OAuth token is available for make approve-device."
       when: rhem_auth_provider_effective == 'aap'
 
     - name: Require a flightctl user before approving enrollments
@@ -33,7 +33,7 @@
         that:
           - enrollment_flightctl_username_effective | trim | length > 0
           - enrollment_flightctl_password_effective | trim | length > 0
-        fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make approve-enrollment."
+        fail_msg: "Set Edge Manager credentials in automation/ansible/group_vars/all.yml before running make approve-device."
       when: rhem_auth_provider_effective != 'aap'
 
     - name: Ensure the flightctl config directory exists

@@ -54,4 +54,4 @@ sudo podman run --rm -it --privileged --pull=newer \
   "localhost/device-os:${OCI_IMAGE_TAG}"
 ```
 
-This is the same source used by `make bootc-build`.
+This is the same source used by `make build-image-early`.

@@ -136,7 +136,7 @@ select_workspace() {
   fi
 
   if [[ "$action" == "destroy" ]]; then
-    echo "Terraform workspace '$workspace_name' does not exist. Pass the same name= value you used for make device-vm-up." >&2
+    echo "Terraform workspace '$workspace_name' does not exist. Pass the same name= value you used for make add-device." >&2
     exit 1
   fi
 
@@ -522,12 +522,12 @@ if [[ "$action" != "destroy" && "$bootc_binding_mode" == "latebinding" && -z "$c
 fi
 
 if [[ "$action" != "destroy" && ( -z "$bootc_qcow2_path" || ! -f "$bootc_qcow2_path" ) ]]; then
-  echo "No bootc qcow2 artifact was found. Run make bootc-build or make bootc-build-latebinding first, or set BOOTC_QCOW2_PATH." >&2
+  echo "No bootc qcow2 artifact was found. Run make build-image-early or make build-image-late first, or set BOOTC_QCOW2_PATH." >&2
   exit 1
 fi
 
 if [[ "$action" != "destroy" && "$bootc_binding_mode" == "latebinding" && ( -z "$cloud_init_user_data_path" || ! -f "$cloud_init_user_data_path" ) ]]; then
-  echo "No late-binding cloud-init user-data artifact was found. Run make bootc-build-latebinding first." >&2
+  echo "No late-binding cloud-init user-data artifact was found. Run make build-image-late first." >&2
   exit 1
 fi
 
