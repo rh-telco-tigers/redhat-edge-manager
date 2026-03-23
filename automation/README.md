@@ -305,7 +305,18 @@ This runs:
 - `make approve-enrollment`
 - `make fleet-apply`
 
-`make device-demo` is the early-binding convenience path. If you want the late-binding device flow, run `make bootc-build-latebinding` first and then create the device with `make device-vm-up`.
+For the late-binding path:
+
+```bash
+make device-demo-latebinding
+```
+
+This runs:
+
+- `make bootc-build-latebinding`
+- `make device-vm-up`
+- `make approve-enrollment`
+- `make fleet-apply`
 
 ## Application workflow helpers
 

@@ -24,7 +24,7 @@ DEVICE_LABEL_KVS_VALUE := $(strip $(foreach v,$(COMMAND_LINE_VARS),$(if $(filter
 .PHONY: rhel-vms-init rhel-vms-plan rhel-vms-up rhel-vms-down
 .PHONY: create-rhel9 aap-install aap-integrate aap-setup bootc-build bootc-build-earlybinding bootc-build-latebinding approve-enrollment fleet-apply
 .PHONY: app-build app-deploy app-demo
-.PHONY: device-vm-init device-vm-plan device-vm-up device-vm-down device-vms-down-all device-demo
+.PHONY: device-vm-init device-vm-plan device-vm-up device-vm-down device-vms-down-all device-demo device-demo-latebinding
 .PHONY: tf-init tf-plan tf-up tf-down
 
 help:
@@ -49,6 +49,7 @@ help:
 	"  make approve-enrollment Approve pending requests; pass name=<device> to reuse stored labels" \
 	"  make fleet-apply      Create or update the demo Edge Manager fleet" \
 	"  make device-demo      Run the early-binding device flow through fleet assignment" \
+	"  make device-demo-latebinding Run the late-binding device flow through fleet assignment" \
 	"  make app-build        Build the applications/hello-web/ images and push them to Satellite" \
 	"  make app-deploy       Apply applications/hello-web/fleet-with-app.yaml through Edge Manager" \
 	"  make app-demo         Build and deploy the demo application after Labs 3 to 5 are complete"
@@ -181,6 +182,18 @@ fleet-apply: automation-init-files ansible-bootstrap
 
 device-demo: automation-init-files ansible-bootstrap
 	BOOTC_BINDING_MODE=earlybinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
+	ACTION=apply $(AUTOMATION_DIR)/scripts/device-vm.sh
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
+	WAIT_FOR_PENDING=true WAIT_TIMEOUT_SECONDS=1800 $(AUTOMATION_DIR)/scripts/approve-enrollment.sh
+	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
+
+device-demo-latebinding: automation-init-files ansible-bootstrap
+	BOOTC_BINDING_MODE=latebinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
 	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
 	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \

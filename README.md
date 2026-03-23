@@ -40,6 +40,7 @@ Common entry points:
 - `make bootc-build` — build the early-binding bootc image
 - `make bootc-build-latebinding` — build the late-binding bootc image and fetch the matching cloud-init user-data
 - `make device-demo` — run the early-binding Labs 3 to 5 device flow after the stack is up
+- `make device-demo-latebinding` — run the late-binding Labs 3 to 5 device flow after the stack is up
 - `make app-demo` — run the Lab 6 application flow after the device is enrolled
 
 ## Troubleshooting
