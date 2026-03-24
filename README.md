@@ -33,7 +33,7 @@ The automated path lives under [`automation/`](automation/README.md).
 
 Common entry points:
 
-- `make start-lab` — create and configure the full demo stack
+- `make start-lab` — create the full demo stack, onboard one early-binding device and one late-binding device, create the fleet, and deploy the application
 - `make stop-lab` — remove the full demo stack
 - `make start-demo-vms` — create only the base RHEL VMs for the manual lab path
 - `make stop-demo-vms` — remove those base RHEL VMs

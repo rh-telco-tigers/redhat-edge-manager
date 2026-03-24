@@ -70,6 +70,10 @@ What `make start-lab` installs by default:
 - Red Hat Edge Manager
 - Keycloak
 - Red Hat Satellite
+- one early-binding demo device named `early`
+- one late-binding demo device named `late`
+- `Fleet/demo`
+- the `hello-web` application through Edge Manager
 
 AAP is optional and is only installed when `aap_install_enabled: true` is set in `automation/ansible/group_vars/all.yml`.
 
@@ -301,8 +305,8 @@ make demo-early
 This runs:
 
 - `make build-image-early`
-- `make add-device`
-- `make approve-device`
+- `make add-device name=early site=homelab binding=early` when no explicit name or site is provided
+- `make approve-device name=early site=homelab binding=early` when no explicit name or site is provided
 - `make apply-fleet`
 
 For the late-binding path:
@@ -314,9 +318,11 @@ make demo-late
 This runs:
 
 - `make build-image-late`
-- `make add-device`
-- `make approve-device`
+- `make add-device name=late site=homelab binding=late` when no explicit name or site is provided
+- `make approve-device name=late site=homelab binding=late` when no explicit name or site is provided
 - `make apply-fleet`
+
+`make start-lab` runs both of those device flows in sequence and then runs `make demo-app`.
 
 ## Application workflow helpers
 

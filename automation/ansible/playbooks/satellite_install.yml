@@ -2,6 +2,7 @@
 - name: Install Red Hat Satellite on the dedicated VM
   hosts: satellite_hosts
   become: true
+  gather_facts: false
   vars_files:
     - ../group_vars/all.yml
   vars:
@@ -43,6 +44,15 @@
       ansible.builtin.meta: end_host
       when: not _satellite_enabled
 
+    - name: Wait for Satellite SSH before gathering facts
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+        delay: 5
+        sleep: 5
+
+    - name: Gather Satellite facts after SSH is ready
+      ansible.builtin.setup:
+
     - name: Require a fully qualified hostname for Satellite
       ansible.builtin.assert:
         that:
@@ -79,11 +89,29 @@
         disable_plugin:
           - foreman-protector
 
+    - name: Reset SSH connection after Satellite prerequisite packages
+      ansible.builtin.meta: reset_connection
+
+    - name: Wait for Satellite SSH after prerequisite packages
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+        delay: 5
+        sleep: 5
+
     - name: Install Satellite package
       ansible.builtin.dnf:
         name:
           - satellite
         state: present
+
+    - name: Reset SSH connection after Satellite package installation
+      ansible.builtin.meta: reset_connection
+
+    - name: Wait for Satellite SSH after Satellite package installation
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+        delay: 5
+        sleep: 5
 
     - name: Enable and start firewalld
       ansible.builtin.systemd:
@@ -96,6 +124,15 @@
         name: sshd
         state: started
         enabled: true
+
+    - name: Reset SSH connection before Satellite state inspection
+      ansible.builtin.meta: reset_connection
+
+    - name: Wait for Satellite SSH before reading installer state
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+        delay: 5
+        sleep: 5
 
     - name: Check whether Satellite has already been initialized
       ansible.builtin.stat:

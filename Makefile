@@ -12,6 +12,9 @@ ANSIBLE_REQUIREMENTS := $(AUTOMATION_DIR)/requirements-ansible.txt
 ANSIBLE_PLAYBOOK := $(abspath $(ANSIBLE_VENV_DIR))/bin/ansible-playbook
 ANSIBLE_PIP := $(ANSIBLE_VENV_DIR)/bin/pip
 ANSIBLE_STAMP := $(ANSIBLE_VENV_DIR)/.ansible-ready
+LAB_DEFAULT_SITE ?= homelab
+LAB_EARLY_DEVICE_NAME ?= early
+LAB_LATE_DEVICE_NAME ?= late
 empty :=
 space := $(empty) $(empty)
 comma := ,
@@ -20,7 +23,7 @@ COMMAND_LINE_VARS := $(sort $(foreach v,$(.VARIABLES),$(if $(filter command line
 DEVICE_LABEL_KVS_VALUE := $(strip $(foreach v,$(COMMAND_LINE_VARS),$(if $(filter-out $(DEVICE_RESERVED_CLI_VARS),$(v)),$(v)=$($(v)))))
 
 .PHONY: help init-files automation-init-files ansible-bootstrap
-.PHONY: plan-lab start-lab stop-lab configure-lab
+.PHONY: plan-lab start-lab stop-lab configure-lab lab-demo-flow
 .PHONY: start-demo-vms stop-demo-vms create-vm
 .PHONY: install-aap connect-aap setup-aap build-image-early build-image-late approve-device apply-fleet
 .PHONY: build-app deploy-app demo-app
@@ -37,7 +40,7 @@ help:
 	"Supported targets:" \
 	"  make help             Show this help" \
 	"  make init-files       Seed local gitignored config files" \
-	"  make start-lab        Full automation: Terraform + Ansible" \
+	"  make start-lab        Full lab: infra, early+late devices, fleet, and application" \
 	"  make stop-lab         Tear down the full lab, including device VMs" \
 	"  make plan-lab         Preview Terraform changes for the full lab" \
 	"  make configure-lab    Run only the Ansible configuration phase" \
@@ -153,7 +156,15 @@ configure-lab: automation-init-files ansible-bootstrap
 
 plan-lab: tf-plan
 
-start-lab: tf-up configure-lab
+lab-demo-flow: automation-init-files ansible-bootstrap
+	$(MAKE) demo-early name='$(LAB_EARLY_DEVICE_NAME)' site='$(LAB_DEFAULT_SITE)' binding=early
+	$(MAKE) demo-late name='$(LAB_LATE_DEVICE_NAME)' site='$(LAB_DEFAULT_SITE)' binding=late
+	$(MAKE) demo-app
+
+start-lab: automation-init-files ansible-bootstrap
+	$(MAKE) tf-up
+	$(MAKE) configure-lab
+	$(MAKE) lab-demo-flow
 
 stop-lab: device-vms-down-all tf-down
 
@@ -185,24 +196,24 @@ apply-fleet: automation-init-files ansible-bootstrap
 
 demo-early: automation-init-files ansible-bootstrap
 	BOOTC_BINDING_MODE=earlybinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
-	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
-	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name),$(LAB_EARLY_DEVICE_NAME))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site),$(LAB_DEFAULT_SITE))' \
 	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	ACTION=apply $(AUTOMATION_DIR)/scripts/device-vm.sh
-	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
-	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name),$(LAB_EARLY_DEVICE_NAME))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site),$(LAB_DEFAULT_SITE))' \
 	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	WAIT_FOR_PENDING=true WAIT_TIMEOUT_SECONDS=1800 $(AUTOMATION_DIR)/scripts/approve-enrollment.sh
 	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
 
 demo-late: automation-init-files ansible-bootstrap
 	BOOTC_BINDING_MODE=latebinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
-	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
-	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name),$(LAB_LATE_DEVICE_NAME))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site),$(LAB_DEFAULT_SITE))' \
 	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	ACTION=apply $(AUTOMATION_DIR)/scripts/device-vm.sh
-	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \
-	DEVICE_SITE='$(or $(DEVICE_SITE),$(site))' \
+	DEVICE_NAME='$(or $(DEVICE_NAME),$(name),$(LAB_LATE_DEVICE_NAME))' \
+	DEVICE_SITE='$(or $(DEVICE_SITE),$(site),$(LAB_DEFAULT_SITE))' \
 	DEVICE_LABEL_KVS='$(DEVICE_LABEL_KVS_VALUE)' \
 	WAIT_FOR_PENDING=true WAIT_TIMEOUT_SECONDS=1800 $(AUTOMATION_DIR)/scripts/approve-enrollment.sh
 	$(AUTOMATION_DIR)/scripts/fleet-apply.sh
