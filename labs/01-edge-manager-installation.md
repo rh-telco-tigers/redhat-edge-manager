@@ -60,10 +60,12 @@ Use this same username and password for both the browser login and the `flightct
 ## Step 4 — Verify the web console
 
 ```bash
-export RHEM_HOST="rhem.rhem-eap.lan"
+export RHEM_HOST="$(hostname -f)"
 export RHEM_UI_URL="https://${RHEM_HOST}/"
 curl -skI "$RHEM_UI_URL" | head -5
 ```
+
+If you run this check from the Edge Manager host itself, `hostname -f` is a practical default. If you run it from another machine, set `RHEM_HOST` to the DNS name that users actually use to reach Edge Manager.
 
 Open the same URL in a browser and sign in with `$RHEM_ADMIN_USER` and `$RHEM_ADMIN_PASSWORD`.
 

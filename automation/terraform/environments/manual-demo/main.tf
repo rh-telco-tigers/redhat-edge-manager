@@ -9,13 +9,17 @@ locals {
     if vm.enabled
   }
 
+  dns_vm = try(local.enabled_vms["dns"], null)
+
   effective_ssh_public_key = trimspace(
     var.ssh_public_key != "" ? var.ssh_public_key : (
       var.ssh_public_key_path != "" ? file(pathexpand(var.ssh_public_key_path)) : ""
     )
   )
 
-  dns_vm_ip = contains(keys(local.enabled_vms), "dns") && !local.enabled_vms["dns"].ipv4_use_dhcp ? split("/", local.enabled_vms["dns"].ipv4_cidr)[0] : ""
+  dns_vm_ip = local.dns_vm == null ? "" : (
+    local.dns_vm.ipv4_use_dhcp ? "" : split("/", local.dns_vm.ipv4_cidr)[0]
+  )
 
   cloud_init_dns_servers = local.dns_vm_ip != "" ? distinct(concat([local.dns_vm_ip], var.upstream_dns_servers)) : var.upstream_dns_servers
 
