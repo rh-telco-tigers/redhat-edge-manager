@@ -45,7 +45,7 @@ Common entry points:
 
 ## Troubleshooting
 
-If you hit a known issue while following the labs or running the automation, start with [`troubleshooting.md`](troubleshooting.md).
+If you hit a known issue while following the labs or running the automation, start with [`troubleshooting/`](troubleshooting/README.md).
 
 ## Extra notes
 

@@ -1,0 +1,72 @@
+---
+- name: Install and start Keycloak on the dedicated VM
+  hosts: keycloak_hosts
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    keycloak_effective_public_url: "{{ keycloak_public_url | default('http://' ~ fqdn ~ ':8080', true) }}"
+    keycloak_local_probe_url: "http://127.0.0.1:8080"
+  tasks:
+    - name: Wait for Keycloak SSH before gathering facts
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+        delay: 5
+        sleep: 5
+
+    - name: Gather Keycloak facts after SSH is ready
+      ansible.builtin.setup:
+
+    - name: Ensure required packages
+      ansible.builtin.dnf:
+        name:
+          - podman
+          - curl
+        state: present
+
+    - name: Create Keycloak import directory
+      ansible.builtin.file:
+        path: "{{ keycloak_import_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Render Keycloak env file
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/keycloak.env.j2"
+        dest: /etc/keycloak.env
+        mode: "0600"
+
+    - name: Render Keycloak systemd unit
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/keycloak.service.j2"
+        dest: /etc/systemd/system/keycloak.service
+        mode: "0644"
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and start Keycloak
+      ansible.builtin.systemd:
+        name: keycloak
+        state: restarted
+        enabled: true
+
+    - name: Wait for Keycloak port
+      ansible.builtin.wait_for:
+        port: 8080
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        timeout: 180
+      delegate_to: localhost
+      become: false
+
+    - name: Wait for Keycloak master realm discovery document
+      ansible.builtin.uri:
+        url: "{{ keycloak_local_probe_url }}/realms/master/.well-known/openid-configuration"
+        method: GET
+        status_code: 200
+        return_content: false
+      register: _keycloak_master_probe
+      retries: 12
+      delay: 5
+      until: _keycloak_master_probe.status == 200
