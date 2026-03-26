@@ -171,7 +171,7 @@ If you rotated the built-in CA, every workstation that talks to Edge Manager mus
 
 Use:
 
-- [02-trusting-lab-certificates.md](02-trusting-lab-certificates.md)
+- [trusting-lab-certificates.md](trusting-lab-certificates.md)
 
 ## Notes
 
