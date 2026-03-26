@@ -92,10 +92,17 @@ sudo killall -HUP mDNSResponder
 
 ## Step 4 — Trust the certificate on RHEL or Fedora
 
-If your workstation is another RHEL or Fedora system:
+If your workstation is another RHEL or Fedora system and you already copied `flightctl-ca.crt` there:
 
 ```bash
 sudo cp flightctl-ca.crt /etc/pki/ca-trust/source/anchors/
+sudo update-ca-trust
+```
+
+If you are running these commands directly on the Edge Manager host itself, copy from the source path instead:
+
+```bash
+sudo cp /etc/flightctl/pki/ca.crt /etc/pki/ca-trust/source/anchors/flightctl-ca.crt
 sudo update-ca-trust
 ```
 
