@@ -85,6 +85,6 @@ flightctl get devices
 
 If the certificate is self-signed, the CLI prompts to continue with an insecure connection. That is expected in a lab setup.
 
-If you want your workstation to trust the Edge Manager endpoint and avoid the insecure prompt, see [Trust the Edge Manager certificate on your workstation](../prereqs/02-trusting-lab-certificates.md).
+If you want your workstation to trust the Edge Manager endpoint and avoid the insecure prompt, see [Trust the Edge Manager certificate on your workstation](../extras/02-trusting-lab-certificates.md).
 
 On a fresh installation, `flightctl get fleets` and `flightctl get devices` can return an empty list. That is still a valid result. The important point is that the login succeeds and the CLI can query the API.

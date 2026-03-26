@@ -47,6 +47,10 @@ Common entry points:
 
 If you hit a known issue while following the labs or running the automation, start with [`troubleshooting.md`](troubleshooting.md).
 
+## Extra notes
+
+[`extras/`](extras/README.md) contains supporting notes for things like trusting the lab certificates on your workstation or changing the Edge Manager base domain after installation.
+
 ## Reference notes
 
 [`prereqs/`](prereqs/README.md) contains supporting setup notes for the Proxmox automation path.
