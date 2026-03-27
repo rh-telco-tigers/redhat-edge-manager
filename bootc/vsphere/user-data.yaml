@@ -1,0 +1,7 @@
+#cloud-config
+write_files:
+  - path: /etc/flightctl/config.yaml
+    owner: root:root
+    permissions: "0600"
+    content: |
+      CHANGEME_PASTE_CONFIG_YAML_HERE
