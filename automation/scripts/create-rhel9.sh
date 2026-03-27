@@ -7,6 +7,7 @@ env_dir="$repo_root/automation/terraform/environments/single-rhel9"
 "$repo_root/automation/scripts/init-files.sh"
 
 role="${ROLE:-generic}"
+workspace_name="${TF_WORKSPACE_NAME:-single-${role}}"
 vm_id="${VM_ID:-}"
 vm_name="${VM_NAME:-}"
 dns_name="${DNS_NAME:-}"
@@ -19,6 +20,7 @@ ipv4_gateway="${IPV4_GATEWAY:-192.168.4.1}"
 dns_servers="${DNS_SERVERS:-1.1.1.1,8.8.8.8}"
 description="${VM_DESCRIPTION:-}"
 extra_tags="${VM_TAGS:-}"
+resource_pool_id="${RESOURCE_POOL_ID:-}"
 action="${ACTION:-apply}"
 
 case "$role" in
@@ -113,8 +115,11 @@ if [[ ${#tag_args[@]} -gt 0 ]]; then
 fi
 
 terraform -chdir="$env_dir" init -input=false >/dev/null
+terraform -chdir="$env_dir" workspace select "$workspace_name" >/dev/null 2>&1 || \
+  terraform -chdir="$env_dir" workspace new "$workspace_name" >/dev/null
 
 cmd=("$env_dir/tf.sh" "$action" -input=false \
+  -var "resource_pool_id=${resource_pool_id:-rhem-eap-demo}" \
   -var "vm_role=$role" \
   -var "vm_id=$vm_id" \
   -var "vm_name=$vm_name" \

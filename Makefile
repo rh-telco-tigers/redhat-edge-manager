@@ -24,6 +24,7 @@ DEVICE_LABEL_KVS_VALUE := $(strip $(foreach v,$(COMMAND_LINE_VARS),$(if $(filter
 
 .PHONY: help init-files automation-init-files ansible-bootstrap
 .PHONY: plan-lab start-lab stop-lab configure-lab lab-demo-flow
+.PHONY: start-satellite stop-satellite start-keycloak stop-keycloak
 .PHONY: start-demo-vms stop-demo-vms create-vm
 .PHONY: install-aap connect-aap setup-aap build-image-early build-image-late approve-device apply-fleet
 .PHONY: build-app deploy-app demo-app
@@ -47,6 +48,10 @@ help:
 	"  make start-demo-vms   Create only the base RHEL 9 VMs for the manual path" \
 	"  make stop-demo-vms    Destroy only those base RHEL 9 VMs" \
 	"  make create-vm        Create one standalone RHEL 9 VM" \
+	"  make start-satellite  Create the standalone Satellite VM and install Satellite on it" \
+	"  make stop-satellite   Destroy the standalone Satellite VM" \
+	"  make start-keycloak   Create the standalone Keycloak VM and install Keycloak on it" \
+	"  make stop-keycloak    Destroy the standalone Keycloak VM" \
 	"  make install-aap      Install Ansible Automation Platform on the AAP host" \
 	"  make connect-aap      Configure Edge Manager to use AAP authentication" \
 	"  make setup-aap        Run both AAP install and AAP integration" \
@@ -170,6 +175,18 @@ stop-lab: device-vms-down-all tf-down
 
 create-vm:
 	$(AUTOMATION_DIR)/scripts/create-rhel9.sh
+
+start-satellite: automation-init-files ansible-bootstrap
+	ROLE=satellite ACTION=start bash $(AUTOMATION_DIR)/scripts/service-vm.sh
+
+stop-satellite: automation-init-files
+	ROLE=satellite ACTION=stop bash $(AUTOMATION_DIR)/scripts/service-vm.sh
+
+start-keycloak: automation-init-files ansible-bootstrap
+	ROLE=keycloak ACTION=start bash $(AUTOMATION_DIR)/scripts/service-vm.sh
+
+stop-keycloak: automation-init-files
+	ROLE=keycloak ACTION=stop bash $(AUTOMATION_DIR)/scripts/service-vm.sh
 
 install-aap: automation-init-files ansible-bootstrap
 	cd $(ANSIBLE_DIR) && $(ANSIBLE_PLAYBOOK) playbooks/aap_install.yml

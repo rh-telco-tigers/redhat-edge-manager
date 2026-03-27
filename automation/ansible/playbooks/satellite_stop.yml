@@ -1,0 +1,41 @@
+---
+- name: Stop Red Hat Satellite services on the dedicated VM
+  hosts: satellite_hosts
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for Satellite SSH before stopping services
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+        delay: 5
+        sleep: 5
+
+    - name: Check for satellite-maintain
+      ansible.builtin.stat:
+        path: /usr/bin/satellite-maintain
+      register: _satellite_maintain_usr_bin
+
+    - name: Check for satellite-maintain in /usr/sbin
+      ansible.builtin.stat:
+        path: /usr/sbin/satellite-maintain
+      register: _satellite_maintain_usr_sbin
+      when: not _satellite_maintain_usr_bin.stat.exists
+
+    - name: Set satellite-maintain path
+      ansible.builtin.set_fact:
+        _satellite_maintain_path: >-
+          {{
+            '/usr/bin/satellite-maintain'
+            if _satellite_maintain_usr_bin.stat.exists
+            else '/usr/sbin/satellite-maintain'
+          }}
+      when: _satellite_maintain_usr_bin.stat.exists or (_satellite_maintain_usr_sbin.stat.exists | default(false))
+
+    - name: Stop Satellite services
+      ansible.builtin.command:
+        argv:
+          - "{{ _satellite_maintain_path }}"
+          - service
+          - stop
+      when: _satellite_maintain_path is defined
+      changed_when: true

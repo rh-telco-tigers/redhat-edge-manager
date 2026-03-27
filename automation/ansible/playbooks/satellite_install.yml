@@ -98,11 +98,22 @@
         delay: 5
         sleep: 5
 
+    - name: Remove desktop audio compatibility package that conflicts with Satellite
+      ansible.builtin.dnf:
+        name:
+          - pipewire-pulseaudio
+        state: absent
+        disable_plugin:
+          - foreman-protector
+
     - name: Install Satellite package
       ansible.builtin.dnf:
         name:
           - satellite
         state: present
+        allowerasing: true
+        disable_plugin:
+          - foreman-protector
 
     - name: Reset SSH connection after Satellite package installation
       ansible.builtin.meta: reset_connection

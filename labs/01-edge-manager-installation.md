@@ -60,10 +60,12 @@ Use this same username and password for both the browser login and the `flightct
 ## Step 4 — Verify the web console
 
 ```bash
-export RHEM_HOST="rhem.rhem-eap.lan"
+export RHEM_HOST="$(hostname -f)"
 export RHEM_UI_URL="https://${RHEM_HOST}/"
 curl -skI "$RHEM_UI_URL" | head -5
 ```
+
+If you run this check from the Edge Manager host itself, `hostname -f` is a practical default. If you run it from another machine, set `RHEM_HOST` to the DNS name that users actually use to reach Edge Manager.
 
 Open the same URL in a browser and sign in with `$RHEM_ADMIN_USER` and `$RHEM_ADMIN_PASSWORD`.
 
@@ -82,5 +84,7 @@ flightctl get devices
 ```
 
 If the certificate is self-signed, the CLI prompts to continue with an insecure connection. That is expected in a lab setup.
+
+If you want your workstation to trust the Edge Manager endpoint and avoid the insecure prompt, see [Trust the Edge Manager certificate on your workstation](../extras/trusting-lab-certificates.md).
 
 On a fresh installation, `flightctl get fleets` and `flightctl get devices` can return an empty list. That is still a valid result. The important point is that the login succeeds and the CLI can query the API.

@@ -1,0 +1,17 @@
+---
+- name: Stop Keycloak on the dedicated VM
+  hosts: keycloak_hosts
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for Keycloak SSH before stopping the service
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+        delay: 5
+        sleep: 5
+
+    - name: Stop Keycloak service
+      ansible.builtin.systemd:
+        name: keycloak
+        state: stopped
+      failed_when: false
