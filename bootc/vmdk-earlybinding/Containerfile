@@ -1,0 +1,27 @@
+FROM registry.redhat.io/rhel9/rhel-bootc:9.7
+
+RUN dnf -y install 'dnf-command(config-manager)' && \
+    dnf config-manager --set-enabled edge-manager-1.0-for-rhel-9-x86_64-rpms && \
+    dnf -y install flightctl-agent open-vm-tools sudo && \
+    dnf -y clean all && \
+    systemctl enable flightctl-agent.service && \
+    systemctl enable vmtoolsd.service && \
+    systemctl mask bootc-fetch-apply-updates.timer
+
+RUN dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm && \
+    dnf -y install podman-compose && \
+    dnf -y clean all && \
+    systemctl enable podman.service
+
+ADD demo-authorized-key.pub /tmp/demo-authorized-key.pub
+ADD rhem-demo-hosts.sh /usr/local/libexec/rhem-demo-hosts.sh
+ADD rhem-demo-hosts.service /usr/lib/systemd/system/rhem-demo-hosts.service
+RUN getent passwd cloud-user >/dev/null 2>&1 || useradd -m -G wheel cloud-user && \
+    mkdir -p /home/cloud-user/.ssh && \
+    install -m 0600 -o cloud-user -g cloud-user /tmp/demo-authorized-key.pub /home/cloud-user/.ssh/authorized_keys && \
+    printf 'cloud-user ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/90-cloud-user && \
+    chmod 0440 /etc/sudoers.d/90-cloud-user && \
+    chmod 0755 /usr/local/libexec/rhem-demo-hosts.sh && \
+    systemctl enable rhem-demo-hosts.service
+
+ADD config.yaml /etc/flightctl/

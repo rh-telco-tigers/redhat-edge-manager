@@ -26,7 +26,7 @@ DEVICE_LABEL_KVS_VALUE := $(strip $(foreach v,$(COMMAND_LINE_VARS),$(if $(filter
 .PHONY: plan-lab start-lab stop-lab configure-lab lab-demo-flow
 .PHONY: start-satellite stop-satellite start-keycloak stop-keycloak
 .PHONY: start-demo-vms stop-demo-vms create-vm
-.PHONY: install-aap connect-aap setup-aap build-image-early build-image-late approve-device apply-fleet
+.PHONY: install-aap connect-aap setup-aap build-image-early build-image-late build-image-vmdk-early build-image-vmdk-late approve-device apply-fleet
 .PHONY: build-app deploy-app demo-app
 .PHONY: add-device remove-device device-vms-down-all demo-early demo-late
 .PHONY: up down plan configure
@@ -57,6 +57,8 @@ help:
 	"  make setup-aap        Run both AAP install and AAP integration" \
 	"  make build-image-early Build bootc/earlybinding, push it to Satellite, and fetch the bootable qcow2" \
 	"  make build-image-late Build bootc/latebinding and fetch the qcow2 plus cloud-init user-data" \
+	"  make build-image-vmdk-early Build bootc/vmdk-earlybinding and fetch the VMDK artifact" \
+	"  make build-image-vmdk-late Build bootc/vmdk-latebinding and fetch the VMDK artifact plus cloud-init user-data" \
 	"  make add-device       Create one named demo device VM; pass name=<device> site=<site> env=lab" \
 	"  make remove-device    Destroy one named demo device VM; pass name=<device>" \
 	"  make approve-device   Approve pending requests; pass name=<device> to reuse stored labels" \
@@ -201,6 +203,12 @@ build-image-early: automation-init-files ansible-bootstrap
 
 build-image-late: automation-init-files ansible-bootstrap
 	BOOTC_BINDING_MODE=latebinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
+
+build-image-vmdk-early: automation-init-files ansible-bootstrap
+	BOOTC_BINDING_MODE=vmdk-earlybinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
+
+build-image-vmdk-late: automation-init-files ansible-bootstrap
+	BOOTC_BINDING_MODE=vmdk-latebinding $(AUTOMATION_DIR)/scripts/bootc-build.sh
 
 approve-device: automation-init-files ansible-bootstrap
 	DEVICE_NAME='$(or $(DEVICE_NAME),$(name))' \

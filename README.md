@@ -7,7 +7,7 @@ This repo is for users who want to either:
 
 ## Choose a path
 
-If you already have the required hosts or want to work through the setup yourself, start with the manual labs and follow them in order. For Lab 3, choose either the early-binding path or the late-binding path before you continue to Lab 4.
+If you already have the required hosts or want to work through the setup yourself, start with the manual labs and follow them in order. For Lab 3, choose the binding model and virtualization platform that match your environment before you continue to Lab 4.
 
 If you want this repo to create and configure the demo environment for you, start with [`automation/README.md`](automation/README.md).
 
@@ -17,6 +17,8 @@ If you want this repo to create and configure the demo environment for you, star
 - [`labs/02-keycloak-integration.md`](labs/02-keycloak-integration.md) — Configure an existing Keycloak realm, users, and external OIDC integration
 - [`labs/03a-bootc-earlybinding.md`](labs/03a-bootc-earlybinding.md) — Build an early-binding bootc image that already contains the enrollment configuration
 - [`labs/03b-bootc-latebinding.md`](labs/03b-bootc-latebinding.md) — Build a late-binding bootc image and inject the enrollment configuration through cloud-init when you provision each device
+- [`labs/03c-bootc-vmdk-earlybinding.md`](labs/03c-bootc-vmdk-earlybinding.md) — Build an early-binding bootc VMDK for VMware vSphere and verify enrollment in Edge Manager
+- [`labs/03d-bootc-vmdk-latebinding.md`](labs/03d-bootc-vmdk-latebinding.md) — Build a late-binding bootc VMDK for VMware vSphere and provide enrollment data through cloud-init
 - [`labs/04-enroll-device.md`](labs/04-enroll-device.md) — Boot a fresh device, approve enrollment, and verify the device is online
 - [`labs/05-fleet-join.md`](labs/05-fleet-join.md) — Create a fleet and assign the device to it
 - [`labs/06-managing-applications.md`](labs/06-managing-applications.md) — Build and deploy an application through Edge Manager
@@ -39,6 +41,8 @@ Common entry points:
 - `make stop-demo-vms` — remove those base RHEL VMs
 - `make build-image-early` — build the early-binding bootc image
 - `make build-image-late` — build the late-binding bootc image and fetch the matching cloud-init user-data
+- `make build-image-vmdk-early` — build the VMware-targeted early-binding VMDK artifact
+- `make build-image-vmdk-late` — build the VMware-targeted late-binding VMDK artifact and fetch the matching cloud-init user-data
 - `make demo-early` — run the early-binding Labs 3 to 5 device flow after the stack is up
 - `make demo-late` — run the late-binding Labs 3 to 5 device flow after the stack is up
 - `make demo-app` — run the Lab 6 application flow after the device is enrolled

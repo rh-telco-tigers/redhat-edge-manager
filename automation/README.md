@@ -195,11 +195,30 @@ That late-binding build fetches both:
 - the clean `disk.qcow2`
 - the matching `cloud-init.user-data.yaml`
 
+To build the VMware-targeted early-binding VMDK instead:
+
+```bash
+make build-image-vmdk-early
+```
+
+To build the VMware-targeted late-binding VMDK instead:
+
+```bash
+make build-image-vmdk-late
+```
+
+That late-binding VMDK build fetches both:
+
+- `disk.vmdk`
+- the matching `cloud-init.user-data.yaml`
+
 The source of truth for this flow lives under:
 
 ```text
 bootc/earlybinding/
 bootc/latebinding/
+bootc/vmdk-earlybinding/
+bootc/vmdk-latebinding/
 ```
 
 Fetched artifacts are stored under:
@@ -207,10 +226,12 @@ Fetched artifacts are stored under:
 ```text
 automation/artifacts/bootc/earlybinding/<rhem-host>/
 automation/artifacts/bootc/latebinding/<rhem-host>/
+automation/artifacts/bootc/vmdk-earlybinding/<rhem-host>/
+automation/artifacts/bootc/vmdk-latebinding/<rhem-host>/
 automation/artifacts/bootc/current/<rhem-host>/
 ```
 
-`current/` always points to the most recent bootc build and is what `make add-device` uses by default.
+`current/` always points to the most recent qcow2 bootc build and is what `make add-device` uses by default. The VMDK build targets do not overwrite it.
 
 Optional ISO build:
 
@@ -222,6 +243,12 @@ Force a rebuild:
 
 ```bash
 BOOTC_FORCE_REBUILD=true make build-image-early
+```
+
+Force a rebuild of the VMware-targeted early-binding VMDK:
+
+```bash
+BOOTC_FORCE_REBUILD=true make build-image-vmdk-early
 ```
 
 ### Create the demo device VM

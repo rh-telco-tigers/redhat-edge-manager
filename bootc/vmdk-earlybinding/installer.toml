@@ -1,0 +1,5 @@
+[customizations.installer.kickstart]
+contents = """
+network --bootproto=dhcp --device=link --activate --onboot=on
+reboot --eject
+"""

@@ -159,6 +159,7 @@
   vars:
     repo_root_effective: "{{ playbook_dir | dirname | dirname | dirname }}"
     bootc_binding_effective: "{{ bootc_binding | default('earlybinding', true) }}"
+    bootc_binding_base_effective: "{{ 'earlybinding' if bootc_binding_effective in ['earlybinding', 'vmdk-earlybinding'] else 'latebinding' }}"
     bootc_workspace_root_effective: "{{ bootc_workspace_dir | default('/var/lib/rhem-demo/bootc', true) }}"
     bootc_source_dir_effective: "{{ repo_root_effective }}/bootc/{{ bootc_binding_effective }}"
     rhem_auth_provider_effective: "{{ rhem_auth_provider | default('keycloak', true) }}"
@@ -194,15 +195,17 @@
     bootc_publish_disk_image_enabled_effective: "{{ bootc_publish_disk_image_enabled | default(false, true) | bool }}"
     bootc_force_rebuild_effective: "{{ bootc_force_rebuild | default(false, true) | bool }}"
     bootc_build_iso_effective: "{{ bootc_build_iso | default(false, true) | bool }}"
-    bootc_build_qcow2_effective: "{{ bootc_build_qcow2 | default(true, true) | bool }}"
+    bootc_build_qcow2_effective: "{{ bootc_build_qcow2 | default((bootc_binding_effective in ['earlybinding', 'latebinding']), true) | bool }}"
+    bootc_build_vmdk_effective: "{{ bootc_build_vmdk | default((bootc_binding_effective in ['vmdk-earlybinding', 'vmdk-latebinding']), true) | bool }}"
     bootc_disk_image_repo_effective: "{{ bootc_disk_image_repo | default(bootc_image_repo_effective ~ '/diskimage-iso', true) }}"
     bootc_disk_image_ref_effective: "{{ bootc_disk_image_repo_effective }}:{{ bootc_image_tag_effective }}"
     bootc_enrollment_signer_effective: "{{ bootc_enrollment_signer | default('enrollment', true) }}"
     bootc_enrollment_expiration_effective: "{{ bootc_enrollment_expiration | default('365d', true) }}"
-    bootc_include_enrollment_config_effective: "{{ bootc_binding_effective == 'earlybinding' }}"
+    bootc_include_enrollment_config_effective: "{{ bootc_binding_base_effective == 'earlybinding' }}"
     bootc_installer_config_enabled_effective: "{{ bootc_installer_config_enabled | default(true, true) | bool }}"
     bootc_iso_remote_path_effective: "{{ bootc_output_dir_effective }}/bootiso/install.iso"
     bootc_qcow2_remote_path_effective: "{{ bootc_output_dir_effective }}/qcow2/disk.qcow2"
+    bootc_vmdk_remote_path_effective: "{{ bootc_output_dir_effective }}/vmdk/disk.vmdk"
     bootc_flightctl_username_effective: "{{ bootc_flightctl_username | default(edge_manager_admin_username | default(rhem_admin_username, true), true) }}"
     bootc_flightctl_password_effective: "{{ bootc_flightctl_password | default(edge_manager_admin_password | default(rhem_admin_password, true), true) }}"
     bootc_flightctl_token_effective: "{{ aap_edge_manager_oauth_token | default((hostvars[groups['aap_controllers'][0]].aap_edge_manager_oauth_token_effective | default('')) if ((groups['aap_controllers'] | default([])) | length > 0) else '', true) }}"
@@ -236,8 +239,8 @@
     - name: Require a supported bootc binding mode
       ansible.builtin.assert:
         that:
-          - bootc_binding_effective in ['earlybinding', 'latebinding']
-        fail_msg: "Unsupported bootc binding mode {{ bootc_binding_effective }}. Use earlybinding or latebinding."
+          - bootc_binding_effective in ['earlybinding', 'latebinding', 'vmdk-earlybinding', 'vmdk-latebinding']
+        fail_msg: "Unsupported bootc binding mode {{ bootc_binding_effective }}."
 
     - name: Require an AAP OAuth token when AAP auth is selected
       ansible.builtin.assert:
@@ -304,6 +307,13 @@
         dest: "{{ bootc_demo_ssh_public_key_file_effective }}"
         content: "{{ lookup('file', bootc_demo_ssh_public_key_path_effective) | trim ~ '\n' }}"
         mode: "0644"
+
+    - name: Ensure management host records exist locally on the build host
+      ansible.builtin.blockinfile:
+        path: /etc/hosts
+        marker: "# {mark} RHEM DEMO HOSTS"
+        block: "{{ bootc_demo_hosts_block_effective }}"
+      when: bootc_demo_hosts_block_effective | trim | length > 0
 
     - name: Download the Satellite CA certificate for the demo image and builder host
       ansible.builtin.get_url:
@@ -563,15 +573,24 @@
       ansible.builtin.stat:
         path: "{{ bootc_qcow2_remote_path_effective }}"
       register: _bootc_existing_qcow2
+      when: bootc_build_qcow2_effective
+
+    - name: Check whether the bootc VMDK already exists
+      ansible.builtin.stat:
+        path: "{{ bootc_vmdk_remote_path_effective }}"
+      register: _bootc_existing_vmdk
+      when: bootc_build_vmdk_effective
 
     - name: Decide whether bootc artifacts need to be rebuilt
       ansible.builtin.set_fact:
         bootc_iso_needs_rebuild: "{{ bootc_build_iso_effective and (bootc_force_rebuild_effective or (not _bootc_existing_iso.stat.exists)) }}"
         bootc_qcow2_needs_rebuild: "{{ bootc_build_qcow2_effective and (bootc_force_rebuild_effective or (not _bootc_existing_qcow2.stat.exists)) }}"
+        bootc_vmdk_needs_rebuild: "{{ bootc_build_vmdk_effective and (bootc_force_rebuild_effective or (not _bootc_existing_vmdk.stat.exists)) }}"
         bootc_artifacts_need_rebuild: >-
           {{
             (bootc_build_iso_effective and (bootc_force_rebuild_effective or (not _bootc_existing_iso.stat.exists))) or
-            (bootc_build_qcow2_effective and (bootc_force_rebuild_effective or (not _bootc_existing_qcow2.stat.exists)))
+            (bootc_build_qcow2_effective and (bootc_force_rebuild_effective or (not _bootc_existing_qcow2.stat.exists))) or
+            (bootc_build_vmdk_effective and (bootc_force_rebuild_effective or (not _bootc_existing_vmdk.stat.exists)))
           }}
 
     - name: Build the bootc operating system image
@@ -711,6 +730,31 @@
       poll: 15
       when: bootc_qcow2_needs_rebuild
 
+    - name: Build the bootc VMDK artifact
+      ansible.builtin.command:
+        argv:
+          - podman
+          - run
+          - --rm
+          - --privileged
+          - --pull=newer
+          - --security-opt
+          - label=type:unconfined_t
+          - -v
+          - "{{ bootc_output_dir_effective }}:/output"
+          - -v
+          - /var/lib/containers/storage:/var/lib/containers/storage
+          - registry.redhat.io/rhel9/bootc-image-builder:latest
+          - --type
+          - vmdk
+          - --local
+          - "{{ bootc_local_build_image_ref_effective }}"
+      register: _bootc_vmdk_build
+      changed_when: true
+      async: 7200
+      poll: 15
+      when: bootc_vmdk_needs_rebuild
+
     - name: Verify that the bootc ISO exists
       ansible.builtin.stat:
         path: "{{ bootc_iso_remote_path_effective }}"
@@ -736,6 +780,19 @@
           - _bootc_qcow2_file.stat.exists
         fail_msg: "bootc-image-builder did not produce {{ bootc_qcow2_remote_path_effective }}."
       when: bootc_build_qcow2_effective
+
+    - name: Verify that the bootc VMDK exists
+      ansible.builtin.stat:
+        path: "{{ bootc_vmdk_remote_path_effective }}"
+      register: _bootc_vmdk_file
+      when: bootc_build_vmdk_effective
+
+    - name: Assert the bootc VMDK was created
+      ansible.builtin.assert:
+        that:
+          - _bootc_vmdk_file.stat.exists
+        fail_msg: "bootc-image-builder did not produce {{ bootc_vmdk_remote_path_effective }}."
+      when: bootc_build_vmdk_effective
 
     - name: Publish the ISO artifact to the OCI registry
       ansible.builtin.shell: >-
@@ -769,3 +826,4 @@
           image_ref: "{{ bootc_image_ref_effective }}"
           iso_path: "{{ bootc_iso_remote_path_effective }}"
           qcow2_path: "{{ bootc_qcow2_remote_path_effective if bootc_build_qcow2_effective else '' }}"
+          vmdk_path: "{{ bootc_vmdk_remote_path_effective if bootc_build_vmdk_effective else '' }}"

@@ -1,8 +1,8 @@
 # Enroll a device
 
-**Goal:** boot a fresh device with the image from Lab 3a or 3b, let it create an enrollment request automatically, and approve that request in Edge Manager.
+**Goal:** boot a fresh device with the image from Lab 3a, 3b, 3c, or 3d, let it create an enrollment request automatically, and approve that request in Edge Manager.
 
-**Prereqs:** Lab 3a or Lab 3b is complete.
+**Prereqs:** One of the Lab 3 image-building paths is complete.
 
 ## Step 1 — Create the CLI context
 
@@ -23,6 +23,8 @@ Use the installer artifact that matches your target platform:
 - `output/bootiso/install.iso` if you are booting from ISO media
 - `output/qcow2/disk.qcow2` if your virtualization platform imports qcow2 images directly
 - `output/qcow2/disk.qcow2` together with the rendered `user-data.yaml` if you followed the late-binding flow in Lab 3b
+- `output/vmdk/` if your virtualization platform imports VMDK images directly
+- `output/vmdk/` together with a cloud-init seed ISO if you followed the late-binding VMware flow in Lab 3d
 
 For a VM, create a fresh guest with at least:
 

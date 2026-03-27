@@ -21,51 +21,23 @@ export OCI_IMAGE_TAG="v1"
 
 Use the API certificate hostname for `EDGE_MANAGER_HOST`.
 
-## Step 2 — Prepare the Satellite registry path
+## Step 2 — Prepare the registry and build host
 
-SSH to the Satellite host:
+Follow the shared Satellite note:
 
-```bash
-ssh <admin_user>@${SATELLITE_HOST}
-```
+- [`../extras/publishing-images-to-satellite-registry.md`](../extras/publishing-images-to-satellite-registry.md)
 
-Find the organization ID:
+When you return to this lab, you should already have:
 
-```bash
-sudo hammer --output csv organization list
-```
+- `SATELLITE_ORG_ID`
+- `SATELLITE_PRODUCT_ID`
+- `OCI_IMAGE_REPO`
+- `satellite-ca.crt`
+- successful `podman login` to both `registry.redhat.io` and `${SATELLITE_HOST}`
 
-Create the `bootc` product if it does not already exist:
+If you want to review the public-registry alternative as well, see:
 
-```bash
-sudo hammer product create \
-  --organization-id CHANGEME_ORG_ID \
-  --name bootc \
-  --label bootc
-```
-
-Find the product ID for `bootc`:
-
-```bash
-sudo hammer --output csv product list --organization-id CHANGEME_ORG_ID
-```
-
-Allow unauthenticated pull from `Library` for this lab:
-
-```bash
-sudo hammer lifecycle-environment update \
-  --organization-id CHANGEME_ORG_ID \
-  --name Library \
-  --registry-unauthenticated-pull true
-```
-
-Set the image repository path:
-
-```bash
-export SATELLITE_ORG_ID="CHANGEME_ORG_ID"
-export SATELLITE_PRODUCT_ID="CHANGEME_PRODUCT_ID"
-export SATELLITE_IMAGE_REPO="${SATELLITE_HOST}/id/${SATELLITE_ORG_ID}/${SATELLITE_PRODUCT_ID}/device-os"
-```
+- [`../extras/publishing-images-to-quay-registry.md`](../extras/publishing-images-to-quay-registry.md)
 
 ## Step 3 — Build the bootc image
 
@@ -76,24 +48,6 @@ Create a working directory on the build host:
 ```bash
 mkdir -p ~/device-os
 cd ~/device-os
-```
-
-Fetch the Satellite CA certificate and log in to the required registries:
-
-```bash
-curl -k "https://${SATELLITE_HOST}/pub/katello-server-ca.crt" \
-  -o satellite-ca.crt
-
-sudo mkdir -p /etc/containers/certs.d/${SATELLITE_HOST}
-sudo cp satellite-ca.crt /etc/containers/certs.d/${SATELLITE_HOST}/ca.crt
-sudo cp satellite-ca.crt /etc/pki/ca-trust/source/anchors/${SATELLITE_HOST}.crt
-sudo update-ca-trust
-
-sudo podman login registry.redhat.io
-
-sudo podman login "${SATELLITE_HOST}" \
-  --username admin \
-  --password 'CHANGEME-satellite-admin-password'
 ```
 
 Use these files from [`../bootc/latebinding/`](../bootc/latebinding/README.md):
@@ -111,15 +65,15 @@ Copy those files into the build directory. If your hostnames differ from the def
 Build and push the image:
 
 ```bash
-sudo podman build -t "${SATELLITE_IMAGE_REPO}:${OCI_IMAGE_TAG}" .
-sudo podman push "${SATELLITE_IMAGE_REPO}:${OCI_IMAGE_TAG}"
+sudo podman build -t "${OCI_IMAGE_REPO}:${OCI_IMAGE_TAG}" .
+sudo podman push "${OCI_IMAGE_REPO}:${OCI_IMAGE_TAG}"
 ```
 
 Tag the same image into local container storage for `bootc-image-builder`:
 
 ```bash
 sudo podman tag \
-  "${SATELLITE_IMAGE_REPO}:${OCI_IMAGE_TAG}" \
+  "${OCI_IMAGE_REPO}:${OCI_IMAGE_TAG}" \
   "localhost/device-os:${OCI_IMAGE_TAG}"
 ```
 
@@ -211,7 +165,7 @@ Use [`../bootc/latebinding/user-data.yaml`](../bootc/latebinding/user-data.yaml)
 Edit `user-data.yaml` and replace:
 
 - `CHANGEME_PASTE_CONFIG_YAML_HERE` with the full contents of `config.yaml`
-- `CHANGEME_PASTE_SATELLITE_CA_HERE` with the full contents of `satellite-ca.crt`
+- `CHANGEME_PASTE_SATELLITE_CA_HERE` with the full contents of `satellite-ca.crt` from the shared Satellite registry note
 - `satellite.rhem-eap.lan` if your registry hostname is different
 
 Keep the indentation exactly as shown in the example file.
