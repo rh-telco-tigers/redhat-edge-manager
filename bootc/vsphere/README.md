@@ -1,7 +1,18 @@
 # Building VMWare Disk Images
 
+This variant builds a similar base image to the latebinding builds. The Containerfile has been updated to install the vSphere agent and ensure that the service is started at boot time. The Containerfile is set up for latebinding, however you can uncomment the last line of the file and include a `config.yaml` file as a part of the image. 
+
+> **NOTE:** by including the config.yaml in 
+
+Files:
+
+- `Containerfile`: bootc image definition without `config.yaml`
+- `config.toml`: `bootc-image-builder` optional installer config
+- `user-data.yaml`: example cloud-init payload for late binding
 
 ## Log into Registry
+
+In order to access the `registry.redhat.io/rhel9/rhel-bootc:9.7` bootc container image you will need to log into the `registry.redhat.io` registry.  See [Red Hat Container Registry Authentication](https://access.redhat.com/articles/RegistryAuthentication) for details on logging in.
 
 ```
 sudo podman login registry.redhat.io
@@ -13,17 +24,19 @@ sudo podman login registry.redhat.io
 sudo podman pull registry.redhat.io/rhel9/bootc-image-builder:latest
 ```
 
+> **NOTE:** we are using the `sudo` command here as well as later in this document because the image-builder command must also run as root. 
+
 ## Build base image
 
-Using the Containerfile in this directory, build a base "bootc" image. This image can be pushed to a registry, or just kept in local storage. The command below will keep the image locall only.
+Using the Containerfile in this directory, build a base "bootc" image. This image can be pushed to a registry, or just kept in local storage. The command below will keep the image locall only. The container file contains the required agent for running on ESXi, and can be further customized as needed.
 
 ```
 sudo podman build . -t localhost/rhel-bootc-vmdk
 ```
 
-> **NOTE:** Because the image-builder process requires privileged access, we need to build the image as root as well if using local storage.
-
 ## Create config.toml
+
+The example Containerfile here includes the local user account as well as a SSH key to be automatically added to the image. You can also use a `config.toml` file to add users and set passwords and ssh keys, so this information is not embedded in your image. 
 
 ```
 [[customizations.user]]
@@ -53,18 +66,7 @@ $ sudo podman run \
     localhost/rhel-bootc-vmdk:latest
 ```
 
-
-sudo podman run \
-    --rm \
-    -it \
-    --privileged \
-    -v /var/lib/containers/storage:/var/lib/containers/storage \
-    -v ./images:/output \
-    --security-opt label=type:unconfined_t \
-    --pull newer \
-    registry.redhat.io/rhel9/bootc-image-builder:latest \
-    --type vmdk \
-    localhost/rhel-bootc-vmdk:latest
+> **NOTE:** if you are not using the `config.toml` file, ommit the second to last line in the above command.
 
 #### Importing VMDK to vSphere
 

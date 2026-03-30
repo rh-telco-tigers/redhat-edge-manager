@@ -1,0 +1,5 @@
+[[customizations.user]]
+name = "cloud-user"
+password = "<my-password-here>"
+key = "ssh-ed25519 AAAAC3NzaC1123...F5NMxRsmODHOlf5/tUMeTxAWw"
+groups = ["wheel"]
