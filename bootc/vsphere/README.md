@@ -95,7 +95,7 @@ With the VMDK imported, we can now create a VM for this disk.
 $ govc vm.create \
     -net.adapter=vmxnet3 \
     -m=4096 -c=2 -g=rhel9_64Guest \
-    -firmware=efi -disk=”<folder-name>/disk.vmdk” \
+    -firmware=efi -disk=”/<folder-name>/disk.vmdk” \
     -disk.controller=pvscsi -on=false \
     -ds=syno2500-ocp-ds1 import-bootc
 ```
@@ -106,7 +106,9 @@ At this point you can power on your VM and it will boot, using the base bootc im
 
 In order for the vm to self-enrolll (also known as late-binding) you will need to do the following:
 
-1. using the flightctl command create a new enrollment configuration
+1. log into RHEM using the flightctl command
+`flightctl login https://<servername>:3443 --web`
+2. using the flightctl command create a new enrollment configuration
 `flightctl certificate request --signer enrollment --expiration 365d --output embedded > <vmname-config>.yaml`
 2. using the file `user-data-template.yaml` add the contents of the `<vmname-config>.yaml` file in the appropriate section
 3. Create a BASE64 encoded version of the config file
