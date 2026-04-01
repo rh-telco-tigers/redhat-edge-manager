@@ -1,0 +1,8 @@
+apiVersion: flightctl.io/v1beta1
+kind: ResourceSync
+metadata:
+  name: flightctl-nvr-sync
+spec:
+  repository: flightctl
+  path: /applications/frigate-nvr/deployment/fleet-with-app.yaml
+  targetRevision: main

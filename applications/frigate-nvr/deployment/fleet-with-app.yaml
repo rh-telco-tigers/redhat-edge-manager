@@ -1,0 +1,71 @@
+apiVersion: flightctl.io/v1alpha1
+kind: Fleet
+metadata:
+  name: security-nvr
+spec:
+  selector:
+    matchLabels:
+      fleet: nvr
+  template:
+    spec:
+      os:
+        image: quay.io/markd/fedora-frigate:v1
+      config:
+        - name: frigate-config
+          gitRef:
+            repository: flightctl
+            targetRevision: main
+            path: /applications/frigate-nvr/cfg
+      applications:
+      - name: frigate-app
+        appType: quadlet
+        envVars: {}
+        inline:
+          - path: frigate-data.volume
+            content: |
+              [Volume]
+              Driver=local
+              Device=/dev/sdb1
+              Type=xfs
+          - path: frigate.container
+            content: |-
+              [Unit]
+              Description=Frigate security
+
+              [Container]
+              Image=ghcr.io/blakeblackshear/frigate:stable
+              Volume=frigate-data.volume:/media/frigate:Z
+              Volume=/etc/frigate:/config:Z
+              PublishPort=8971:8971
+              PublishPort=8554:8554
+              PublishPort=8555:8555/tcp
+              PublishPort=8555:8555/udp
+
+              [Service]
+              Restart=on-failure
+              RestartSec=20
+
+              [Install]
+              WantedBy=default.target
+            contentEncoding: plain
+      resources:
+        - monitorType: Disk
+          path: /
+          alertRules:
+            - severity: Warning
+              duration: 5m
+              percentage: 80
+              description: 'Disk usage is above 80% for more than 5 minutes'
+            - severity: Critical
+              duration: 2m
+              percentage: 90
+              description: 'Disk usage is above 90% for more than 2 minutes'
+          samplingInterval: 30s
+        - monitorType: CPU
+          alertRules:
+            - severity: Warning
+              duration: 10m
+              percentage: 50
+              description: 'CPU load is above 50% for more than 10 minutes.'
+          samplingInterval: 30s
+
