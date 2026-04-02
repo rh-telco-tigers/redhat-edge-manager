@@ -49,18 +49,6 @@ spec:
               WantedBy=default.target
             contentEncoding: plain
       resources:
-        - monitorType: Disk
-          path: /
-          alertRules:
-            - severity: Warning
-              duration: 5m
-              percentage: 80
-              description: 'Disk usage is above 80% for more than 5 minutes'
-            - severity: Critical
-              duration: 2m
-              percentage: 90
-              description: 'Disk usage is above 90% for more than 2 minutes'
-          samplingInterval: 30s
         - monitorType: CPU
           alertRules:
             - severity: Warning
