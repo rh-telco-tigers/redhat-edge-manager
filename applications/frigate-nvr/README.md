@@ -18,6 +18,20 @@ In order to ensure we have remote access to the machines, we will need to create
 cd bootc
 podman build -t quay.io/markd/fedora-frigate:v1 .
 podman login quay.io
-porman push quay.io/markd/fedora-frigate:v1
+podman push quay.io/markd/fedora-frigate:v1
 ```
 
+## Deploy App and Configuration
+
+We will test this out with a virtual machine. That virtual machine should have a minimum of 2 disks. The primary disk built from a bootc-image-builder command and a blank secondary disk for storing live video feeds.
+
+### Apply the configs
+
+```
+flightctl login
+flightctl apply -f repository.yaml 
+flightctl apply -f resourcesync.yaml
+```
+
+
+### 
