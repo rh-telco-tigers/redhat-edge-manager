@@ -5,7 +5,7 @@ RUN dnf -y install dnf5-plugins \
       --nodocs --setopt=install_weak_deps=False
 
 # Add cloud-init and open-vm-tools
-RUN dnf -y install cloud-init open-vm-tools \
+RUN dnf -y install cloud-init open-vm-tools parted \
       --nodocs --setopt=install_weak_deps=False && \
     dnf clean all && \
     rm -rf /var/{cache,log} /run/cloud-init /run/dnf /tmp/* && \
@@ -39,6 +39,7 @@ RUN getent passwd cloud-user >/dev/null 2>&1 || useradd -m -G wheel cloud-user &
 # The following scripts will prepare the nodes secondary disk "/dev/sdb" for use as storage by our NVR application
 ADD scripts/format-disk.sh /usr/local/bin
 ADD scripts/format-disk.service /usr/lib/systemd/system
+RUN systemctl enable format-disk.service
 
 # Uncomment the following line if you wish to enroll the VM automatically into RHEM.
 # ADD config.yaml /etc/flightctl/

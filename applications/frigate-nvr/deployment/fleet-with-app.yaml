@@ -9,7 +9,7 @@ spec:
   template:
     spec:
       os:
-        image: quay.io/markd/fedora-frigate:v2
+        image: quay.io/markd/fedora-frigate:v3
       config:
         - name: frigate-config
           gitRef:
