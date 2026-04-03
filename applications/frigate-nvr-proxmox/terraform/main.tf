@@ -51,6 +51,20 @@ resource "proxmox_virtual_environment_file" "bootc_qcow2" {
   }
 }
 
+resource "proxmox_virtual_environment_file" "cloud_init_user_data" {
+  count = var.cloud_init_user_data_path != "" ? 1 : 0
+
+  content_type = "snippets"
+  datastore_id = local.cloud_init_datastore_id
+  node_name    = var.proxmox_node
+  overwrite    = true
+
+  source_file {
+    path      = abspath(pathexpand(var.cloud_init_user_data_path))
+    file_name = local.cloud_init_file_name
+  }
+}
+
 resource "proxmox_virtual_environment_vm" "device" {
   name        = var.vm_name
   description = local.vm_description
@@ -116,6 +130,15 @@ resource "proxmox_virtual_environment_vm" "device" {
 
   operating_system {
     type = "l26"
+  }
+
+  dynamic "initialization" {
+    for_each = var.cloud_init_user_data_path != "" ? [1] : []
+    content {
+      datastore_id      = var.disk_storage
+      interface         = "ide2"
+      user_data_file_id = proxmox_virtual_environment_file.cloud_init_user_data[0].id
+    }
   }
 
   serial_device {}

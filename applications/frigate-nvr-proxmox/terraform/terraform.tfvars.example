@@ -5,6 +5,7 @@ proxmox_node     = "homelab"
 disk_storage     = "local-lvm"
 
 bootc_qcow2_path = "../../../automation/artifacts/bootc/current/rhem/disk.qcow2"
+# cloud_init_user_data_path = "../bootc/user-data.rendered.yaml"
 
 vm_id   = 160
 vm_name = "frigate-proxmox-01"

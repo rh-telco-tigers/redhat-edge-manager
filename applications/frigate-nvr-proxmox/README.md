@@ -44,9 +44,23 @@ podman run --rm -it --privileged --pull=never \
 
 The resulting qcow2 will be written under `applications/frigate-nvr-proxmox/bootc/output/`. Point `bootc_qcow2_path` in the Terraform folder at that file before running Terraform.
 
+### Create the cloud-init enrollment payload
+
+This image is intended to use late binding through cloud-init. After the qcow2 is built, manually request the enrollment config from Edge Manager and render the cloud-init file that will be attached to the VM on first boot.
+
+```bash
+cd applications/frigate-nvr-proxmox/bootc
+flightctl certificate request --signer enrollment --expiration 365d --output embedded > config.yaml
+cp user-data-template.yaml user-data.rendered.yaml
+```
+
+Open `config.yaml`, copy its full contents, then paste that content into `user-data.rendered.yaml` where `CHANGEME_PASTE_CONFIG_YAML_HERE` appears. Keep the pasted lines indented under `content: |`.
+
+This keeps the certificate request manual while still using cloud-init for first-boot enrollment.
+
 ### Create a Proxmox device VM
 
-This app also includes a small Terraform wrapper in [terraform](/Users/bkpandey/Documents/workspace/code/redhat-edge-manager/applications/frigate-nvr-proxmox/terraform) to create one device VM from a built bootc qcow2 with very few required settings.
+This app also includes a small Terraform wrapper in `applications/frigate-nvr-proxmox/terraform` to create one device VM from a built bootc qcow2 with very few required settings. If you set `cloud_init_user_data_path`, Terraform uploads that rendered cloud-init file and attaches it to the VM.
 
 ```bash
 cd applications/frigate-nvr-proxmox/terraform
@@ -62,6 +76,7 @@ The only values you normally need to set in `terraform.tfvars` are:
 - `proxmox_node`
 - `disk_storage`
 - `bootc_qcow2_path`
+- `cloud_init_user_data_path`
 - `vm_id`
 - `vm_name`
 
@@ -69,6 +84,7 @@ This wrapper creates:
 
 - one bootc VM
 - one extra secondary disk on `scsi1` for Frigate storage
+- an optional attached cloud-init user-data snippet for enrollment
 - a Proxmox guest agent enabled VM definition
 
 ## Deploy App and Configuration

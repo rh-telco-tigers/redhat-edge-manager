@@ -18,6 +18,12 @@ variable "bootc_qcow2_path" {
   description = "Local path to the built bootc qcow2 image"
 }
 
+variable "cloud_init_user_data_path" {
+  type        = string
+  default     = ""
+  description = "Optional local path to a cloud-init user-data file for late binding"
+}
+
 variable "vm_id" {
   type        = number
   description = "Unique VM ID on the Proxmox node"
