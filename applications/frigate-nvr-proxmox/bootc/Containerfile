@@ -1,0 +1,52 @@
+FROM quay.io/fedora/fedora-bootc:43
+
+# Fix for "no default root filesystem type specified in container"
+RUN mkdir -p /usr/lib/bootc/install && cat <<-'EOF' > /usr/lib/bootc/install/00-fedora.toml
+[install]
+root-fs-type = "xfs"
+kargs = ["audit=0"]
+EOF
+
+# Need to install the plugins for other commands (config-manager) to work
+RUN dnf -y install dnf5-plugins \
+      --nodocs --setopt=install_weak_deps=False
+
+# Add cloud-init and open-vm-tools
+RUN dnf -y install cloud-init open-vm-tools parted \
+      --nodocs --setopt=install_weak_deps=False && \
+    dnf clean all && \
+    rm -rf /var/{cache,log} /run/cloud-init /run/dnf /tmp/* && \
+    ln -s ../cloud-init.target /usr/lib/systemd/system/default.target.wants && \
+    systemctl enable vmtoolsd.service
+
+# Add podman-compose tool
+RUN dnf -y install podman-compose \
+      --nodocs --setopt=install_weak_deps=False && \
+    dnf clean all && \
+    rm -rf /var/{cache,log} /run/dnf /tmp/* && \
+    systemctl enable podman.service
+
+# Add Flight Control agent
+ARG FLIGHTCTL_VERSION=1.0.2
+RUN dnf -y config-manager addrepo --from-repofile=https://rpm.flightctl.io/flightctl-fedora.repo && \
+    dnf -y install flightctl-agent${FLIGHTCTL_VERSION:+-${FLIGHTCTL_VERSION}} \
+      --nodocs --setopt=install_weak_deps=False && \
+    dnf clean all && \
+    rm -rf /var/{cache,log} /run/dnf /tmp/* && \
+    systemctl enable flightctl-agent.service
+
+ADD demo-authorized-key.pub /tmp/demo-authorized-key.pub
+
+RUN getent passwd cloud-user >/dev/null 2>&1 || useradd -m -G wheel cloud-user && \
+    mkdir -p /home/cloud-user/.ssh && \
+    install -m 0600 -o cloud-user -g cloud-user /tmp/demo-authorized-key.pub /home/cloud-user/.ssh/authorized_keys && \
+    printf 'cloud-user ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/90-cloud-user && \
+    chmod 0440 /etc/sudoers.d/90-cloud-user
+
+# The following scripts will prepare the nodes secondary disk "/dev/sdb" for use as storage by our NVR application
+ADD scripts/format-disk.sh /usr/local/bin
+ADD scripts/format-disk.service /usr/lib/systemd/system
+RUN systemctl enable format-disk.service
+
+# Uncomment the following line if you wish to enroll the VM automatically into RHEM.
+# ADD config.yaml /etc/flightctl/

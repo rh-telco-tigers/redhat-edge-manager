@@ -1,0 +1,11 @@
+[Unit]
+Description=Partition and format /dev/sdb
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/format-disk.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
