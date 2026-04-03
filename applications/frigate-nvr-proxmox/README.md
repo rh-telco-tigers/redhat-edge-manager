@@ -12,12 +12,37 @@ The bootc Containerfile in this variant installs `open-vm-tools` rather than `qe
 
 ### Build and Publish the bootc container
 
+Run this on a registered RHEL 9 host with access to `registry.redhat.io`.
+
 ```bash
 cd applications/frigate-nvr-proxmox/bootc
-podman build --platform linux/amd64 -t quay.io/bpandey/rhem:frigate-proxmox-v1 .
+podman login registry.redhat.io
+podman build -t quay.io/bpandey/rhem:frigate-proxmox-v1 .
 podman login quay.io
 podman push quay.io/bpandey/rhem:frigate-proxmox-v1
 ```
+
+### Build the qcow2 image
+
+Generate the qcow2 on the same RHEL host. `bootc-image-builder` needs access to the local container storage on that Linux system.
+
+```bash
+cd applications/frigate-nvr-proxmox/bootc
+podman login registry.redhat.io
+podman tag quay.io/bpandey/rhem:frigate-proxmox-v1 localhost/frigate-proxmox:v1
+mkdir -p output
+podman pull registry.redhat.io/rhel9/bootc-image-builder:latest
+
+podman run --rm -it --privileged --pull=never \
+  --security-opt label=type:unconfined_t \
+  -v /var/lib/containers/storage:/var/lib/containers/storage \
+  -v "${PWD}/output":/output \
+  registry.redhat.io/rhel9/bootc-image-builder:latest \
+  --type qcow2 \
+  localhost/frigate-proxmox:v1
+```
+
+The resulting qcow2 will be written under `applications/frigate-nvr-proxmox/bootc/output/`. Point `bootc_qcow2_path` in the Terraform folder at that file before running Terraform.
 
 ### Create a Proxmox device VM
 
