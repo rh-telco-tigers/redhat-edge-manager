@@ -8,7 +8,7 @@ This is a Proxmox-targeted copy of the `frigate-nvr` example application. It kee
 
 This bootc image prepares a secondary disk on `/dev/sdb` for Frigate data storage and enables remote access through a `cloud-user` account with your authorized SSH key.
 
-The bootc Containerfile in this variant installs `open-vm-tools` rather than `qemu-guest-agent`, matching your requested guest-agent change. Before building, put an SSH public key into `bootc/demo-authorized-key.pub`.
+The bootc Containerfile in this variant installs `open-vm-tools` rather than `qemu-guest-agent`, matching requested guest-agent change. Before building, put an SSH public key into `bootc/demo-authorized-key.pub`.
 
 ### Build and Publish the bootc container
 
@@ -55,6 +55,17 @@ cp user-data-template.yaml user-data.rendered.yaml
 ```
 
 Open `config.yaml`, copy its full contents, then paste that content into `user-data.rendered.yaml` where `CHANGEME_PASTE_CONFIG_YAML_HERE` appears. Keep the pasted lines indented under `content: |`.
+
+Because this setup does not have DNS, also replace:
+
+- `CHANGEME_RHEM_HOSTNAME` with the Edge Manager hostname from `config.yaml`
+- `CHANGEME_RHEM_HOSTS_LINE` with the matching `/etc/hosts` entry
+
+Example:
+
+```text
+192.168.4.120 rhem-manual-rhel-01.rhem-eap.lan rhem-manual
+```
 
 This keeps the certificate request manual while still using cloud-init for first-boot enrollment.
 
