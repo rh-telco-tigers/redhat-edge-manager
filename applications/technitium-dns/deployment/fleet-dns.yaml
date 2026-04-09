@@ -1,0 +1,63 @@
+apiVersion: flightctl.io/v1alpha1
+kind: Fleet
+metadata:
+  name: technitium-dns
+spec:
+  selector:
+    matchLabels:
+      fleet: dns
+  template:
+    spec:
+      os:
+        image: quay.io/markd/fedora-bootc-esx:43
+      config:
+        - name: technitium-config
+          gitRef:
+            repository: flightctl
+            targetRevision: main
+            path: /applications/technitium-dns/cfg
+      applications:
+      - name: technitium-app
+        appType: quadlet
+        envVars:
+          DNS_SERVER_DOMAIN: "example.com"
+          # DNS_SERVER_ADMIN_PASSWORD: "<your password here>"
+          DNS_SERVER_ENABLE_BLOCKING: true
+          DNS_SERVER_BLOCK_LIST_URLS: "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts"
+        inline:
+          - path: technitium.container
+            content: |-
+              [Unit]
+              Description=Technitium Recursive DNS Server
+              Documentation=https://technitium.com/dns/
+              TimeoutSec=900
+
+              [Container]
+              Image=docker.io/technitium/dns-server:latest
+              Label="io.containers.autoupdate=registry"
+              Network=host
+
+              Volume=/usr/share/zoneinfo/America/New_York:/etc/localtime:ro
+              Volume=/etc/technitium:/etc/dns
+
+              # This is enabled by default
+              NoNewPrivileges=true
+              DropCapability=All
+              AddCapability=NET_BIND_SERVICE
+
+              [Service]
+              Restart=on-failure
+              RestartSec=20
+
+              [Install]
+              WantedBy=default.target
+            contentEncoding: plain
+      resources:
+        - monitorType: CPU
+          alertRules:
+            - severity: Warning
+              duration: 10m
+              percentage: 50
+              description: 'CPU load is above 50% for more than 10 minutes.'
+          samplingInterval: 30s
+

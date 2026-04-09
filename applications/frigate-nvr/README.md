@@ -21,6 +21,38 @@ podman login quay.io
 podman push quay.io/markd/fedora-frigate:v1
 ```
 
+### Create Bootable Disk
+
+#### Using bootc-image-builder Container
+
+Using `bootc-image-builder` create a bootable disk image from our bootc image.
+
+> **NOTE:** The following command will create a vmdk, be sure to update for your specific need/platform
+
+```
+sudo podman pull quay.io/markd/fedora-frigate:v1
+sudo podman run \
+    --rm \
+    -it \
+    --privileged \
+    -v /var/lib/containers/storage:/var/lib/containers/storage \
+    -v ./images:/output \
+    --security-opt label=type:unconfined_t \
+    --pull newer \
+    registry.redhat.io/rhel9/bootc-image-builder:latest \
+    --type vmdk \
+    quay.io/markd/fedora-frigate:v1
+```
+
+Deploy a machine using your bootable image and connect to RHEM before continuing.
+
+#### Using image-builder to build bootc image
+
+```
+sudo podman pull quay.io/markd/fedora-frigate:v1
+sudo image-builder build --bootc-ref quay.io/markd/fedora-frigate:v1 vmdk
+```
+
 ## Deploy App and Configuration
 
 We will test this out with a virtual machine. That virtual machine should have a minimum of 2 disks. The primary disk built from a bootc-image-builder command and a blank secondary disk for storing live video feeds.
@@ -32,6 +64,3 @@ flightctl login
 flightctl apply -f repository.yaml 
 flightctl apply -f resourcesync.yaml
 ```
-
-
-### 
