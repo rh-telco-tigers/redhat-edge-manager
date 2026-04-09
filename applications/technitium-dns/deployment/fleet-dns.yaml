@@ -37,7 +37,7 @@ spec:
               Network=host
 
               Volume=/usr/share/zoneinfo/America/New_York:/etc/localtime:ro
-              Volume=/etc/technitium:/etc/dns
+              Volume=/etc/technitium:/etc/dns:Z
 
               # This is enabled by default
               NoNewPrivileges=true
