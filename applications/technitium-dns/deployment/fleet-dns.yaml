@@ -20,7 +20,7 @@ spec:
       - name: technitium-app
         appType: quadlet
         envVars:
-          DNS_SERVER_DOMAIN: "example.com"
+          DNS_SERVER_DOMAIN: "{{ .metadata.labels.domainname }}"
           # DNS_SERVER_ADMIN_PASSWORD: "<your password here>"
           DNS_SERVER_ENABLE_BLOCKING: "true"
           DNS_SERVER_BLOCK_LIST_URLS: "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts"
