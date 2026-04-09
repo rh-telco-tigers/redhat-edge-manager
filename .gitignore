@@ -32,3 +32,5 @@ terraform.tfstate.d/
 *.tfstate.*
 crash.log
 .DS_Store
+user-data.rendered.yaml
+output/

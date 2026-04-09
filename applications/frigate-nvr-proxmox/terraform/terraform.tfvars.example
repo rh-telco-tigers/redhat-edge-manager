@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars in this directory. File is gitignored.
+
+proxmox_endpoint = "https://192.168.4.101:8006/"
+proxmox_node     = "homelab"
+disk_storage     = "local-lvm"
+
+bootc_qcow2_path = "../bootc/output/qcow2/disk.qcow2"
+cloud_init_user_data_path = "../bootc/user-data.rendered.yaml"
+
+vm_id   = 160
+vm_name = "frigate-proxmox-01"

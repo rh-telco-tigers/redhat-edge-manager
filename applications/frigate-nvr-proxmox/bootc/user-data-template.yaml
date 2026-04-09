@@ -1,0 +1,17 @@
+#cloud-config
+write_files:
+  - path: /etc/flightctl/config.yaml
+    owner: root:root
+    permissions: "0600"
+    content: |
+      CHANGEME_PASTE_CONFIG_YAML_HERE
+runcmd:
+  - |
+    grep -q 'CHANGEME_RHEM_HOSTNAME' /etc/hosts || \
+      echo 'CHANGEME_RHEM_HOSTS_LINE' >> /etc/hosts
+
+# Example, this is just workaround for dns resolution issue in proxmox vm
+# runcmd:
+#   - |
+#     grep -q 'rhem-manual-rhel-01.rhem-eap.lan' /etc/hosts || \
+#       echo '192.168.4.120 rhem-manual-rhel-01.rhem-eap.lan rhem-manual' >> /etc/hosts
