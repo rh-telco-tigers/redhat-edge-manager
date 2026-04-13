@@ -7,6 +7,11 @@ root-fs-type = "xfs"
 kargs = ["audit=0"]
 EOF
 
+# adding due to bug with selinux policies
+RUN dnf -y downgrade selinux-policy-targeted-43.4-2.fc43 selinux-policy-43.4-2.fc43 && \                                                                        
+    dnf versionlock add selinux-policy selinux-policy-targeted && \                                                                                             
+    dnf clean all && rm -rf /var/{cache,log} /tmp/*
+
 # Update the base contianer
 RUN dnf upgrade -y && \
     dnf clean all
@@ -44,11 +49,6 @@ RUN dnf -y config-manager addrepo --from-repofile=https://rpm.flightctl.io/fligh
     dnf clean all && \
     rm -rf /var/{cache,log} /run/dnf /tmp/* && \
     systemctl enable flightctl-agent.service
-
-# adding due to bug with selinux policies
-RUN dnf -y downgrade selinux-policy-targeted-43.4-2.fc43 selinux-policy-43.4-2.fc43 && \                                                                        
-    dnf versionlock add selinux-policy selinux-policy-targeted && \                                                                                             
-    dnf clean all && rm -rf /var/{cache,log} /tmp/*
 
 ADD demo-authorized-key.pub /tmp/demo-authorized-key.pub
 

@@ -51,7 +51,7 @@ spec:
               HealthInterval=30s
               HealthTimeout=10s
               HealthRetries=3
-              HealthStartPeriod=90s
+              HealthStartPeriod=75s
               # Ensures systemd waits for health check
               Notify=healthy
 
