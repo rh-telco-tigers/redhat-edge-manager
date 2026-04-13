@@ -1,24 +1,7 @@
-FROM quay.io/fedora/fedora-bootc:43
-
-# Fix for "no default root filesystem type specified in container"
-RUN mkdir -p /usr/lib/bootc/install && cat <<-'EOF' > /usr/lib/bootc/install/00-fedora.toml
-[install]
-root-fs-type = "xfs"
-kargs = ["audit=0"]
-EOF
-
-# adding due to bug with selinux policies
-RUN dnf -y downgrade selinux-policy-targeted-43.4-2.fc43 selinux-policy-43.4-2.fc43 && \                                                                        
-    dnf versionlock add selinux-policy selinux-policy-targeted && \                                                                                             
-    dnf clean all && rm -rf /var/{cache,log} /tmp/*
+FROM quay.io/centos-bootc/centos-bootc:stream9
 
 # Update the base contianer
 RUN dnf upgrade -y && \
-    dnf clean all
-
-# Need to install the plugins for other commands (config-manager) to work
-RUN dnf -y install dnf5-plugins \
-      --nodocs --setopt=install_weak_deps=False && \
     dnf clean all
 
 # Add greenboot to the system to fail back on failed upgrade
@@ -34,20 +17,14 @@ RUN dnf -y install cloud-init open-vm-tools \
     ln -s ../cloud-init.target /usr/lib/systemd/system/default.target.wants && \
     systemctl enable vmtoolsd.service
 
-# Add podman-compose tool
-RUN dnf -y install podman-compose \
-      --nodocs --setopt=install_weak_deps=False && \
-    dnf clean all && \
-    rm -rf /var/{cache,log} /run/dnf /tmp/* && \
-    systemctl enable podman.service
-
 # Add Flight Control agent
+# renovate: datasource=rpm depName=flightctl-agent registryUrl=https://rpm.flightctl.io/epel/9/x86_64/
 ARG FLIGHTCTL_VERSION=1.0.2
-RUN dnf -y config-manager addrepo --from-repofile=https://rpm.flightctl.io/flightctl-fedora.repo && \
+RUN dnf -y config-manager --add-repo https://rpm.flightctl.io/flightctl-epel.repo && \
     dnf -y install flightctl-agent${FLIGHTCTL_VERSION:+-${FLIGHTCTL_VERSION}} \
       --nodocs --setopt=install_weak_deps=False && \
     dnf clean all && \
-    rm -rf /var/{cache,log} /run/dnf /tmp/* && \
+    rm -rf /var/{cache,log} /run/rhsm /tmp/* && \
     systemctl enable flightctl-agent.service
 
 ADD demo-authorized-key.pub /tmp/demo-authorized-key.pub
