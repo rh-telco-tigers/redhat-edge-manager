@@ -7,9 +7,19 @@ root-fs-type = "xfs"
 kargs = ["audit=0"]
 EOF
 
+# Update the base contianer
+RUN dnf upgrade -y && \
+    dnf clean all
+
 # Need to install the plugins for other commands (config-manager) to work
 RUN dnf -y install dnf5-plugins \
-      --nodocs --setopt=install_weak_deps=False
+      --nodocs --setopt=install_weak_deps=False && \
+    dnf clean all
+
+# Add greenboot to the system to fail back on failed upgrade
+RUN dnf -y install greenboot greenboot-default-health-checks && \
+    dnf clean all && \
+    systemctl enable greenboot-healthcheck.service
 
 # Add cloud-init and open-vm-tools
 RUN dnf -y install cloud-init open-vm-tools \
@@ -34,6 +44,11 @@ RUN dnf -y config-manager addrepo --from-repofile=https://rpm.flightctl.io/fligh
     dnf clean all && \
     rm -rf /var/{cache,log} /run/dnf /tmp/* && \
     systemctl enable flightctl-agent.service
+
+# adding due to bug with selinux policies
+RUN dnf -y downgrade selinux-policy-targeted-43.4-2.fc43 selinux-policy-43.4-2.fc43 && \                                                                        
+    dnf versionlock add selinux-policy selinux-policy-targeted && \                                                                                             
+    dnf clean all && rm -rf /var/{cache,log} /tmp/*
 
 ADD demo-authorized-key.pub /tmp/demo-authorized-key.pub
 
