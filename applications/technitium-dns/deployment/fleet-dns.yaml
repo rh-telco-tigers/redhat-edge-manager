@@ -9,7 +9,7 @@ spec:
   template:
     spec:
       os:
-        image: quay.io/markd/fedora-bootc-esx:43v4
+        #image: quay.io/markd/fedora-bootc-esx:43v4
         #image: quay.io/markd/fedora-bootc-esx:43
       config:
         - name: technitium-config
