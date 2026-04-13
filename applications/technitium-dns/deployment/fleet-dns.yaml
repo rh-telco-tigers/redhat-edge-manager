@@ -45,6 +45,16 @@ spec:
               DropCapability=All
               AddCapability=NET_BIND_SERVICE
 
+              # Add in health checks to ensure service is running
+              # Will use dig to check that the local server is responding
+              HealthCmd=dig @127.0.0.1 || exit 1
+              HealthInterval=30s
+              HealthTimeout=10s
+              HealthRetries=3
+              HealthStartPeriod=60s
+              # Ensures systemd waits for health check
+              Notify=healthy
+
               [Service]
               Restart=on-failure
               RestartSec=20
