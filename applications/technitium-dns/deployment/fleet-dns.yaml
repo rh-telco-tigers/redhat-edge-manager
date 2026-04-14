@@ -9,7 +9,7 @@ spec:
   template:
     spec:
       os:
-        image: quay.io/markd/centos9-bootc-esx:v2
+        image: quay.io/markd/centos9-bootc-esx:v3
       config:
         - name: technitium-config
           gitRef:
