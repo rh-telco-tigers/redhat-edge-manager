@@ -1,0 +1,8 @@
+apiVersion: flightctl.io/v1beta1
+kind: ResourceSync
+metadata:
+  name: microshift-sync
+spec:
+  repository: flightctl
+  path: /applications/microshift/deployment/fleet-microshift.yaml
+  targetRevision: main

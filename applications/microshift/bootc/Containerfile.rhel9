@@ -1,13 +1,4 @@
-FROM quay.io/centos-bootc/centos-bootc:stream9
-
-# Update the base contianer
-RUN dnf upgrade -y && \
-    dnf clean all
-
-# Add greenboot to the system to fail back on failed upgrade
-RUN dnf -y install greenboot greenboot-default-health-checks && \
-    dnf clean all && \
-    systemctl enable greenboot-healthcheck.service
+FROM registry.redhat.io/openshift4/microshift-bootc-rhel9:v4.21
 
 # Add cloud-init and open-vm-tools
 RUN dnf -y install cloud-init open-vm-tools \
@@ -34,3 +25,6 @@ RUN getent passwd cloud-user >/dev/null 2>&1 || useradd -m -G wheel cloud-user &
     install -m 0600 -o cloud-user -g cloud-user /tmp/demo-authorized-key.pub /home/cloud-user/.ssh/authorized_keys && \
     printf 'cloud-user ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/90-cloud-user && \
     chmod 0440 /etc/sudoers.d/90-cloud-user
+
+# In order for RHEL to use reverse DNS we need to blank out /etc/hostname
+RUN echo "" > /etc/hostname

@@ -100,6 +100,8 @@ $ govc vm.create \
     -ds=syno2500-ocp-ds1 import-bootc
 ```
 
+> **NOTE:** The VMDK that is created and imported can NOT be modified (expanded) as deployed. In order to update the VMDK you must "Storage Migrate" the VM from one DataStore to another. Once the VM is migrated, you will need to run a consolidation on the VM. You will then be able to expand the disk size.
+
 At this point you can power on your VM and it will boot, using the base bootc image created. IF you wish to have the VM enroll in Red Hat Edge Manager, **BEFORE** powering on the VM.
 
 ### Enabling self enrollment with cloud-init

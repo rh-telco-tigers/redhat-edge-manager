@@ -1,0 +1,17 @@
+apiVersion: flightctl.io/v1alpha1
+kind: Fleet
+metadata:
+  name: technitium-microshift
+spec:
+  selector:
+    matchLabels:
+      fleet: microshift
+  template:
+    spec:
+      os:
+        image: registry.xphyrlab.net/microshift/microshift:v2
+      config:
+        - name: hostname-config
+          inline:
+            path: /etc/hostname
+            content: "{{ .metadata.labels.alias }}"

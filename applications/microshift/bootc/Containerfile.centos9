@@ -34,3 +34,21 @@ RUN getent passwd cloud-user >/dev/null 2>&1 || useradd -m -G wheel cloud-user &
     install -m 0600 -o cloud-user -g cloud-user /tmp/demo-authorized-key.pub /home/cloud-user/.ssh/authorized_keys && \
     printf 'cloud-user ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/90-cloud-user && \
     chmod 0440 /etc/sudoers.d/90-cloud-user
+
+ARG COPR_REPO=@microshift-io/microshift-nightly
+RUN dnf copr enable -y "${COPR_REPO}" && \
+    dnf install -y microshift-io-dependencies && \
+    dnf install -y --setopt=install_weak_deps=False \
+        microshift microshift-kindnet microshift-topolvm containernetworking-plugins firewalld jq bash-completion && \
+    systemctl enable microshift.service && \
+    dnf clean all
+
+RUN firewall-offline-cmd --zone=trusted --add-source=10.42.0.0/16 && \
+    firewall-offline-cmd --zone=trusted --add-source=169.254.169.1 && \
+    # Multinode clusters require connectivity on both apiserver and etcd
+    firewall-offline-cmd --zone=public --add-port=6443/tcp && \
+    firewall-offline-cmd --zone=public --add-port=2379/tcp && \
+    firewall-offline-cmd --zone=public --add-port=2380/tcp
+
+RUN mkdir -p "$(readlink -f /root)/.kube" && \
+    ln -sf /var/lib/microshift/resources/kubeadmin/kubeconfig /root/.kube/config
