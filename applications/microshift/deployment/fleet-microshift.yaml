@@ -13,5 +13,6 @@ spec:
       config:
         - name: hostname-config
           inline:
-            path: /etc/hostname
-            content: "{{ .metadata.labels.alias }}"
+            - path: /etc/hostname
+              content: "{{ .metadata.labels.alias }}"
+              mode: 0644
