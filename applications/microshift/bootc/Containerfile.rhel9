@@ -28,3 +28,7 @@ RUN getent passwd cloud-user >/dev/null 2>&1 || useradd -m -G wheel cloud-user &
 
 # In order for RHEL to use reverse DNS we need to blank out /etc/hostname
 RUN echo "" > /etc/hostname
+
+# Create symlink to the default kubeconfig file so its available to the root user
+RUN mkdir -p "$(readlink -f /root)/.kube" && \
+    ln -sf /var/lib/microshift/resources/kubeadmin/kubeconfig /root/.kube/config

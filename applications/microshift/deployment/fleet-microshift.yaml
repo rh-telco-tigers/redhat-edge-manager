@@ -9,7 +9,7 @@ spec:
   template:
     spec:
       os:
-        image: registry.xphyrlab.net/microshift/microshift:v2
+        image: registry.xphyrlab.net/microshift/microshift:v3
       config:
         - name: hostname-config
           inline:
